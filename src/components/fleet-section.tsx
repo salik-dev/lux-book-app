@@ -4,6 +4,11 @@ import { Card, CardContent } from "./ui/card"
 import { Button } from "./ui/button"
 import { Key, Users, Settings, Plus, Minus } from "lucide-react"
 
+interface HomePageProps {
+  onNavigateToBooking: () => void;
+  onCarSelect: (car: any) => void;
+}
+
 const vehicles = [
   {
     name: "Mercedes Benz G-Wagon",
@@ -58,12 +63,19 @@ const vehicles = [
   },
 ]
 
-export function FleetSection() {
+export function FleetSection({ onNavigateToBooking, onCarSelect }: HomePageProps) {
   const [expandedCards, setExpandedCards] = useState<number[]>([])
+
+  const handleCarSelect = (car: any) => {
+    onNavigateToBooking();
+    onCarSelect(car);
+    console.log('v data', car);
+  };
 
   const toggleCard = (index: number) => {
     setExpandedCards((prev) => (prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]))
   }
+  
 
   return (
     <section id="fleet" className="py-20 px-4" style={{ backgroundColor: "#0d1518" }}>
@@ -127,6 +139,13 @@ export function FleetSection() {
                     <span>Gir: {vehicle.transmission}</span>
                   </div>
                 </div>
+
+                <Button
+                  onClick={() => handleCarSelect(vehicle)}
+                  className="w-full mt-4"
+                >
+                  Reserver nå
+                </Button>
 
                 <div className="border-t border-gray-200 pt-4">
                   <button

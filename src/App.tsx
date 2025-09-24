@@ -11,6 +11,7 @@ import { LeadingRentalSection } from "./components/leading-rental-section";
 import { HeroSection } from "./components/hero-section";
 import { Header } from "./components/header";
 import { Footer } from "./components/footer";
+import { BookingDialog } from "./components/booking/booking-dialog";
 
 export default function App() {
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
@@ -32,13 +33,18 @@ export default function App() {
       <main>
         <HeroSection />
         <LeadingRentalSection />
-        <FleetSection />
+        <FleetSection onNavigateToBooking={openBookingDialog} onCarSelect={handleCarSelect} />
         <WhyChooseSection />
         <GallerySection />
         <DiscountSection />
         <FavoriteCarsSection />
         <GetStartedSection />
         <ContactSection />
+        <BookingDialog 
+        isOpen={isBookingDialogOpen} 
+        onClose={() => setIsBookingDialogOpen(false)}
+        selectedCar={carData}
+      />
       </main>
       <Footer />
     </>
