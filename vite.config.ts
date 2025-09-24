@@ -50,7 +50,7 @@ export default defineConfig({
     },
   },
     build: {
-      outDir: 'build',
+      outDir: 'dist',
       assetsDir: 'assets',
       emptyOutDir: true,
       target: 'esnext',
