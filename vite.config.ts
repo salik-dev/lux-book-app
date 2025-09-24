@@ -50,8 +50,10 @@ export default defineConfig({
     },
   },
     build: {
-      target: 'esnext',
       outDir: 'build',
+      assetsDir: 'assets',
+      emptyOutDir: true,
+      target: 'esnext',
     },
     server: {
       port: 3000,
