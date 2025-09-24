@@ -16,8 +16,8 @@ export function HeroSection() {
       <div className="absolute inset-0 bg-black/50" />
 
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl sm:text-4xl lg:text-6xl font-bold text-white mb-6 text-alance">
+        <div className="max-w-4xl px-44 mt-12">
+          <h1 className="text-4xl sm:text-4xl lg:text-[50px] font-bold text-white mb-6 text-alance">
             Premium
             <span className="block text-[#e3c08d]">luksusbilutle</span>
           </h1>

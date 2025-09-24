@@ -3,6 +3,7 @@
 import React, { useState } from "react"
 import { Menu, X } from "lucide-react"
 import { Button } from "./ui/button"
+import { Link } from "react-router-dom"
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -22,21 +23,24 @@ export function Header() {
           </div>
 
           <nav className="hidden md:flex items-center space-x-8">
-            <a href="#home" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+          <Link to="/" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
               Hjem
-            </a>
-            <a href="#fleet" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
-              Bil flåte
-            </a>
-            <a href="#services" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
-              Luksusbilutle
-            </a>
-            <a href="#about" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
-              Bilutleie Oslo
-            </a>
-            <a href="#contact" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
-              Kontakt oss
-            </a>
+            </Link>
+            <Link to="/om-oss" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+            Om oss
+            </Link>
+            <Link to="/arrangementer" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+            Arrangementer
+            </Link>
+            <Link to="/galleriet-vart" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+            Galleriet vårt
+            </Link>
+            <Link to="/vare-bildetaljer" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+            Våre bildetaljer
+            </Link>
+            <Link to="/kontakt-oss" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+            Kontakt oss
+            </Link>
           </nav>
           </div>
 
@@ -58,21 +62,21 @@ export function Header() {
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-800">
             <nav className="flex flex-col space-y-4">
-              <a href="#home" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+              <Link to="/" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
                 Hjem
-              </a>
-              <a href="#fleet" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+              </Link>
+              <Link to="/fleet" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
                 Bil flåte
-              </a>
-              <a href="#services" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+              </Link>
+              <Link to="/services" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
                 Luksusbilutle
-              </a>
-              <a href="#about" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+              </Link>
+              <Link to="/about" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
                 Bilutleie Oslo
-              </a>
-              <a href="#contact" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+              </Link>
+              <Link to="/contact" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
                 Kontakt oss
-              </a>
+              </Link>
               <div className="pt-4">
                 <Button
                   variant="outline"

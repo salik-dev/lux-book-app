@@ -3,6 +3,7 @@ import React, { useState } from "react"
 import { Card, CardContent } from "./ui/card"
 import { Button } from "./ui/button"
 import { Key, Users, Settings, Plus, Minus } from "lucide-react"
+import { CarCard } from "./ui/car-card";
 
 interface HomePageProps {
   onNavigateToBooking: () => void;
@@ -17,6 +18,8 @@ const vehicles = [
     vehicleType: "Luksus SUV",
     doors: "4 dører, 5 seter",
     transmission: "Automatisk",
+    fuel: "5 dører, 5 seter",
+    category: "Automatisk",
     moreInfo: [
       "Premium lær interiør med oppvarming",
       "Firehjulstrekk system med terrengmodus",
@@ -34,6 +37,8 @@ const vehicles = [
     vehicleType: "Luksus Sedan",
     doors: "4 dører, 5 seter",
     transmission: "Automatisk",
+    fuel: "5 dører, 5 seter",
+    category: "Automatisk",
     moreInfo: [
       "Elektrisk drivlinje med 500+ km rekkevidde",
       "Executive lounge seter med massasje",
@@ -51,6 +56,8 @@ const vehicles = [
     vehicleType: "Luksus Sedan",
     doors: "4 dører, 4 seter",
     transmission: "Automatisk",
+    fuel: "5 dører, 5 seter",
+    category: "Automatisk",
     moreInfo: [
       "Håndlaget interiør med finest lær",
       "Whisper quiet kabin med lyddemping",
@@ -75,7 +82,7 @@ export function FleetSection({ onNavigateToBooking, onCarSelect }: HomePageProps
   const toggleCard = (index: number) => {
     setExpandedCards((prev) => (prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]))
   }
-  
+
 
   return (
     <section id="fleet" className="py-20 px-4" style={{ backgroundColor: "#0d1518" }}>
@@ -91,7 +98,7 @@ export function FleetSection({ onNavigateToBooking, onCarSelect }: HomePageProps
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 lg:px-28 gap-8">
-          {vehicles.map((vehicle, index) => (
+          {/* {vehicles.map((vehicle, index) => (
             <div 
               key={index}
               className={`bg-white overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 ${
@@ -182,6 +189,16 @@ export function FleetSection({ onNavigateToBooking, onCarSelect }: HomePageProps
                 </div>
               </div>
             </div>
+          ))} */}
+          {vehicles.map((car, index) => (
+            <CarCard
+              key={index}
+              {...car}
+              index={index}
+              isExpanded={expandedCards.includes(index)}
+              onToggleExpand={toggleCard}
+              onCarSelect={handleCarSelect}
+            />
           ))}
         </div>
 

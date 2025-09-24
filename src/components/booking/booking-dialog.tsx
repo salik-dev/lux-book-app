@@ -133,38 +133,33 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
             <h2 className="text-2xl font-bold text-gray-900 mb-8">Complete Your Booking</h2>
             
             {/* Progress Bar */}
-            <div className="relative mb-12">
-              <div className="flex items-center justify-between mb-2">
-                {steps.map((step, index) => (
-                  <div 
-                    key={step.number}
-                    className={`flex flex-col items-center relative z-10 ${
-                      step.number <= currentStep ? 'text-primary' : 'text-gray-400'
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-all duration-300 ${
-                      step.number < currentStep 
-                        ? 'bg-primary/10 text-primary' 
-                        : step.number === currentStep 
-                          ? 'bg-primary text-white shadow-lg shadow-primary/30' 
-                          : 'bg-white border-2 border-gray-200 text-gray-400'
-                    }`}>
-                      {step.number < currentStep ? (
-                        <Check className="h-5 w-5" />
-                      ) : (
-                        <span className="font-medium">{step.number}</span>
-                      )}
+            <div className="mb-8">
+              <div className="relative">
+                <Progress value={progress} className="h-2 mb-8" />
+                <div className="flex justify-between absolute top-0 left-0 right-0 -translate-y-1/2">
+                  {steps.map((step) => (
+                    <div 
+                      key={step.number}
+                      className={`flex flex-col items-center ${step.number <= currentStep ? 'text-primary' : 'text-muted-foreground'}`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 transition-colors ${
+                        step.number < currentStep 
+                          ? 'bg-primary/10 text-primary' 
+                          : step.number === currentStep 
+                            ? 'bg-primary text-white' 
+                            : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {step.number < currentStep ? (
+                          <Check className="h-4 w-4" />
+                        ) : (
+                          <span className="text-sm font-medium">{step.number}</span>
+                        )}
+                      </div>
+                      <span className="text-xs font-medium">
+                        {step.title}
+                      </span>
                     </div>
-                    <span className={`text-sm font-medium ${step.number === currentStep ? 'text-gray-900' : 'text-gray-500'}`}>
-                      {step.title}
-                    </span>
-                  </div>
-                ))}
-                <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 -z-1">
-                  <div 
-                    className="h-full bg-primary transition-all duration-500 ease-in-out"
-                    style={{ width: `${progress}%` }}
-                  />
+                  ))}
                 </div>
               </div>
             </div>

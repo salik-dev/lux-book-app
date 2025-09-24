@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, FormProvider } from "react-hook-form";
 import { format, addDays, differenceInHours } from "date-fns";
 import {
   Calendar as CalendarIcon,
@@ -8,7 +8,22 @@ import {
   MapPin,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Form, FormItem, FormLabel, FormControl, FormMessage, FormField } from "../ui/form";
+import { Form as UIForm, FormItem, FormLabel, FormControl, FormMessage, FormField } from "../ui/form";
+
+// Create a wrapper component that properly uses FormProvider
+const Form = ({ children, form, onSubmit }: { 
+  children: React.ReactNode; 
+  form: any;
+  onSubmit: (data: any) => void;
+}) => (
+  <FormProvider {...form}>
+    <UIForm {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {children}
+      </form>
+    </UIForm>
+  </FormProvider>
+);
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
 import { cn } from "../../lib/utils";
@@ -174,6 +189,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
   };
 
   const onSubmit = (data: FormData) => {
+
+    console.log('form data', data);
     const startDateTime = new Date(
       `${format(data.startDate, "yyyy-MM-dd")}T${data.startTime}`,
     );
@@ -198,74 +215,58 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Selected Car Display */}
-      <Card className="card-premium">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Car className="h-5 w-5" />
-            Selected Vehicle
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4">
-            {car.image && (
-              <img
-                src={car.image}
-                alt={car.name}
-                className="w-[128px] h-[128px] object-cover rounded-lg"
-                style={{ width: "300px", height: "160px" }}
-              />
-            )}
-            <div className="flex-1">
-              <h3 className="text-xl font-semibold mb-2">
-                {car.name}
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                {car.details}
-              </p>
-              <div className="flex flex-wrap gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Per Hour:</span>{" "}
-                  {formatPrice(
-                    car.base_price_per_hour
-                      ? car.base_price_per_hour
-                      : 0,
-                  )}
-                </div>
-                <div>
-                  <span className="font-medium">Per Day:</span>{" "}
-                  {formatPrice(
-                    car.base_price_per_day
-                      ? car.base_price_per_day
-                      : 0,
-                  )}
-                </div>
-                <div>
-                  <span className="font-medium">
-                    Included KM:
-                  </span>{" "}
-                  {car.included_km_per_day
-                    ? car.included_km_per_day
-                    : 0}
-                  /day
+      <Form form={form} onSubmit={onSubmit}>
+        <>
+
+          {/* Selected Car Display */}
+          <Card className="card-premium">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Car className="h-5 w-5" />
+                Selected Vehicle
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-4">
+                {car.image && (
+                  <img
+                    src={car.image}
+                    alt={car.name}
+                    className="w-[128px] h-[128px] object-cover rounded-lg"
+                    style={{ width: "300px", height: "160px" }}
+                  />
+                )}
+                <div className="flex-1">
+                  <h3 className="text-xl font-semibold mb-2">
+                    {car.name}
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    {car.description}
+                  </p>
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <div>
+                      <span className="font-medium">Per Hour:</span>{" "}
+                      {formatPrice(car.base_price_per_hour || 0)}
+                    </div>
+                    <div>
+                      <span className="font-medium">Per Day:</span>{" "}
+                      {formatPrice(car.base_price_per_day || 0)}
+                    </div>
+                    <div>
+                      <span className="font-medium">Included KM:</span>{" "}
+                      {car.included_km_per_day || 0}/day
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-6"
-        >
           {/* Date and Time Selection */}
           <Card className="card-premium">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5" />
-                {/* {t('booking.step1')} */}
                 Select Dates & Location
               </CardTitle>
             </CardHeader>
@@ -278,26 +279,25 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                     <FormItem className="flex flex-col">
                       <FormLabel>Pickup Date</FormLabel>
                       <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full pl-3 text-left font-normal border border-gray-300 hover:bg-[#E3C08D] hover:cursor-pointer",
-                                !field.value &&
-                                  "text-muted-foreground",
-                              )}
-                              type="button"
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                            type="button"
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
                         <PopoverContent
                           className="w-auto p-0"
                           align="start"
@@ -503,13 +503,12 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
           <Button
             type="submit"
-            className="w-full bg-primary hover:bg-primary/90 text-white py-6 text-base font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+            className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-6 text-base font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
             size="lg"
           >
-            {/* {t('booking.continue')} */}
             Continue
           </Button>
-        </form>
+        </>
       </Form>
     </div>
   );
