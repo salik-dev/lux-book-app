@@ -12,7 +12,6 @@ import GallerietVart from "./pages/galleriet-vart";
 import VareBildetaljer from "./pages/vare-bildetaljer";
 import KontaktOss from "./pages/kontakt-oss";
 
-// Layout component that includes header and footer
 function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col min-h-screen">
