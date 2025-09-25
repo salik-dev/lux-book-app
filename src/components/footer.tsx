@@ -2,6 +2,7 @@ import React from "react"
 import { Phone, Mail, MapPin, Clock, Facebook, Twitter, Instagram, Linkedin, Send } from "lucide-react"
 import { Input } from "./ui/input"
 import { Button } from "./ui/button"
+import logo from "../assets/logo.png"
 
 export function Footer() {
   return (
@@ -11,7 +12,7 @@ export function Footer() {
           {/* Contact Info */}
           <div className="space-y-6">
             <h3 className="text-2xl font-bold text-[#E3C08D] -mt-10">
-              <img src='/logo.png' alt="Logo" className='w-32' />         
+              <img src={logo} alt="Logo" className='w-32' />         
             </h3>
             
             <div className="flex items-start space-x-4">

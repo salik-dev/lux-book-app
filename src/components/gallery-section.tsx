@@ -3,17 +3,16 @@
 import React, { useState } from "react"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
 import { Button } from "./ui/button"
+import mercedesImage from "../assets/bmw-x7-luxury-suv-dark-metallic.jpg"
+import porscheImage from "../assets/luxury-porsche-sports-car-in-urban-environment.jpg"
+import toyotaImage from "../assets/luxury-toyota-land-cruiser-suv-in-city.jpg"
+import audiImage from "../assets/luxury-audi-sedan-in-modern-setting.jpg"
+import rangeImage from "../assets/luxury-range-rover-suv-in-urban-landscape.jpg"
+import bentleyImage from "../assets/luxury-bentley-sedan-in-premium-setting.jpg"
+import lamborghiniImage from "../assets/luxury-lamborghini-sports-car-in-city.jpg"
 
-// Import images directly for better build optimization
-import mercedesImage from '../../public/luxury-mercedes-g-class-suv-in-urban-setting.jpg';
-import bmwImage from '../../public/luxury-bmw-sedan-in-city-street.jpg';
-import porscheImage from '../../public/luxury-porsche-sports-car-in-urban-environment.jpg';
-import toyotaImage from '../../public/luxury-toyota-land-cruiser-suv-in-city.jpg';
-import audiImage from '../../public/luxury-audi-sedan-in-modern-setting.jpg';
-import rangeRoverImage from '../../public/luxury-range-rover-suv-in-urban-landscape.jpg';
-import bentleyImage from '../../public/luxury-bentley-sedan-in-premium-setting.jpg';
-import lamborghiniImage from '../../public/luxury-lamborghini-sports-car-in-city.jpg';
-
+// In Vite, files in the public directory are served at the root path
+// So we can reference them directly with a leading slash
 const galleryImages = [
   {
     src: mercedesImage,
@@ -21,32 +20,32 @@ const galleryImages = [
     title: "MERCEDES G-CLASS",
   },
   {
-    src: bmwImage,
+    src: porscheImage,
     alt: "BMW Luxury Sedan",
     title: "BMW LUXURY SEDAN",
   },
   {
-    src: porscheImage,
+    src: toyotaImage,
     alt: "Porsche Sports Car",
     title: "PORSCHE SPORTS CAR",
   },
   {
-    src: toyotaImage,
+    src: audiImage,
     alt: "Toyota Land Cruiser",
     title: "TOYOTA LAND CRUISER",
   },
   {
-    src: audiImage,
+    src: rangeImage,
     alt: "Audi Luxury Sedan",
     title: "AUDI LUXURY SEDAN",
   },
   {
-    src: rangeRoverImage,
+    src: bentleyImage,
     alt: "Range Rover SUV",
     title: "RANGE ROVER SUV",
   },
   {
-    src: bentleyImage,
+    src: lamborghiniImage,
     alt: "Bentley Luxury Sedan",
     title: "BENTLEY LUXURY SEDAN",
   },

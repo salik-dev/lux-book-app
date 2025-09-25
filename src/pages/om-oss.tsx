@@ -4,7 +4,8 @@ import React from "react"
 import { ContactSection } from "../components/contact-section"
 import { Button } from "../components/ui/button"
 import { Check, ChevronRight } from "lucide-react"
-import { Link } from "react-router-dom"
+import mercedesImage from "../assets/bmw-x7-luxury-suv-dark-metallic.jpg"
+import audiImage from "../assets/luxury-audi-sedan-in-modern-setting.jpg"
 
 export default function OmOssPage() {
   
@@ -33,7 +34,7 @@ export default function OmOssPage() {
       <section className="relative h-[86vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="/luxury-car-showroom-dark-elegant.jpg"
+            src={mercedesImage}
             alt="Luksuriøs bilutstilling"
             className="w-full h-full object-cover"
           />
@@ -103,7 +104,7 @@ export default function OmOssPage() {
             </div>
             <div className="relative h-96 md:h-[500px] overflow-hidden shadow-xl">
               <img
-                src="/luxury-range-rover-suv-in-urban-landscape.jpg"
+                src={audiImage}
                 alt="Vårt showroom"
                 className="w-full h-full object-cover"
               />

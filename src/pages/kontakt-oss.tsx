@@ -4,6 +4,7 @@ import React from "react"
 import { Button } from "../components/ui/button"
 import { ContactSection } from "../components/contact-section"
 import { Mail, MapPin, Phone } from "lucide-react"
+import lamborghiniImage from "../assets/luxury-lamborghini-sports-car-in-city.jpg"
 
 export default function KontaktOssPage() {
   const faqsList = [
@@ -34,7 +35,7 @@ export default function KontaktOssPage() {
       <section className="relative h-[100vh] flex items-center aligns-center justify-center overflow-hidden bg-gray-100">
         <div className="absolute inset-0">
           <img
-            src="/luxury-car-showroom-dark-elegant.jpg"
+            src={lamborghiniImage}
             alt="Luksuriøst showroom"
             className="w-full h-full object-cover"
           />

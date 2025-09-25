@@ -1,5 +1,7 @@
 import React from "react"
+
 import { ContactSection } from "../components/contact-section"
+import audiImage from "../assets/luxury-audi-sedan-in-modern-setting.jpg"
 
 export default function ArrangementerPage() {
   return (
@@ -9,7 +11,7 @@ export default function ArrangementerPage() {
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: "url('/luxury-audi-sedan-in-modern-setting.jpg')",
+            backgroundImage: `url(${audiImage})`,
           }}
         >
           <div className="absolute inset-0 bg-black/60" />

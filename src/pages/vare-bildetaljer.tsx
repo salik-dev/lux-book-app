@@ -1,13 +1,20 @@
 "use client"
 import React, { useState } from "react"
 import  {CarCard} from "../components/ui/car-card"
+import mercedesImage from "../assets/luxury-mercedes-g-class-suv-in-urban-setting.jpg"
+import audiImage from "../assets/luxury-audi-sedan-in-modern-setting.jpg"
+import rangeImage from "../assets/luxury-range-rover-suv-in-urban-landscape.jpg"
+import toyotaImage from "../assets/luxury-toyota-land-cruiser-suv-in-city.jpg"
+import porscheImage from "../assets/luxury-porsche-sports-car-in-urban-environment.jpg"
+import bentleyImage from "../assets/luxury-bentley-sedan-in-premium-setting.jpg"
+import bmwImage from "../assets/luxury-bmw-sedan-in-city-street.jpg"
 
 export default function VareBildetaljerPage() {
   const [expandedCards, setExpandedCards] = useState<number[]>([])
 
   const cars = [
     {
-      image: "/luxury-mercedes-g-class-suv-in-urban-setting.jpg",
+      image: mercedesImage,
       price: "1.990kr",
       name: "Lukus SUV",
       vehicleType: "Lukus SUV",
@@ -24,7 +31,7 @@ export default function VareBildetaljerPage() {
       ],
     },
     {
-      image: "/luxury-bmw-sedan-in-city-street.jpg",
+      image: bmwImage,
       price: "2.490kr",
       name: "Lukus Sedan",
       vehicleType: "Lukus Sedan",
@@ -41,7 +48,7 @@ export default function VareBildetaljerPage() {
       ],
     },
     {
-      image: "/luxury-bentley-sedan-in-premium-setting.jpg",
+      image: bentleyImage,
       price: "3.990kr",
       name: "Lukus Coupe",
       vehicleType: "Lukus Coupe",
@@ -58,7 +65,7 @@ export default function VareBildetaljerPage() {
       ],
     },
     {
-      image: "/luxury-mercedes-g-class-suv-in-urban-setting.jpg",
+      image: rangeImage,
       price: "2.990kr",
       name: "Sport Stasjonsvogn",
       vehicleType: "Sport Stasjonsvogn",
@@ -75,7 +82,7 @@ export default function VareBildetaljerPage() {
       ],
     },
     {
-      image: "/luxury-toyota-land-cruiser-suv-in-city.jpg",
+      image: toyotaImage,
       price: "2.490kr",
       name: "Executive Sedan",
       vehicleType: "Executive Sedan",
@@ -92,7 +99,7 @@ export default function VareBildetaljerPage() {
       ],
     },
     {
-      image: "/luxury-bmw-sedan-in-city-street.jpg",
+      image: porscheImage,
       price: "7.990kr",
       name: "Supersportsbil",
       vehicleType: "Supersportsbil",
@@ -109,7 +116,7 @@ export default function VareBildetaljerPage() {
       ],
     },
     {
-      image: "/luxury-car-collection-garage-premium.jpg",
+      image: audiImage,
       price: "5.990kr",
       name: "Gran Turismo",
       vehicleType: "Gran Turismo",
@@ -126,7 +133,7 @@ export default function VareBildetaljerPage() {
       ],
     },
     {
-      image: "/luxury-audi-sedan-in-modern-setting.jpg",
+      image: audiImage,
       price: "3.990kr",
       name: "Premium Sedan",
       vehicleType: "Premium Sedan",
@@ -143,7 +150,7 @@ export default function VareBildetaljerPage() {
       ],
     },
     {
-      image: "/luxury-car-interior-leather-premium.jpg",
+      image: audiImage,
       price: "5.990kr",
       name: "Urban SUV",
       vehicleType: "Urban SUV",
@@ -160,7 +167,7 @@ export default function VareBildetaljerPage() {
       ],
     },
     {
-      image: "/mercedes-s-class-luxury-sedan-black.jpg",
+      image: mercedesImage,
       price: "1.990kr",
       name: "Familie SUV",
       vehicleType: "Familie SUV",
@@ -194,7 +201,7 @@ export default function VareBildetaljerPage() {
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: "url('/luxury-car-interior-dark-elegant.jpg')",
+            backgroundImage: `url(${porscheImage})`,
           }}
         >
           <div className="absolute inset-0 bg-black/60" />

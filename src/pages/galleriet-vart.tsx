@@ -1,6 +1,11 @@
 import React, { useState } from "react"
 import { Button } from "../components/ui/button"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
+import porscheImage from "../assets/luxury-porsche-sports-car-in-urban-environment.jpg"
+import toyotaImage from "../assets/luxury-toyota-land-cruiser-suv-in-city.jpg"
+import audiImage from "../assets/luxury-audi-sedan-in-modern-setting.jpg"
+import rangeImage from "../assets/luxury-range-rover-suv-in-urban-landscape.jpg"
+import mercedesImage from "../assets/luxury-mercedes-g-class-suv-in-urban-setting.jpg"
 
 export default function GallerietVartPage() {
   const [activeFilter, setActiveFilter] = useState("ALLE BILER")
@@ -27,42 +32,42 @@ export default function GallerietVartPage() {
       id: 1,
       name: "MERCEDES G-CLASS",
       price: "8.500,-",
-      image: "/luxury-mercedes-g-class-suv-in-urban-setting.jpg",
+      image: mercedesImage,
       details: ["Automatgir", "5 seter", "5 dører", "Bensin", "2023 modell", "4x4"]
     },
     {
       id: 2,
       name: "BMW 7-SERIE",
       price: "6.900,-",
-      image: "/luxury-bmw-sedan-in-city-street.jpg",
+      image: porscheImage,
       details: ["Automatgir", "5 seter", "4 dører", "Hybrid", "2023 modell", "Luxury Package"]
     },
     {
       id: 3,
       name: "PORSCHE 911 TURBO S",
       price: "12.500,-",
-      image: "/luxury-porsche-sports-car-in-urban-environment.jpg",
+      image: porscheImage,
       details: ["Automatgir", "2+2 seter", "2 dører", "Bensin", "2023 modell", "Sport Chrono"]
     },
     {
       id: 4,
       name: "TOYOTA LAND CRUISER",
       price: "7.200,-",
-      image: "/luxury-toyota-land-cruiser-suv-in-city.jpg",
+      image: toyotaImage,
       details: ["Automatgir", "7 seter", "5 dører", "Diesel", "2023 modell", "4x4", "Luftfjæring"]
     },
     {
       id: 5,
       name: "AUDI A8 L",
       price: "7.800,-",
-      image: "/luxury-audi-sedan-in-modern-setting.jpg",
+      image: audiImage,
       details: ["Automatgir", "4 seter", "4 dører", "Hybrid", "2023 modell", "Lang akselavstand"]
     },
     {
       id: 6,
       name: "RANGE ROVER SPORT",
       price: "9.500,-",
-      image: "/luxury-range-rover-suv-in-urban-landscape.jpg",
+      image: rangeImage,
       details: ["Automatgir", "5 seter", "5 dører", "Diesel", "2023 modell", "Terrain Response"]
     }
   ]
@@ -106,7 +111,7 @@ export default function GallerietVartPage() {
       
        {/* Hero Section */}
        <section className="relative h-[80vh] flex items-center justify-center bg-cover bg-center" 
-        style={{ backgroundImage: "url('/luxury-audi-sedan-in-modern-setting.jpg')" }}>
+        style={{ backgroundImage: `url(${rangeImage})` }}>
         <div className="absolute inset-0 bg-black/60" />
         <div className="relative z-10 text-center p-4">
           <h1 className="text-4xl md:text-6xl font-bold mb-6">VÅRT GALLERI</h1>

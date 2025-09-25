@@ -4,6 +4,7 @@ import React, { useState } from "react"
 import { Menu, X } from "lucide-react"
 import { Button } from "./ui/button"
 import { Link } from "react-router-dom"
+import logo from "../assets/logo.png"
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -18,7 +19,7 @@ export function Header() {
           <div className='flex gap-10 max-[1040px]:gap-6'>
           <div className="flex items-center space-x-2">
             <div className="text-2xl font-bold text-white">
-              <span className="text-[#E3C08D]"><img src='/logo.png' alt="Logo" className='w-32' /></span>
+              <span className="text-[#E3C08D]"><img src={logo} alt="Logo" className='w-32' /></span>
             </div>
           </div>
 
