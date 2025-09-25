@@ -4,12 +4,12 @@ import React, { useState } from "react"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
 import { Button } from "./ui/button"
 import mercedesImage from "../assets/bmw-x7-luxury-suv-dark-metallic.jpg"
-import porscheImage from "../assets/luxury-porsche-sports-car-in-urban-environment.jpg"
-import toyotaImage from "../assets/luxury-toyota-land-cruiser-suv-in-city.jpg"
+import porscheImage from "../assets/luxury-audi-sedan-in-modern-setting.jpg"
+import toyotaImage from "../assets/luxury-car-showroom-dark-elegant.jpg"
 import audiImage from "../assets/luxury-audi-sedan-in-modern-setting.jpg"
 import rangeImage from "../assets/luxury-range-rover-suv-in-urban-landscape.jpg"
 import bentleyImage from "../assets/luxury-bentley-sedan-in-premium-setting.jpg"
-import lamborghiniImage from "../assets/luxury-lamborghini-sports-car-in-city.jpg"
+import lamborghiniImage from "../assets/porsche-taycan-electric-sports-car-sleek.jpg"
 
 // In Vite, files in the public directory are served at the root path
 // So we can reference them directly with a leading slash

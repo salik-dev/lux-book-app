@@ -1,9 +1,10 @@
 
 import React, { useState } from "react"
-import { Card, CardContent } from "./ui/card"
 import { Button } from "./ui/button"
-import { Key, Users, Settings, Plus, Minus } from "lucide-react"
 import { CarCard } from "./ui/car-card";
+import lamborghiniImage from "@/assets/luxury-lamborghini-sports-car-in-city.jpg"
+import audiImage from "@/assets/luxury-audi-sedan-in-modern-setting.jpg"
+import rangeImage from "@/assets/luxury-range-rover-suv-in-urban-landscape.jpg"
 
 interface HomePageProps {
   onNavigateToBooking: () => void;
@@ -13,7 +14,7 @@ interface HomePageProps {
 const vehicles = [
   {
     name: "Mercedes Benz G-Wagon",
-    image: "/luxury-mercedes-g-class-suv-in-urban-setting.jpg",
+    image: lamborghiniImage,
     price: "7.990kr",
     vehicleType: "Luksus SUV",
     doors: "4 dører, 5 seter",
@@ -32,7 +33,7 @@ const vehicles = [
   },
   {
     name: "BMW i7",
-    image: "/luxury-bmw-sedan-in-city-street.jpg",
+    image: audiImage,
     price: "5.990kr",
     vehicleType: "Luksus Sedan",
     doors: "4 dører, 5 seter",
@@ -51,7 +52,7 @@ const vehicles = [
   },
   {
     name: "Rolls Royce Ghost",
-    image: "/luxury-bentley-sedan-in-premium-setting.jpg",
+    image: rangeImage,
     price: "9.990kr",
     vehicleType: "Luksus Sedan",
     doors: "4 dører, 4 seter",
