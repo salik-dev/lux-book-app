@@ -4,7 +4,7 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: process.env.NODE_ENV === 'production' ? '/lux-book-app/' : '/',
+  // base: process.env.NODE_ENV === 'production' ? '/lux-book-app/' : '/',
   plugins: [react()],
   css: {
     postcss: {
