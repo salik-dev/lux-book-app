@@ -39,69 +39,24 @@ export default function App() {
     <>
       <Toaster />
       <Routes>
+
         {/* Home Page */}
         <Route 
           path="/" 
           element={
-            <Layout>
-              <HomePage 
-                onNavigateToBooking={openBookingDialog} 
-                onCarSelect={handleCarSelect} 
-              />
-              <BookingDialog
-                isOpen={isBookingDialogOpen} 
-                onClose={() => setIsBookingDialogOpen(false)}
-                selectedCar={carData}
-              />
+            <Layout><HomePage onNavigateToBooking={openBookingDialog} onCarSelect={handleCarSelect} />
+              <BookingDialog isOpen={isBookingDialogOpen} onClose={() => setIsBookingDialogOpen(false)} selectedCar={carData} />
             </Layout>
           } 
         />
 
         {/* Other Pages */}
-        <Route 
-          path="/om-oss" 
-          element={
-            <Layout>
-              <OmOssPage />
-            </Layout>
-          } 
-        />
-
-        <Route 
-          path="/arrangementer" 
-          element={
-            <Layout>
-              <Arrangementer />
-            </Layout>
-          } 
-        />
-
-        <Route 
-          path="/galleriet-vart" 
-          element={
-            <Layout>
-              <GallerietVart />
-            </Layout>
-          } 
-        />
-
-        <Route 
-          path="/vare-bildetaljer" 
-          element={
-            <Layout>
-              <VareBildetaljer />
-            </Layout>
-          } 
-        />
-
-        <Route 
-          path="/kontakt-oss" 
-          element={
-            <Layout>
-              <KontaktOss />
-            </Layout>
-          } 
-        />
+        <Route path="/om-oss" element={<Layout><OmOssPage /></Layout>} />
+        <Route path="/arrangementer" element={<Layout><Arrangementer /></Layout>} />
+        <Route path="/galleriet-vart" element={<Layout><GallerietVart /></Layout>} />
+        <Route path="/vare-bildetaljer" element={<Layout><VareBildetaljer /></Layout>} />
+        <Route path="/kontakt-oss" element={<Layout><KontaktOss /></Layout>} />
+        
       </Routes>
     </>
   );
