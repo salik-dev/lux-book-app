@@ -117,9 +117,14 @@ export function CarCard({
           </button>
 
           <div
-            className={`overflow-hidden transition-all duration-500 ease-in-out ${
-              isExpanded ? "max-h-[1000px] opacity-100 mt-4" : "max-h-0 opacity-0 mt-0"
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${
+              isExpanded ? "opacity-100 mt-4" : "opacity-0 mt-0"
             }`}
+            style={{
+              height: isExpanded ? 'auto' : '0',
+              transitionProperty: 'height, opacity, margin',
+              willChange: 'height, opacity, margin'
+            }}
           >
             <div className="space-y-3 pt-2">
               {moreInfo.map((info, i) => (
