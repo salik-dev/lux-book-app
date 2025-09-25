@@ -8,25 +8,6 @@ import mercedesImage from "../assets/bmw-x7-luxury-suv-dark-metallic.jpg"
 import audiImage from "../assets/luxury-audi-sedan-in-modern-setting.jpg"
 
 export default function OmOssPage() {
-  
-  const features = [
-    {
-      title: "Bredt utvalg av biler",
-      description: "Vi tilbyr alt fra økonomibiler til luksusbiler, inkludert elbiler og kjøretøy for spesielle behov."
-    },
-    {
-      title: "Fleksible leievilkår",
-      description: "Korttids- eller langtidsleie, vi tilpasser oss dine behov med konkurransedyktige priser."
-    },
-    {
-      title: "Personlig service",
-      description: "Vårt erfarne team står klare til å hjelpe deg med å finne den perfekte bilen for ditt behov."
-    },
-    {
-      title: "Over 15 års erfaring",
-      description: "Med lang erfaring i bransjen vet vi hva som kreves for en problemfri leieopplevelse."
-    }
-  ]
 
   return (
     <div className="min-h-screen bg-background">
