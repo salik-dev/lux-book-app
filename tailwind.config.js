@@ -11,7 +11,7 @@ module.exports = {
   corePlugins: {
     preflight: true,
   },
-  future: {
+  future: { 
     hoverOnlyWhenSupported: true,
   },
 }
