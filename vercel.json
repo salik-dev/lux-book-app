@@ -17,10 +17,22 @@
       "headers": {
         "cache-control": "public, max-age=31536000, immutable"
       },
+      "continue": true
+    },
+    {
+      "src": "^/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "^/favicon.ico",
+      "dest": "/favicon.ico"
+    },
+    {
+      "src": "^/assets/(.*)",
       "dest": "/assets/$1"
     },
     {
-      "src": "/(.*)",
+      "src": "^/.*",
       "dest": "/index.html"
     }
   ]
