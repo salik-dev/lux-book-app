@@ -44,7 +44,7 @@ export default function App() {
         <Route 
           path="/" 
           element={
-            <Layout><HomePage onNavigateToBooking={openBookingDialog} onCarSelect={handleCarSelect} />
+            <Layout> <HomePage onNavigateToBooking={openBookingDialog} onCarSelect={handleCarSelect} />
               <BookingDialog isOpen={isBookingDialogOpen} onClose={() => setIsBookingDialogOpen(false)} selectedCar={carData} />
             </Layout>
           } 

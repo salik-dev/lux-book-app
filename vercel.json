@@ -1,39 +1,27 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist",
-        "installCommand": "npm install",
-        "buildCommand": "npm run build"
+    "version": 2,
+    "builds": [
+      {
+        "src": "package.json",
+        "use": "@vercel/static-build",
+        "config": {
+          "distDir": "dist",
+          "installCommand": "npm install",
+          "buildCommand": "npm run build"
+        }
       }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$",
-      "headers": {
-        "cache-control": "public, max-age=31536000, immutable"
+    ],
+    "routes": [
+      {
+        "src": "/assets/(.*)",
+        "headers": {
+          "cache-control": "public, max-age=31536000, immutable"
+        },
+        "dest": "/assets/$1"
       },
-      "continue": true
-    },
-    {
-      "src": "^/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "^/static/(.*)",
-      "dest": "/static/$1"
-    },
-    {
-      "src": "^/favicon.ico",
-      "dest": "/favicon.ico"
-    },
-    {
-      "src": "^/(.*)$",
-      "dest": "/index.html"
-    }
-  ]
-}
+      {
+        "src": "/(.*)",
+        "dest": "/index.html"
+      }
+    ]
+  }

@@ -4,41 +4,8 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/',
+  base: process.env.NODE_ENV === 'production' ? '/' : '/',
   plugins: [react()],
-  server: {
-    port: 3000,
-    strictPort: true,
-  },
-  preview: {
-    port: 3000,
-    strictPort: true,
-  },
-  build: {
-    outDir: 'dist',
-    assetsDir: 'assets',
-    emptyOutDir: true,
-    sourcemap: false,
-    minify: 'esbuild',
-    rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
-              return 'vendor-react';
-            }
-            if (id.includes('@radix-ui')) {
-              return 'vendor-radix';
-            }
-            return 'vendor';
-          }
-        },
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash][extname]',
-      },
-    },
-  },
   css: {
     postcss: {
       plugins: [
@@ -82,4 +49,25 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-});
+    build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
+      emptyOutDir: true,
+      target: 'esnext',
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Split vendor and app code for better caching
+            react: ['react', 'react-dom', 'react-router-dom'],
+            ui: ['class-variance-authority', 'clsx', 'tailwind-merge'],
+            // Add other large dependencies here
+          },
+        },
+      },
+      chunkSizeWarningLimit: 1000, // Increase chunk size warning limit
+    },
+    server: {
+      port: 3000,
+      open: true,
+    },
+  });
