@@ -54,6 +54,17 @@ export default defineConfig({
       assetsDir: 'assets',
       emptyOutDir: true,
       target: 'esnext',
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Split vendor and app code for better caching
+            react: ['react', 'react-dom', 'react-router-dom'],
+            ui: ['class-variance-authority', 'clsx', 'tailwind-merge'],
+            // Add other large dependencies here
+          },
+        },
+      },
+      chunkSizeWarningLimit: 1000, // Increase chunk size warning limit
     },
     server: {
       port: 3000,

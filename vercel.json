@@ -1,5 +1,9 @@
 {
   "build": {
-    "output": "build"
-  }
+    "output": "dist"
+  },
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/.*", "dest": "/index.html" }
+  ]
 }
