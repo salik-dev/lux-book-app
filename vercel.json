@@ -12,5 +12,16 @@
         "src": "/(.*)",
         "dest": "/index.html"
       }
+    ],
+    "headers": [
+      {
+        "src": "/(.*)",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "text/html"
+          }
+        ]
+      }
     ]
   }
