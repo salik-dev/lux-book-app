@@ -64,7 +64,8 @@
             },
             "scripts": {
                   "dev": "vite",
-                  "build": "vite build --out-dir dist",
-                  "preview": "vite preview"
+                  "build": "vite build",
+                  "preview": "vite preview",
+                  "push": "git add . && git commit -m 'update' && git push"
             }
       }
