@@ -2,10 +2,22 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  base: process.env.NODE_ENV === 'production' ? '/' : '/',
+  base: './',
   plugins: [react()],
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['class-variance-authority', 'clsx', 'tailwind-merge'],
+        },
+      },
+    },
+  },
   css: {
     postcss: {
       plugins: [
@@ -49,25 +61,4 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-    build: {
-      outDir: 'dist',
-      assetsDir: 'assets',
-      emptyOutDir: true,
-      target: 'esnext',
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            // Split vendor and app code for better caching
-            react: ['react', 'react-dom', 'react-router-dom'],
-            ui: ['class-variance-authority', 'clsx', 'tailwind-merge'],
-            // Add other large dependencies here
-          },
-        },
-      },
-      chunkSizeWarningLimit: 1000, // Increase chunk size warning limit
-    },
-    server: {
-      port: 3000,
-      open: true,
-    },
   });
