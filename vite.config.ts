@@ -4,7 +4,10 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: process.env.NODE_ENV === 'production' ? '/' : '/',
+  base: './', // Use relative paths for production
+  define: {
+    'import.meta.env.BASE_URL': JSON.stringify(process.env.NODE_ENV === 'production' ? './' : '/'),
+  },
   plugins: [react()],
   css: {
     postcss: {

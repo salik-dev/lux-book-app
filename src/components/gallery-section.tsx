@@ -4,48 +4,57 @@ import React, { useState } from "react"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
 import { Button } from "./ui/button"
 
+// Import images directly for better build optimization
+import mercedesImage from '../../public/luxury-mercedes-g-class-suv-in-urban-setting.jpg';
+import bmwImage from '../../public/luxury-bmw-sedan-in-city-street.jpg';
+import porscheImage from '../../public/luxury-porsche-sports-car-in-urban-environment.jpg';
+import toyotaImage from '../../public/luxury-toyota-land-cruiser-suv-in-city.jpg';
+import audiImage from '../../public/luxury-audi-sedan-in-modern-setting.jpg';
+import rangeRoverImage from '../../public/luxury-range-rover-suv-in-urban-landscape.jpg';
+import bentleyImage from '../../public/luxury-bentley-sedan-in-premium-setting.jpg';
+import lamborghiniImage from '../../public/luxury-lamborghini-sports-car-in-city.jpg';
+
 const galleryImages = [
   {
-    src: "luxury-mercedes-g-class-suv-in-urban-setting.jpg",
+    src: mercedesImage,
     alt: "Mercedes G-Class SUV",
     title: "MERCEDES G-CLASS",
   },
   {
-    src: "luxury-bmw-sedan-in-city-street.jpg",
+    src: bmwImage,
     alt: "BMW Luxury Sedan",
     title: "BMW LUXURY SEDAN",
   },
   {
-    src: "luxury-porsche-sports-car-in-urban-environment.jpg",
+    src: porscheImage,
     alt: "Porsche Sports Car",
     title: "PORSCHE SPORTS CAR",
   },
   {
-    src: "luxury-toyota-land-cruiser-suv-in-city.jpg",
+    src: toyotaImage,
     alt: "Toyota Land Cruiser",
     title: "TOYOTA LAND CRUISER",
   },
   {
-    src: "luxury-audi-sedan-in-modern-setting.jpg",
+    src: audiImage,
     alt: "Audi Luxury Sedan",
     title: "AUDI LUXURY SEDAN",
   },
   {
-    src: "luxury-range-rover-suv-in-urban-landscape.jpg",
+    src: rangeRoverImage,
     alt: "Range Rover SUV",
     title: "RANGE ROVER SUV",
   },
   {
-    src: "luxury-bentley-sedan-in-premium-setting.jpg",
+    src: bentleyImage,
     alt: "Bentley Luxury Sedan",
     title: "BENTLEY LUXURY SEDAN",
   },
   {
-    src: "luxury-lamborghini-sports-car-in-city.jpg",
+    src: lamborghiniImage,
     alt: "Lamborghini Sports Car",
     title: "LAMBORGHINI SPORTS CAR",
   },
-  
 ]
 
 export function GallerySection() {
