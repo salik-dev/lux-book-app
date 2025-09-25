@@ -13,11 +13,15 @@
   ],
   "routes": [
     {
-      "src": "/assets/(.*)",
+      "src": "/(.*)\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$",
       "headers": {
         "cache-control": "public, max-age=31536000, immutable"
       },
       "continue": true
+    },
+    {
+      "src": "^/assets/(.*)",
+      "dest": "/assets/$1"
     },
     {
       "src": "^/static/(.*)",
@@ -28,11 +32,7 @@
       "dest": "/favicon.ico"
     },
     {
-      "src": "^/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "^/.*",
+      "src": "^/(.*)$",
       "dest": "/index.html"
     }
   ]
