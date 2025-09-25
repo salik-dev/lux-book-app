@@ -6,7 +6,7 @@ import { Button } from "./ui/button"
 
 const galleryImages = [
   {
-    src: "/luxury-mercedes-g-class-suv-in-urban-setting.jpg",
+    src: "/images/luxury-mercedes-g-class-suv-in-urban-setting.jpg",
     alt: "Mercedes G-Class SUV",
     title: "MERCEDES G-CLASS",
   },
