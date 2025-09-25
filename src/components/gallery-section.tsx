@@ -4,7 +4,6 @@ import React, { useState } from "react"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
 import { Button } from "./ui/button"
 
-// Use relative paths for images in the public directory
 const galleryImages = [
   {
     src: "luxury-mercedes-g-class-suv-in-urban-setting.jpg",
