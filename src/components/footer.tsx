@@ -126,17 +126,17 @@ export function Footer() {
           </div>
         </div>
 
+      </div>
         {/* Bottom Bar */}
-        <div className="border-t border-gray-800 mt-12 pt-4 w-full">
+        <div className="border-gray-800 mt-6 py-3 w-full bg-[#0d1527]">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex space-x-6 mx-auto">
-              <a href="https://absoluit.com" className="text-gray-400 hover:text-[#E3C08D] text-[15px] tracking-wide transition-colors">
-                Copyright © 2023 Absoluit. All Rights Reserved.
+            <div className="flex space-x-2 mx-auto">
+              <a href="https://absoluit.com" className="text-gray-500 hover:text-[#E3C08D] text-[15px] tracking-wide transition-colors">
+                Copyright © 2023 <span className="font-semibold">Absoluit</span>. All Rights Reserved.
               </a>
             </div>
           </div>
         </div>
-      </div>
     </footer>
   )
 }

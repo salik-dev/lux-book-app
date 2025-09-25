@@ -64,7 +64,7 @@ export function CarCard({
         <img
           src={image || "/placeholder.svg?height=300&width=400&query=luxury car"}
           alt={name}
-          className={`w-full object-cover transition-all duration-300 ${isExpanded ? "h-64" : "h-48"}`}
+          className={`w-full object-cover transition-all duration-300 ${isExpanded ? "h-64" : "h-60"}`}
         />
         {isExpanded && (
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6">
@@ -100,7 +100,7 @@ export function CarCard({
           </div>
         </div>
 
-        <Button onClick={handleCarSelect} className="w-full mt-4 bg-[#E3C08D] hover:cursor-pointer tracking-wide hover:bg-[#E3C08D]/90 text-white">
+        <Button onClick={handleCarSelect} className="w-full mt-4 tracking-wide text-black bg-[#E3C08D] hover:bg-[#E3C08D]/90 hover:cursor-pointer transition-all duration-300 hover:text-white">
           Reserver nå
         </Button>
 

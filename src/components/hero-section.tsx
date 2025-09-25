@@ -16,17 +16,14 @@ export function HeroSection() {
       <div className="absolute inset-0 bg-black/50" />
 
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl px-44 mt-12">
-          <h1 className="text-4xl sm:text-4xl lg:text-[50px] font-bold text-white mb-6 text-alance">
-            Premium
-            <span className="block text-[#e3c08d]">luksusbilutle</span>
-          </h1>
+        <div className="max-w-5xl px-44 mt-12 max-[1030px]:px-6">
+          <h1 className="text-4xl sm:text-4xl lg:text-[50px] font-bold text-[#E3C08D] tracking-wide mb-6 text-alance">Premium<br /> luksusbilutle</h1>
 
-          <p className="text-xl pl-1 sm:text-2xl text-gray-300 mb-8 max-w-2xl text-pretty">
+          <p className="text-2xl pl-1 sm:text-3xl text-white mb-8 max-w-2xl text-pretty">
             Lei en eksklusiv opplevelse
           </p>
 
-          <p className="text-lg text-gray-400 pl-1 mb-8 max-w-2xl">
+          <p className="text-lg text-white pl-1 mb-8 tracking-wide">
             Opplev luksus og komfort med våre eksklusive biler. Vi tilbyr deg en uforglemmelig kjøreopplevelse med våre
             premium kjøretøy.
           </p>

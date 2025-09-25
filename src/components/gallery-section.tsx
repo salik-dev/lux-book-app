@@ -1,62 +1,11 @@
-"use client"
-
 import React, { useState } from "react"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
 import { Button } from "./ui/button"
-import mercedesImage from "../assets/bmw-x7-luxury-suv-dark-metallic.jpg"
-import porscheImage from "../assets/luxury-audi-sedan-in-modern-setting.jpg"
-import toyotaImage from "../assets/luxury-car-showroom-dark-elegant.jpg"
-import audiImage from "../assets/luxury-audi-sedan-in-modern-setting.jpg"
-import rangeImage from "../assets/luxury-range-rover-suv-in-urban-landscape.jpg"
-import bentleyImage from "../assets/luxury-bentley-sedan-in-premium-setting.jpg"
-import lamborghiniImage from "../assets/porsche-taycan-electric-sports-car-sleek.jpg"
-
-// In Vite, files in the public directory are served at the root path
-// So we can reference them directly with a leading slash
-const galleryImages = [
-  {
-    src: mercedesImage,
-    alt: "Mercedes G-Class SUV",
-    title: "MERCEDES G-CLASS",
-  },
-  {
-    src: porscheImage,
-    alt: "BMW Luxury Sedan",
-    title: "BMW LUXURY SEDAN",
-  },
-  {
-    src: toyotaImage,
-    alt: "Porsche Sports Car",
-    title: "PORSCHE SPORTS CAR",
-  },
-  {
-    src: audiImage,
-    alt: "Toyota Land Cruiser",
-    title: "TOYOTA LAND CRUISER",
-  },
-  {
-    src: rangeImage,
-    alt: "Audi Luxury Sedan",
-    title: "AUDI LUXURY SEDAN",
-  },
-  {
-    src: bentleyImage,
-    alt: "Range Rover SUV",
-    title: "RANGE ROVER SUV",
-  },
-  {
-    src: lamborghiniImage,
-    alt: "Bentley Luxury Sedan",
-    title: "BENTLEY LUXURY SEDAN",
-  },
-  {
-    src: lamborghiniImage,
-    alt: "Lamborghini Sports Car",
-    title: "LAMBORGHINI SPORTS CAR",
-  },
-]
+import { galleryImages } from "../constants/data"
+import { HeroHeading } from "./common/hero-heading"
 
 export function GallerySection() {
+
   const [selectedImage, setSelectedImage] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const imagesPerPage = 4
@@ -96,9 +45,7 @@ export function GallerySection() {
       <section className="px-20 py-20 bg-[#0d1518] max-[550px]:px-0">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-[#E3C08D] mb-4 text-balance">
-              Galleriet vårt
-            </h2>
+           <HeroHeading title="Galleriet vårt" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -113,7 +60,7 @@ export function GallerySection() {
                   <img
                     src={image.src || "/placeholder.svg"}
                     alt={image.alt}
-                    className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
+                    className="w-full h-64 object-cover  transition-all duration-300 ease-in-out group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-300" />
                 </div>
