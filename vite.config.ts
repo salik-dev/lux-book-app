@@ -9,7 +9,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     emptyOutDir: true,
-    rollupOptions: {
+    rollupOptions: {  
       output: {
         manualChunks: {
           react: ['react', 'react-dom', 'react-router-dom'],
