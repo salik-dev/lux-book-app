@@ -20,6 +20,13 @@
         "dest": "/assets/$1"
       },
       {
+        "src": "/(.*\\.(jpg|jpeg|png|gif|svg|ico|json|txt))",
+        "headers": {
+          "cache-control": "public, max-age=31536000, immutable"
+        },
+        "dest": "/$1"
+      },
+      {
         "src": "/(.*)",
         "dest": "/index.html"
       }

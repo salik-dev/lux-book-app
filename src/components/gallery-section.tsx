@@ -4,44 +4,45 @@ import React, { useState } from "react"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
 import { Button } from "./ui/button"
 
+// Use relative paths for images in the public directory
 const galleryImages = [
   {
-    src: "/images/luxury-mercedes-g-class-suv-in-urban-setting.jpg",
+    src: "luxury-mercedes-g-class-suv-in-urban-setting.jpg",
     alt: "Mercedes G-Class SUV",
     title: "MERCEDES G-CLASS",
   },
   {
-    src: "/luxury-bmw-sedan-in-city-street.jpg",
+    src: "luxury-bmw-sedan-in-city-street.jpg",
     alt: "BMW Luxury Sedan",
     title: "BMW LUXURY SEDAN",
   },
   {
-    src: "/luxury-porsche-sports-car-in-urban-environment.jpg",
+    src: "luxury-porsche-sports-car-in-urban-environment.jpg",
     alt: "Porsche Sports Car",
     title: "PORSCHE SPORTS CAR",
   },
   {
-    src: "/luxury-toyota-land-cruiser-suv-in-city.jpg",
+    src: "luxury-toyota-land-cruiser-suv-in-city.jpg",
     alt: "Toyota Land Cruiser",
     title: "TOYOTA LAND CRUISER",
   },
   {
-    src: "/luxury-audi-sedan-in-modern-setting.jpg",
+    src: "luxury-audi-sedan-in-modern-setting.jpg",
     alt: "Audi Luxury Sedan",
     title: "AUDI LUXURY SEDAN",
   },
   {
-    src: "/luxury-range-rover-suv-in-urban-landscape.jpg",
+    src: "luxury-range-rover-suv-in-urban-landscape.jpg",
     alt: "Range Rover SUV",
     title: "RANGE ROVER SUV",
   },
   {
-    src: "/luxury-bentley-sedan-in-premium-setting.jpg",
+    src: "luxury-bentley-sedan-in-premium-setting.jpg",
     alt: "Bentley Luxury Sedan",
     title: "BENTLEY LUXURY SEDAN",
   },
   {
-    src: "/luxury-lamborghini-sports-car-in-city.jpg",
+    src: "luxury-lamborghini-sports-car-in-city.jpg",
     alt: "Lamborghini Sports Car",
     title: "LAMBORGHINI SPORTS CAR",
   },
