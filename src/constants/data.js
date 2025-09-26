@@ -1,12 +1,12 @@
 import React from "react"
 import { Shield, Clock, Award, Headphones, Phone, Calendar, Percent, Car, CreditCard, Mail, MapPin, DollarSign, MessageCircle, Star } from "lucide-react"
 
-import lamborghiniImage from "../assets/luxury-lamborghini-sports-car-in-city.jpg"
-import audiImage from "../assets/luxury-audi-sedan-in-modern-setting.jpg"
-import rangeImage from "../assets/luxury-range-rover-suv-in-urban-landscape.jpg"
-import mercedesImage from "../assets/bmw-x7-luxury-suv-dark-metallic.jpg"
-import toyotaImage from "../assets/luxury-car-showroom-dark-elegant.jpg"
-import bentleyImage from "../assets/luxury-bentley-sedan-in-premium-setting.jpg"
+import lamborghiniImage from "../assets/luxury-lamborghini-sports-car-in-city.jpg?no-inline"
+import audiImage from "../assets/luxury-audi-sedan-in-modern-setting.jpg?no-inline"
+import rangeImage from "../assets/luxury-range-rover-suv-in-urban-landscape.jpg?no-inline"
+import mercedesImage from "../assets/bmw-x7-luxury-suv-dark-metallic.jpg?no-inline"
+import toyotaImage from "../assets/luxury-car-showroom-dark-elegant.jpg?no-inline"
+import bentleyImage from "../assets/luxury-bentley-sedan-in-premium-setting.jpg?no-inline"
 
 export const leadingRentalList = [
     {

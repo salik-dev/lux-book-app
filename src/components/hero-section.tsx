@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react"
 export function HeroSection() {
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      
       <video autoPlay muted loop className="absolute inset-0 w-full h-full object-cover">
         <source
           src="https://primecars.no/wp-content/uploads/2023/11/24b23326-87a2-40b4-b946-a0feb2c2df46.mp4"

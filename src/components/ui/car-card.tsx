@@ -2,44 +2,16 @@
 import React from "react"
 import { Key, Users, Settings, Plus, Minus } from "lucide-react"
 import { Button } from "./button"
+import { CarCardProps } from "../../@types/data"
 
-interface CarCardProps {
-  image: string
-  price: string
-  transmission: string
-  fuel: string
-  category: string
-  name?: string
-  vehicleType?: string
-  doors?: string
-  moreInfo?: string[]
-  index: number
-  isExpanded: boolean
-  onToggleExpand: (index: number) => void
-  onCarSelect: (car: any) => void
-}
-
-export function CarCard({
-  image,
-  price,
-  transmission,
-  fuel,
-  category,
-  name = "Luksusbil",
-  vehicleType,
-  doors,
+export function CarCard({ image, price, transmission, fuel, category, name = "Luksusbil", vehicleType, doors,
   moreInfo = [
     "Premium interiør med skinntrukne seter",
     "Avansert navigasjonssystem og infotainment",
     "Automatisk klimakontroll",
     "Sikkerhetssystemer og assistanse",
     "Bluetooth og USB-tilkobling",
-  ],
-  index,
-  isExpanded,
-  onToggleExpand,
-  onCarSelect,
-}: CarCardProps) {
+  ], index, isExpanded, onToggleExpand, onCarSelect }: CarCardProps) {
   const handleCarSelect = () => {
     // onCarSelect({
     //   image,
@@ -134,6 +106,7 @@ export function CarCard({
                 </p>
               ))}
             </div>
+            
           </div>
         </div>
       </div>
