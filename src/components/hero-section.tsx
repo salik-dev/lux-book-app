@@ -3,7 +3,8 @@ import React from "react";
 import { Button } from "./ui/button"
 import { ArrowRight } from "lucide-react"
 
-export function HeroSection() {
+export function HeroSection({ handleBookingClick }: { handleBookingClick: () => void }) {
+  
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden">
       
@@ -30,11 +31,12 @@ export function HeroSection() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 pl-1 ">
-            <Button size="lg" className="text-[#E3C08D] py-8 text-2xl tracking-wide border-2 border-[#E3C08D] group hover:bg-[#E3C08D] hover:text-black transition-colors hover:cursor-pointer">
+            <Button onClick={handleBookingClick} size="lg" className="text-[#E3C08D] py-8 text-2xl tracking-wide border-2 border-[#E3C08D] group hover:bg-[#E3C08D] hover:text-black transition-colors hover:cursor-pointer">
               Finn din bil
               <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Button>
           </div>
+          
         </div>
       </div>
 

@@ -12,50 +12,7 @@ import { BookingDetails } from "./booking-details";
 import { CustomerForm } from "./customer-form";
 import { PaymentStep } from "./payment-step";
 import { ArrowLeft, Check, X } from "lucide-react";
-
-interface CarData {
-  id: string;
-  name: string;
-  model: string;
-  brand: string;
-  year: number;
-  description: string;
-  base_price_per_hour: number;
-  base_price_per_day: number;
-  included_km_per_day: number;
-  extra_km_rate: number;
-  image_url: string;
-  is_available: boolean;
-}
-
-interface BookingData {
-  car: CarData;
-  startDate: Date;
-  endDate: Date;
-  pickupLocation: string;
-  deliveryLocation?: string;
-  totalPrice: number;
-  basePrice: number;
-  deliveryFee: number;
-  vatAmount: number;
-}
-
-interface CustomerData {
-  fullName: string;
-  email: string;
-  phone: string;
-  address: string;
-  postalCode: string;
-  city: string;
-  dateOfBirth: Date;
-  driverLicenseFile?: File;
-}
-
-interface BookingFlowProps {
-  isOpen: boolean;
-  onClose: () => void;
-  selectedCar: CarData | null;
-}
+import { BookingData, BookingFlowProps, CustomerData } from "@/@types/data";
 
 export const BookingDialog: React.FC<BookingFlowProps> = ({
   isOpen,
@@ -64,10 +21,8 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
 }) => {
   const { t } = useTranslation();
   const [currentStep, setCurrentStep] = useState(1);
-  const [bookingData, setBookingData] =
-    useState<BookingData | null>(null);
-  const [customerData, setCustomerData] =
-    useState<CustomerData | null>(null);
+  const [bookingData, setBookingData] = useState<BookingData | null>(null);
+  const [customerData, setCustomerData] = useState<CustomerData | null>(null);
 
   const steps = [
     {
@@ -95,6 +50,7 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
   };
 
   const handleBookingDetailsComplete = (data: BookingData) => {
+    console.log('h data', data);
     setBookingData(data);
     setCurrentStep(2);
   };

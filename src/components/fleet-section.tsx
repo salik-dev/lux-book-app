@@ -3,10 +3,10 @@ import React, { useState } from "react"
 import { Button } from "./ui/button"
 import { CarCard } from "./ui/car-card";
 import { vehicles } from "../constants/data";
-import { HomePageProps } from "../@types/data";
+import { CardProps } from "../@types/data";
 import { HeroDescription, HeroHeading } from "./common/hero-heading";
 
-export function FleetSection({ onNavigateToBooking, onCarSelect }: HomePageProps) {
+export function FleetSection({ onNavigateToBooking, onCarSelect }: CardProps) {
   const [expandedCards, setExpandedCards] = useState<number[]>([])
 
   const handleCarSelect = (car: any) => {
@@ -19,7 +19,7 @@ export function FleetSection({ onNavigateToBooking, onCarSelect }: HomePageProps
   }
 
   return (
-    <section id="fleet" className="py-20 px-4" style={{ backgroundColor: "#0d1518" }}>
+    <section id="cars-section" className="py-20 px-4" style={{ backgroundColor: "#0d1518" }}>
       <div className="container mx-auto">
 
         <div className="text-center mb-16">
@@ -35,6 +35,7 @@ export function FleetSection({ onNavigateToBooking, onCarSelect }: HomePageProps
               index={index}
               isExpanded={expandedCards.includes(index)}
               onToggleExpand={toggleCard}
+              onNavigateToBooking={onNavigateToBooking}
               onCarSelect={handleCarSelect}
             />
           ))}
@@ -48,8 +49,8 @@ export function FleetSection({ onNavigateToBooking, onCarSelect }: HomePageProps
           >
           Bla gjennom alle kjøretøy
           </Button>
-          
         </div>
+        
       </div>
     </section>
   )

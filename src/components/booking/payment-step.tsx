@@ -18,50 +18,7 @@ import {
   CheckCircle,
   Loader2,
 } from "lucide-react";
-
-interface CarData {
-  id: string;
-  name: string;
-  model: string;
-  brand: string;
-  year: number;
-  description: string;
-  base_price_per_hour: number;
-  base_price_per_day: number;
-  included_km_per_day: number;
-  extra_km_rate: number;
-  image_url: string;
-  is_available: boolean;
-}
-
-interface BookingData {
-  car: CarData;
-  startDate: Date;
-  endDate: Date;
-  pickupLocation: string;
-  deliveryLocation?: string;
-  totalPrice: number;
-  basePrice: number;
-  deliveryFee: number;
-  vatAmount: number;
-}
-
-interface CustomerData {
-  fullName: string;
-  email: string;
-  phone: string;
-  address: string;
-  postalCode: string;
-  city: string;
-  dateOfBirth: Date;
-  driverLicenseFile?: File;
-}
-
-interface PaymentStepProps {
-  bookingData: BookingData;
-  customerData: CustomerData;
-  onComplete: () => void;
-}
+import { PaymentStepProps } from "@/@types/data";
 
 export const PaymentStep: React.FC<PaymentStepProps> = ({
   bookingData,

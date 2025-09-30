@@ -17,45 +17,18 @@ const Form = ({ children, form, onSubmit }: {
   onSubmit: (data: any) => void;
 }) => (
   <FormProvider {...form}>
-    <UIForm {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {children}
-      </form>
-    </UIForm>
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      {children}
+    </form>
   </FormProvider>
 );
+
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-
-interface CarData {
-  id: string;
-  name: string;
-  model: string;
-  brand: string;
-  year: number;
-  description: string;
-  base_price_per_hour: number;
-  base_price_per_day: number;
-  included_km_per_day: number;
-  extra_km_rate: number;
-  image: string;
-  is_available: boolean;
-}
-
-interface BookingData {
-  car: CarData;
-  startDate: Date;
-  endDate: Date;
-  pickupLocation: string;
-  deliveryLocation?: string;
-  totalPrice: number;
-  basePrice: number;
-  deliveryFee: number;
-  vatAmount: number;
-}
+import { BookingData, CarData } from "@/@types/data";
 
 interface BookingDetailsProps {
   car: CarData;
@@ -155,15 +128,15 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
     const totalDays = Math.ceil(totalHours / 24);
 
     let basePrice = 0;
-    if (totalHours <= 24) {
-      basePrice = car.base_price_per_hour
-        ? car.base_price_per_hour * totalHours
-        : 0;
-    } else {
-      basePrice = car.base_price_per_day
-        ? car.base_price_per_day * totalDays
-        : 0;
-    }
+    // if (totalHours <= 24) {
+    //   basePrice = car.base_price_per_hour 
+    //     ? car.base_price_per_hour * totalHours
+    //     : 0;
+    // } else {
+    //   basePrice = car.base_price_per_day
+    //     ? car.base_price_per_day * totalDays
+    //     : 0;
+    // }
 
     const vatRate = 0.25;
     const vatAmount = basePrice * vatRate;
@@ -228,9 +201,9 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
             </CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row gap-4">
-                {car.image && (
+                {car.image_url && (
                   <img
-                    src={car.image}
+                    src={car.image_url}
                     alt={car.name}
                     className="w-[128px] h-[128px] object-cover rounded-lg"
                     style={{ width: "300px", height: "160px" }}
@@ -241,9 +214,10 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                     {car.name}
                   </h3>
                   <p className="text-muted-foreground mb-4">
-                    {car.description}
+                    {car.moreInfo[0]}
+                    {car.moreInfo[1]}
                   </p>
-                  <div className="flex flex-wrap gap-4 text-sm">
+                  {/* <div className="flex flex-wrap gap-4 text-sm">
                     <div>
                       <span className="font-medium">Per Hour:</span>{" "}
                       {formatPrice(car.base_price_per_hour || 0)}
@@ -256,7 +230,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                       <span className="font-medium">Included KM:</span>{" "}
                       {car.included_km_per_day || 0}/day
                     </div>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </CardContent>

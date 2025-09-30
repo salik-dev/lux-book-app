@@ -25,8 +25,9 @@ export const leadingRentalList = [
 
 export const vehicles = [
     {
+      
       name: "Mercedes Benz G-Wagon",
-      image: lamborghiniImage,
+      image_url: lamborghiniImage,
       price: "7.990kr",
       vehicleType: "Luksus SUV",
       doors: "4 dører, 5 seter",
@@ -45,7 +46,7 @@ export const vehicles = [
     },
     {
       name: "BMW i7",
-      image: audiImage,
+      image_url: audiImage,
       price: "5.990kr",
       vehicleType: "Luksus Sedan",
       doors: "4 dører, 5 seter",
@@ -64,7 +65,7 @@ export const vehicles = [
     },
     {
       name: "Rolls Royce Ghost",
-      image: rangeImage,
+      image_url: rangeImage,
       price: "9.990kr",
       vehicleType: "Luksus Sedan",
       doors: "4 dører, 4 seter",

@@ -23,17 +23,7 @@ function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
-  const [carData, setCarData] = useState({});
-
-  const openBookingDialog = () => {
-    setIsBookingDialogOpen(true);
-  };
-
-  const handleCarSelect = (car: any) => {
-    setCarData(car);
-    openBookingDialog();
-  };
+ 
 
   return (
     <>
@@ -44,8 +34,10 @@ export default function App() {
         <Route 
           path="/" 
           element={
-            <Layout> <HomePage onNavigateToBooking={openBookingDialog} onCarSelect={handleCarSelect} />
-              <BookingDialog isOpen={isBookingDialogOpen} onClose={() => setIsBookingDialogOpen(false)} selectedCar={carData} />
+            <Layout> 
+              {/* <HomePage onNavigateToBooking={openBookingDialog} onCarSelect={handleCarSelect} />
+              <BookingDialog isOpen={isBookingDialogOpen} onClose={() => setIsBookingDialogOpen(false)} selectedCar={carData} /> */}
+              <HomePage />
             </Layout>
           } 
         />

@@ -34,44 +34,7 @@ import {
   Truck,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
-
-interface CarData {
-  id: string;
-  name: string;
-  model: string;
-  brand: string;
-  year: number;
-  description: string;
-  base_price_per_hour: number;
-  base_price_per_day: number;
-  included_km_per_day: number;
-  extra_km_rate: number;
-  image_url: string;
-  is_available: boolean;
-}
-
-interface BookingData {
-  car: CarData;
-  startDate: Date;
-  endDate: Date;
-  pickupLocation: string;
-  deliveryLocation?: string;
-  totalPrice: number;
-  basePrice: number;
-  deliveryFee: number;
-  vatAmount: number;
-}
-
-interface CustomerData {
-  fullName: string;
-  email: string;
-  phone: string;
-  address: string;
-  postalCode: string;
-  city: string;
-  dateOfBirth: Date;
-  driverLicenseFile?: File;
-}
+import { BookingData, CustomerData } from "@/@types/data";
 
 interface CustomerFormProps {
   bookingData: BookingData;
@@ -179,11 +142,12 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
         </div>
       </div>
 
-      <form
-        id="customer-form"
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-6"
-      >
+      <FormProvider {...form}>
+        <form
+          id="customer-form"
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-6"
+        >
           {/* Personal Information */}
           <div className="bg-white rounded-xl p-6 border border-gray-100">
             <div className="mb-6">
@@ -453,7 +417,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
           >
             Continue to Payment
           </Button>
-      </form>
+        </form>
+      </FormProvider>
     </div>
   );
 };

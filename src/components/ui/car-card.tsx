@@ -4,26 +4,28 @@ import { Key, Users, Settings, Plus, Minus } from "lucide-react"
 import { Button } from "./button"
 import { CarCardProps } from "../../@types/data"
 
-export function CarCard({ image, price, transmission, fuel, category, name = "Luksusbil", vehicleType, doors,
+export function CarCard({ image_url, price, transmission, fuel, category, name = "Luksusbil", vehicleType, doors,
   moreInfo = [
     "Premium interiør med skinntrukne seter",
     "Avansert navigasjonssystem og infotainment",
     "Automatisk klimakontroll",
     "Sikkerhetssystemer og assistanse",
     "Bluetooth og USB-tilkobling",
-  ], index, isExpanded, onToggleExpand, onCarSelect }: CarCardProps) {
+  ], index, isExpanded, onToggleExpand, onNavigateToBooking, onCarSelect }: CarCardProps) {
+    
   const handleCarSelect = () => {
-    // onCarSelect({
-    //   image,
-    //   price,
-    //   transmission,
-    //   fuel,
-    //   category,
-    //   name,
-    //   vehicleType: vehicleType || transmission,
-    //   doors: doors || fuel,
-    //   moreInfo,
-    // })
+    onCarSelect({
+      image_url,
+      price,
+      transmission,
+      fuel,
+      category,
+      name,
+      vehicleType: vehicleType || transmission,
+      doors: doors || fuel,
+      moreInfo,
+    })
+    onNavigateToBooking()
   }
 
   return (
@@ -34,7 +36,7 @@ export function CarCard({ image, price, transmission, fuel, category, name = "Lu
     >
       <div className="relative">
         <img
-          src={image || "/placeholder.svg?height=300&width=400&query=luxury car"}
+          src={image_url || "/placeholder.svg?height=300&width=400&query=luxury car"}
           alt={name}
           className={`w-full object-cover transition-all duration-300 ${isExpanded ? "h-64" : "h-60"}`}
         />
