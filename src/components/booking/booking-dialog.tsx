@@ -8,7 +8,7 @@ import {
 } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
-import { BookingDetails } from "./booking-details-updated";
+import { BookingDetails } from "./booking-details";
 import { CustomerForm } from "./customer-form";
 import { PaymentStep } from "./payment-step";
 import { ArrowLeft, Check, X } from "lucide-react";
@@ -71,43 +71,32 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 border-0 bg-gray-50">
         {/* Progress Bar - New Design */}
-        <div className="bg-gray-200 h-1 relative">
+        <div className="bg-gray-200 h-2 sticky top-0 z-10">
           <div 
-            className="bg-black h-full transition-all duration-300"
+            className="bg-[#E3C08D] h-full transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
-        <div className="px-8 pt-8">
-          <div className="absolute top-6 right-6 z-10">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleClose}
-              className="h-8 w-8"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
+        <div>
           {currentStep > 1 && (
             <Button
               variant="ghost"
               onClick={handleBack}
-              className="flex items-center gap-2 mb-6 px-0 hover:bg-transparent text-gray-700"
+              className="flex items-center gap-2 ml-4 hover:bg-transparent text-gray-700 hover:cursor-pointer"
             >
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
           )}
 
-          <div className="flex items-center gap-8 mb-8">
+          <div className="flex items-center gap-8">
             {steps.map((step, index) => (
-              <div key={step.number} className="flex items-center gap-3">
-                <div className={`w-8 h-8 flex items-center justify-center transition-all ${
+              <div key={step.number} className="flex flex-col mx-auto items-center gap-3">
+                <div className={`w-8 h-8 flex items-center justify-center transition-all rounded-full ${
                   step.number < currentStep 
-                    ? 'bg-black text-white' 
+                    ? 'bg-[#E3C08D] text-white' 
                     : step.number === currentStep 
-                      ? 'bg-black text-white' 
+                      ? 'bg-[#E3C08D] text-white' 
                       : 'bg-transparent text-gray-400 border border-gray-300'
                 }`}>
                   {step.number < currentStep ? (

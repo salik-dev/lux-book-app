@@ -50,7 +50,6 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 }) => {
   // const { t } = useTranslation();
   const [deliveryFee, setDeliveryFee] = useState(0);
-  console.log("car data", car);
 
   const form = useForm<FormData>({
     defaultValues: {
@@ -192,7 +191,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
         <>
 
           {/* Selected Car Display */}
-          <Card className="card-premium">
+          <Card className="bg-gray-50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Car className="h-5 w-5" />
@@ -205,32 +204,19 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                   <img
                     src={car.image_url}
                     alt={car.name}
-                    className="w-[128px] h-[128px] object-cover rounded-lg"
-                    style={{ width: "300px", height: "160px" }}
+                    className="w-[128px] h-[128px] rounded-md object-cover"
+                    style={{ width: "260px", height: "160px" }}
                   />
                 )}
                 <div className="flex-1">
                   <h3 className="text-xl font-semibold mb-2">
                     {car.name}
                   </h3>
+                  <p className="text-lg font-semibold mb-2">{car.price}</p>
                   <p className="text-muted-foreground mb-4">
                     {car.moreInfo[0]}
                     {car.moreInfo[1]}
                   </p>
-                  {/* <div className="flex flex-wrap gap-4 text-sm">
-                    <div>
-                      <span className="font-medium">Per Hour:</span>{" "}
-                      {formatPrice(car.base_price_per_hour || 0)}
-                    </div>
-                    <div>
-                      <span className="font-medium">Per Day:</span>{" "}
-                      {formatPrice(car.base_price_per_day || 0)}
-                    </div>
-                    <div>
-                      <span className="font-medium">Included KM:</span>{" "}
-                      {car.included_km_per_day || 0}/day
-                    </div>
-                  </div> */}
                 </div>
               </div>
             </CardContent>
@@ -249,29 +235,30 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 <FormField
                   control={form.control}
                   name="startDate"
+                  rules={{ required: "Pickup date is required" }}
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Pickup Date</FormLabel>
+                      <FormLabel>Pickup Date <span className="text-red-500">*</span></FormLabel>
                       <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                            type="button"
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              type="button"
+                              className={cn(
+                                "w-full h-9 pl-3 text-left font-normal border border-gray-300 hover:bg-[#E3C08D] rounded-md hover:cursor-pointer",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
                         <PopoverContent
                           className="w-auto p-0"
                           align="start"
@@ -281,7 +268,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                             selected={field.value}
                             onSelect={field.onChange}
                             disabled={(date) =>
-                              date < new Date()
+                              date < new Date(new Date().setHours(0, 0, 0, 0))
                             }
                             initialFocus
                           />
@@ -295,17 +282,18 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 <FormField
                   control={form.control}
                   name="endDate"
+                  rules={{ required: "Return date is required" }}
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      {/* <FormLabel>{t('booking.returnDate')}</FormLabel> */}
-                      <FormLabel>Return Date</FormLabel>
+                      <FormLabel>Return Date <span className="text-red-500">*</span></FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
                               variant="outline"
+                              type="button"
                               className={cn(
-                                "w-full pl-3 text-left font-normal border border-gray-300 hover:bg-[#E3C08D] hover:cursor-pointer",
+                                "w-full h-9 pl-3 text-left font-normal border border-gray-300 hover:bg-[#E3C08D] rounded-md hover:cursor-pointer",
                                 !field.value &&
                                   "text-muted-foreground",
                               )}
@@ -327,9 +315,11 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                             mode="single"
                             selected={field.value}
                             onSelect={field.onChange}
-                            disabled={(date) =>
-                              date < watchedValues.startDate
-                            }
+                            disabled={(date) => {
+                              const startDate = watchedValues.startDate;
+                              if (!startDate) return date < new Date(new Date().setHours(0, 0, 0, 0));
+                              return date <= startDate;
+                            }}
                             initialFocus
                           />
                         </PopoverContent>
@@ -344,15 +334,15 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 <FormField
                   control={form.control}
                   name="startTime"
+                  rules={{ required: "Pickup time is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      {/* <FormLabel>{t('booking.pickupTime')}</FormLabel> */}
-                      <FormLabel>Pickup Time</FormLabel>
+                      <FormLabel>Pickup Time <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <Input
                           type="time"
                           {...field}
-                          className="border border-gray-200"
+                          className="border h-9 border-gray-200"
                         />
                       </FormControl>
                       <FormMessage />
@@ -363,15 +353,15 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 <FormField
                   control={form.control}
                   name="endTime"
+                  rules={{ required: "Return time is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      {/* <FormLabel>{t('booking.returnTime')}</FormLabel> */}
-                      <FormLabel>Return Time</FormLabel>
+                      <FormLabel>Return Time <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <Input
                           type="time"
                           {...field}
-                          className="border border-gray-200"
+                          className="border h-9 border-gray-200"
                         />
                       </FormControl>
                       <FormMessage />
@@ -394,15 +384,15 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               <FormField
                 control={form.control}
                 name="pickupLocation"
+                rules={{ required: "Pickup location is required" }}
                 render={({ field }) => (
                   <FormItem>
-                    {/* <FormLabel>{t('booking.pickupLocation')}</FormLabel> */}
-                    <FormLabel>Pickup Location</FormLabel>
+                    <FormLabel>Pickup Location <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Enter pickup location"
                         {...field}
-                        className="border border-gray-200"
+                        className="border h-9 border-gray-200"
                       />
                     </FormControl>
                     <FormMessage />
@@ -415,13 +405,12 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 name="deliveryLocation"
                 render={({ field }) => (
                   <FormItem>
-                    {/* <FormLabel>{t('booking.deliveryLocation')}</FormLabel> */}
                     <FormLabel>Delivery Location</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Optional delivery location"
                         {...field}
-                        className="border border-gray-200"
+                        className="border h-9 border-gray-200"
                       />
                     </FormControl>
                     <FormMessage />
@@ -438,20 +427,17 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between">
-                {/* <span>{t('booking.duration')}:</span> */}
                 <span>Duration: </span>
                 <span className="font-medium">
                   {pricing.duration}
                 </span>
               </div>
               <div className="flex justify-between">
-                {/* <span>{t('booking.basePrice')}:</span> */}
                 <span>Base price: </span>
                 <span>{formatPrice(pricing.basePrice)}</span>
               </div>
               {pricing.deliveryFee > 0 && (
                 <div className="flex justify-between">
-                  {/* <span>{t('booking.deliveryFee')}:</span> */}
                   <span>Delivery fee: </span>
                   <span>
                     {formatPrice(pricing.deliveryFee)}
@@ -459,13 +445,11 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 </div>
               )}
               <div className="flex justify-between">
-                {/* <span>{t('booking.vat')}:</span> */}
                 <span>Vat: </span>
                 <span>{formatPrice(pricing.vatAmount)}</span>
               </div>
               <div className="border-t pt-3">
                 <div className="flex justify-between text-lg font-bold">
-                  {/* <span>{t('booking.totalPrice')}:</span> */}
                   <span>Total price: </span>
                   <span className="text-primary">
                     {formatPrice(pricing.totalPrice)}
@@ -477,7 +461,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
           <Button
             type="submit"
-            className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-6 text-base font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+            className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-black py-5 text-base font-medium shadow-lg hover:shadow-xl hover:text-white transition-all duration-300 hover:cursor-pointer"
             size="lg"
           >
             Continue

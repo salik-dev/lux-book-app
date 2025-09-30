@@ -157,7 +157,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               </h3>
               <p className="text-sm text-gray-500 mt-1">Please fill in your details to complete the booking</p>
             </div>
-            <div className="space-y-6">
+            <div className="space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -170,7 +170,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                         <div className="relative">
                           <Input 
                             {...field} 
-                            className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-1 focus:ring-primary/50"
+                            className="mt-1 h-9 block w-full rounded-md border-gray-300 shadow-sm"
                             placeholder="John Doe"
                           />
                         </div>
@@ -199,7 +199,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                           <Input 
                             type="email" 
                             {...field} 
-                            className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-1 focus:ring-primary/50"
+                            className="mt-1 h-9 block w-full rounded-md border-gray-300 shadow-sm"
                             placeholder="john.doe@example.com"
                           />
                         </div>
@@ -224,7 +224,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                         <div className="relative">
                           <Input 
                             {...field} 
-                            className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-1 focus:ring-primary/50"
+                            className="mt-1 h-9 block w-full rounded-md border-gray-300 shadow-sm"
                             placeholder="+47 123 45 678"
                           />
                         </div>
@@ -250,7 +250,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                               variant="outline"
                               type="button"
                               className={cn(
-                                "w-full pl-3 text-left font-normal border border-gray-300 hover:bg-[#E3C08D] hover:cursor-pointer",
+                                "w-full h-9 pl-3 text-left font-normal border border-gray-300 hover:bg-[#E3C08D] rounded-md hover:cursor-pointer",
                                 !field.value &&
                                   "text-muted-foreground",
                               )}
@@ -297,7 +297,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                       <div className="relative">
                         <Input 
                           {...field} 
-                          className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-1 focus:ring-primary/50"
+                          className="mt-1 h-9 block w-full rounded-md border-gray-300 shadow-sm"
                           placeholder="123 Main St"
                         />
                       </div>
@@ -321,7 +321,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                         <div className="relative">
                           <Input 
                             {...field} 
-                            className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-1 focus:ring-primary/50"
+                            className="mt-1 h-9 block w-full rounded-md border-gray-300 shadow-sm"
                             placeholder="1234"
                           />
                         </div>
@@ -342,7 +342,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                         <div className="relative">
                           <Input 
                             {...field} 
-                            className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-1 focus:ring-primary/50"
+                            className="mt-1 h-9 block w-full rounded-md border-gray-300 shadow-sm"
                             placeholder="Oslo"
                           />
                         </div>
@@ -368,7 +368,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <div
                 {...getRootProps()}
                 className={cn(
-                  "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
+                  "border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors",
                   isDragActive
                     ? "border-primary bg-primary/10"
                     : "border-muted-foreground/25 hover:border-primary/50",
@@ -413,7 +413,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
 
           <Button
             type="submit"
-            className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-6 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+            className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-5 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 hover:cursor-pointer"
             size="lg"
           >
             Continue

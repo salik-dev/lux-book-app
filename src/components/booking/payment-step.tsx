@@ -201,7 +201,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="bg-muted p-4 rounded-lg">
+          <div className="bg-muted p-4 rounded-md">
             <h4 className="font-semibold mb-2">
               Rental Terms & Conditions
             </h4>
@@ -217,7 +217,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           <Button
             onClick={handleSignContract}
             disabled={contractSigned || isProcessing}
-            className="w-full bg-primary hover:bg-primary/90"
+            className="w-full bg-primary hover:bg-primary/90 hover:cursor-pointer"
             size="lg"
           >
             {isProcessing ? (
@@ -243,7 +243,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           {contractSigned && (
             <Badge
               variant="default"
-              className="w-full justify-center bg-green-100 text-green-800"
+              className="w-full py-1 tracking-wide justify-center bg-green-100 text-green-800"
             >
               Contract successfully signed with BankID
             </Badge>
@@ -264,7 +264,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
               disabled={!contractSigned || isProcessing}
               variant="outline"
               size="lg"
-              className="h-20 flex flex-col items-center gap-2 border-gray-200 hover:bg-[#E3C08D] hover:border-[#E3C08D] hover:cursor-pointer transition-premium"
+              className="h-20 py-12 flex flex-col items-center border-gray-200 hover:bg-[#E3C08D] hover:border-[#E3C08D] hover:cursor-pointer transition-premium "
             >
               {isProcessing && paymentMethod === "stripe" ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -283,7 +283,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
               disabled={!contractSigned || isProcessing}
               variant="outline"
               size="lg"
-              className="h-20 flex flex-col items-center gap-2 border-gray-200 hover:bg-[#E3C08D] hover:border-[#E3C08D] hover:cursor-pointer transition-premium"
+              className="h-20 py-12 flex flex-col items-center gap-2 border-gray-200 hover:bg-[#E3C08D] hover:border-[#E3C08D] hover:cursor-pointer transition-premium"
             >
               {isProcessing && paymentMethod === "vipps" ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -299,7 +299,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           </div>
 
           {!contractSigned && (
-            <p className="text-sm text-muted-foreground text-center">
+            <p className="text-sm text-red-300 text-center ">
               Please sign the contract before selecting a
               payment method
             </p>
@@ -310,7 +310,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       <Button
         onClick={() => contractSigned && handlePayment("stripe")}
         disabled={!contractSigned}
-        className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-6 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-5 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
         size="lg"
       >
         Complete Booking
