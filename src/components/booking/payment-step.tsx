@@ -306,6 +306,15 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           )}
         </CardContent>
       </Card>
+
+      <Button
+        onClick={() => contractSigned && handlePayment("stripe")}
+        disabled={!contractSigned}
+        className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-6 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        size="lg"
+      >
+        Complete Booking
+      </Button>
     </div>
   );
 };

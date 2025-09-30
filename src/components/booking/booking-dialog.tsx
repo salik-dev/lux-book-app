@@ -8,7 +8,7 @@ import {
 } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
-import { BookingDetails } from "./booking-details";
+import { BookingDetails } from "./booking-details-updated";
 import { CustomerForm } from "./customer-form";
 import { PaymentStep } from "./payment-step";
 import { ArrowLeft, Check, X } from "lucide-react";
@@ -65,65 +65,69 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
       setCurrentStep(currentStep - 1);
     }
   };
-
   const progress = (currentStep / steps.length) * 100;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 border-0 bg-gray-50">
-        <div className="relative
-          before:absolute before:content-[''] before:top-0 before:left-0 before:right-0 before:h-2 before:bg-gradient-to-r before:from-primary before:to-primary/80"
-        >
-          <div className="absolute top-4 right-4">
+        {/* Progress Bar - New Design */}
+        <div className="bg-gray-200 h-1 relative">
+          <div 
+            className="bg-black h-full transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <div className="px-8 pt-8">
+          <div className="absolute top-6 right-6 z-10">
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={handleClose}
-              className="rounded-full h-8 w-8"
+              className="h-8 w-8"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
-          
-          <div className="pt-12 px-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-8">Complete Your Booking</h2>
-            
-            {/* Progress Bar */}
-            <div className="mb-8">
-              <div className="relative">
-                <Progress value={progress} className="h-2 mb-8" />
-                <div className="flex justify-between absolute top-0 left-0 right-0 -translate-y-1/2">
-                  {steps.map((step) => (
-                    <div 
-                      key={step.number}
-                      className={`flex flex-col items-center ${step.number <= currentStep ? 'text-primary' : 'text-muted-foreground'}`}
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 transition-colors ${
-                        step.number < currentStep 
-                          ? 'bg-primary/10 text-primary' 
-                          : step.number === currentStep 
-                            ? 'bg-primary text-white' 
-                            : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {step.number < currentStep ? (
-                          <Check className="h-4 w-4" />
-                        ) : (
-                          <span className="text-sm font-medium">{step.number}</span>
-                        )}
-                      </div>
-                      <span className="text-xs font-medium">
-                        {step.title}
-                      </span>
-                    </div>
-                  ))}
+
+          {currentStep > 1 && (
+            <Button
+              variant="ghost"
+              onClick={handleBack}
+              className="flex items-center gap-2 mb-6 px-0 hover:bg-transparent text-gray-700"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+          )}
+
+          <div className="flex items-center gap-8 mb-8">
+            {steps.map((step, index) => (
+              <div key={step.number} className="flex items-center gap-3">
+                <div className={`w-8 h-8 flex items-center justify-center transition-all ${
+                  step.number < currentStep 
+                    ? 'bg-black text-white' 
+                    : step.number === currentStep 
+                      ? 'bg-black text-white' 
+                      : 'bg-transparent text-gray-400 border border-gray-300'
+                }`}>
+                  {step.number < currentStep ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <span className="text-sm font-medium">{step.number}</span>
+                  )}
                 </div>
+                <span className={`text-sm font-medium ${
+                  step.number === currentStep ? 'text-gray-900' : 'text-gray-400'
+                }`}>
+                  {step.title}
+                </span>
               </div>
-            </div>
+            ))}
           </div>
         </div>
 
         <div className="px-8 pb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-white shadow-sm p-6">
             {currentStep === 1 && selectedCar && (
               <BookingDetails
                 car={selectedCar}
@@ -146,26 +150,6 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
               />
             )}
           </div>
-          
-          {currentStep > 1 && (
-            <div className="mt-6 flex justify-between">
-              <Button
-                variant="outline"
-                onClick={handleBack}
-                className="flex items-center gap-2 px-6 py-3 rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back
-              </Button>
-              <Button 
-                type="submit" 
-                form={currentStep === 2 ? 'customer-form' : currentStep === 1 ? 'booking-form' : 'payment-form'}
-                className="px-8 py-3 rounded-lg bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white shadow-lg hover:shadow-primary/30 transition-all duration-300"
-              >
-                {currentStep === 3 ? 'Complete Booking' : 'Continue'}
-              </Button>
-            </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>

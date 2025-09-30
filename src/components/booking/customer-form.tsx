@@ -248,6 +248,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                           <FormControl>
                             <Button
                               variant="outline"
+                              type="button"
                               className={cn(
                                 "w-full pl-3 text-left font-normal border border-gray-300 hover:bg-[#E3C08D] hover:cursor-pointer",
                                 !field.value &&
@@ -412,10 +413,10 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
 
           <Button
             type="submit"
-            form="customer-form"
-            className="w-full md:w-auto px-8 py-3 text-base font-medium rounded-lg bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white shadow-lg hover:shadow-primary/30 transition-all duration-300"
+            className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-6 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+            size="lg"
           >
-            Continue to Payment
+            Continue
           </Button>
         </form>
       </FormProvider>
