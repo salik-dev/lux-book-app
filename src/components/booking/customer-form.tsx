@@ -272,11 +272,19 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                             mode="single"
                             selected={field.value}
                             onSelect={field.onChange}
-                            disabled={(date: Date) =>
+                            disabled={(date) =>
                               date > new Date() ||
-                              date < new Date("1900-01-01")
+                              date <
+                                new Date(
+                                  new Date().getFullYear() - 100,
+                                  0,
+                                  1,
+                                )
                             }
                             initialFocus
+                            captionLayout="dropdown-buttons"
+                            fromYear={1900}
+                            toYear={new Date().getFullYear()}
                           />
                         </PopoverContent>
                       </Popover>
@@ -285,27 +293,6 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                   )}
                 />
               </div>
-
-              <FormField
-                control={form.control}
-                name="address"
-                rules={{ required: "Address is required" }}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-medium text-gray-700">Address <span className="text-red-500">*</span></FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input 
-                          {...field} 
-                          className="mt-1 h-9 block w-full rounded-md border-gray-300 shadow-sm"
-                          placeholder="123 Main St"
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage className="text-red-500 text-xs mt-1" />
-                  </FormItem>
-                )}
-              />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField

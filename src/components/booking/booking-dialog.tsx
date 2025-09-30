@@ -69,7 +69,7 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 border-0 bg-gray-50">
+      <DialogContent className="max-w-4xl max-h-[90vh] p-0 border-0 bg-gray-50">
         {/* Progress Bar - New Design */}
         <div className="bg-gray-200 h-2 sticky top-0 z-10">
           <div 
@@ -115,7 +115,7 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
           </div>
         </div>
 
-        <div className="px-8 pb-8">
+        <div className="px-8 pb-8 max-h-[calc(90vh-120px)] overflow-y-auto">
           <div className="bg-white shadow-sm p-6">
             {currentStep === 1 && selectedCar && (
               <BookingDetails
