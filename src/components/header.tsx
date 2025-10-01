@@ -52,7 +52,7 @@ export function Header() {
             <Button
               variant="outline"
               size="sm"
-              className="px-5 text-[#E3C08D] hover:bg-[#E3C08D] hover:text-black bg-transparent transition-colors border-[#E3C08D]"
+              className="px-5 text-[#E3C08D] hover:bg-[#E3C08D] hover:text-black bg-transparent transition-colors duration-500 border-[#E3C08D] hover:cursor-pointer"
             >
               Ring Oss
             </Button>
@@ -60,7 +60,7 @@ export function Header() {
               <Button
                 variant="outline"
                 size="sm"
-                className="px-5 text-black bg-[#E3C08D] hover:bg-white hover:text-black border-[#E3C08D]"
+                className="px-5 text-black bg-[#E3C08D] hover:bg-white hover:text-black border-[#E3C08D] hover:cursor-pointer transition-colors duration-500"
               >
                 Logg inn
               </Button>
@@ -126,7 +126,7 @@ export function Header() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-[#E3C08D] text-[#E3C08D] hover:bg-[#E3C08D] hover:text-black w-full bg-transparent"
+                  className="border-[#E3C08D] text-[#E3C08D] hover:bg-[#E3C08D] hover:text-black w-full bg-transparent hover:cursor-pointer"
                 >
                   Ring oss
                 </Button>
@@ -134,7 +134,7 @@ export function Header() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="border-[#E3C08D] bg-[#E3C08D] text-black hover:bg-white hover:text-black w-full"
+                    className="border-[#E3C08D] bg-[#E3C08D] text-black hover:bg-white hover:text-black w-full hover:cursor-pointer"
                   >
                     Logg inn
                   </Button>
