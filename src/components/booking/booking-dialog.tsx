@@ -50,7 +50,6 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
   };
 
   const handleBookingDetailsComplete = (data: BookingData) => {
-    console.log('h data', data);
     setBookingData(data);
     setCurrentStep(2);
   };
@@ -69,7 +68,7 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0 border-0 bg-gray-50">
+      <DialogContent className="max-w-4xl p-0 border-0 bg-gray-50">
         {/* Progress Bar - New Design */}
         <div className="bg-gray-200 h-2 sticky top-0 z-10">
           <div 
@@ -78,16 +77,16 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
           />
         </div>
         <div>
-          {currentStep > 1 && (
-            <Button
-              variant="ghost"
-              onClick={handleBack}
-              className="flex items-center gap-2 ml-4 hover:bg-transparent text-gray-700 hover:cursor-pointer"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-          )}
+            {currentStep > 1 && (
+              <Button
+                variant="ghost"
+                onClick={handleBack}
+                className="flex items-center gap-2 ml-4 hover:bg-transparent text-gray-700 hover:cursor-pointer"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Button>
+            )}
 
           <div className="flex items-center gap-8">
             {steps.map((step, index) => (

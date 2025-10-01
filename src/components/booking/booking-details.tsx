@@ -23,9 +23,9 @@ const Form = ({ children, form, onSubmit }: {
   </FormProvider>
 );
 
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Calendar } from "../ui/calendar";
-import { cn } from "../../lib/utils";
+// import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+// import { Calendar } from "../ui/calendar";
+// import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { BookingData, CarData } from "@/@types/data";
@@ -36,8 +36,8 @@ interface BookingDetailsProps {
 }
 
 interface FormData {
-  startDate: Date;
-  endDate: Date;
+  startDateTime: Date;
+  endDateTime: Date;
   startTime: string;
   endTime: string;
   pickupLocation: string;
@@ -53,8 +53,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
   const form = useForm<FormData>({
     defaultValues: {
-      startDate: new Date(),
-      endDate: addDays(new Date(), 1),
+      startDateTime: new Date(),
+      endDateTime: addDays(new Date(), 1),
       startTime: "10:00",
       endTime: "10:00",
       pickupLocation: "Oslo Sentrum",
@@ -69,8 +69,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
   const calculatePricing = () => {
     // Ensure we have valid dates and times before proceeding
     if (
-      !watchedValues.startDate ||
-      !watchedValues.endDate ||
+      !watchedValues.startDateTime ||
+      !watchedValues.endDateTime ||
       !watchedValues.startTime ||
       !watchedValues.endTime
     ) {
@@ -85,11 +85,11 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
     // Create date strings in ISO format
     const startDateStr = format(
-      watchedValues.startDate,
+      watchedValues.startDateTime,
       "yyyy-MM-dd",
     );
     const endDateStr = format(
-      watchedValues.endDate,
+      watchedValues.endDateTime,
       "yyyy-MM-dd",
     );
 
@@ -164,16 +164,16 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
     console.log('form data', data);
     const startDateTime = new Date(
-      `${format(data.startDate, "yyyy-MM-dd")}T${data.startTime}`,
+      `${format(data.startDateTime, "yyyy-MM-dd")}T${data.startTime}`,
     );
     const endDateTime = new Date(
-      `${format(data.endDate, "yyyy-MM-dd")}T${data.endTime}`,
+      `${format(data.endDateTime, "yyyy-MM-dd")}T${data.endTime}`,
     );
 
     const bookingData: BookingData = {
       car,
-      startDate: startDateTime,
-      endDate: endDateTime,
+      startDateTime: startDateTime,
+      endDateTime: endDateTime,
       pickupLocation: data.pickupLocation,
       deliveryLocation: data.deliveryLocation || undefined,
       totalPrice: pricing.totalPrice,
@@ -213,7 +213,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                     {car.name}
                   </h3>
                   <p className="text-lg font-semibold mb-2">{car.price}</p>
-                  <p className="text-muted-foreground mb-4">
+                  <p className="text-muted-foreground text-sm tracking-wider leading-[18px]">
                     {car.moreInfo[0]}
                     {car.moreInfo[1]}
                   </p>
@@ -234,17 +234,25 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="startDate"
+                  name="startDateTime"
                   rules={{ required: "Pickup date is required" }}
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Pickup Date <span className="text-red-500">*</span></FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
+                      <FormLabel>Pickup Date-Time <span className="text-red-500">*</span></FormLabel>
+                      {/* <Popover>
+                        <PopoverTrigger asChild> */}
                           <FormControl>
-                            <Button
-                              variant="outline"
+                          <Input
+                            type="datetime-local"
+                            value={field.value ? format(field.value, "yyyy-MM-dd'T'HH:mm") : ""}
+                            onChange={(e) => field.onChange(new Date(e.target.value))}
+                            onBlur={field.onBlur}
+                            className="border h-9 border-gray-200"
+                            min={format(new Date(), "yyyy-MM-dd'T'HH:mm")} // Optional: prevents selecting past dates
+                          />
+                            {/* <Button
                               type="button"
+                              variant="outline"
                               className={cn(
                                 "w-full h-9 pl-3 text-left font-normal border border-gray-300 hover:bg-[#E3C08D] rounded-md hover:cursor-pointer",
                                 !field.value && "text-muted-foreground"
@@ -256,10 +264,10 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                                 <span>Pick a date</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
+                            </Button> */}
                           </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent
+                        {/* </PopoverTrigger> */}
+                        {/* <PopoverContent
                           className="w-auto p-0"
                           align="start"
                         >
@@ -272,8 +280,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                             }
                             initialFocus
                           />
-                        </PopoverContent>
-                      </Popover>
+                        </PopoverContent> */}
+                      {/* </Popover> */}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -281,15 +289,23 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
                 <FormField
                   control={form.control}
-                  name="endDate"
+                  name="endDateTime"
                   rules={{ required: "Return date is required" }}
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Return Date <span className="text-red-500">*</span></FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
+                      <FormLabel>Return Date-Time <span className="text-red-500">*</span></FormLabel>
+                      {/* <Popover>
+                        <PopoverTrigger asChild> */}
                           <FormControl>
-                            <Button
+                          <Input
+                            type="datetime-local"
+                            value={field.value ? format(field.value, "yyyy-MM-dd'T'HH:mm") : ""}
+                            onChange={(e) => field.onChange(new Date(e.target.value))}
+                            onBlur={field.onBlur}
+                            className="border h-9 border-gray-200"
+                            min={format(new Date(), "yyyy-MM-dd'T'HH:mm")} // Optional: prevents selecting past dates
+                          />
+                            {/* <Button
                               variant="outline"
                               type="button"
                               className={cn(
@@ -304,9 +320,9 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                                 <span>Pick a date</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
+                            </Button> */}
                           </FormControl>
-                        </PopoverTrigger>
+                        {/* </PopoverTrigger>
                         <PopoverContent
                           className="w-auto p-0"
                           align="start"
@@ -316,21 +332,21 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                             selected={field.value}
                             onSelect={field.onChange}
                             disabled={(date) => {
-                              const startDate = watchedValues.startDate;
-                              if (!startDate) return date < new Date(new Date().setHours(0, 0, 0, 0));
-                              return date <= startDate;
+                              const startDateTime = watchedValues.startDateTime;
+                              if (!startDateTime) return date < new Date(new Date().setHours(0, 0, 0, 0));
+                              return date <= startDateTime;
                             }}
                             initialFocus
                           />
                         </PopoverContent>
-                      </Popover>
+                      </Popover> */}
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="startTime"
@@ -368,7 +384,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                     </FormItem>
                   )}
                 />
-              </div>
+              </div> */}
             </CardContent>
           </Card>
 

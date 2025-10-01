@@ -99,6 +99,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
     };
     onComplete(customerData);
   };
+  console.log('booking data', bookingData)
 
   return (
     <div className="space-y-6">
@@ -110,7 +111,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
             <div>
               <h4 className="font-medium text-gray-900">{bookingData.car.name}</h4>
               <p className="text-sm text-gray-600">
-                {format(bookingData.startDate, "MMM d, yyyy")} - {format(bookingData.endDate, "MMM d, yyyy")}
+                 {format(new Date(bookingData.startDateTime), "PPP p")} -{" "}
+                {format(new Date(bookingData.endDateTime), "PPP p")}
               </p>
             </div>
             
@@ -136,7 +138,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               Total incl. VAT
             </div>
             <div className="mt-1 text-xs text-gray-500">
-              {Math.ceil((bookingData.endDate.getTime() - bookingData.startDate.getTime()) / (1000 * 60 * 60 * 24))} days
+            {Math.ceil((new Date(bookingData.endDateTime).getTime() - new Date(bookingData.startDateTime).getTime()) / (1000 * 60 * 60 * 24))} days
             </div>
           </div>
         </div>

@@ -35,8 +35,8 @@ export interface CarData {
 
 export interface BookingData {
   car: CarData;
-  startDate: Date;
-  endDate: Date;
+  startDateTime: Date;
+  endDateTime: Date;
   pickupLocation: string;
   deliveryLocation?: string;
   totalPrice: number;

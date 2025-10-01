@@ -122,8 +122,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
                 {bookingData.car.name}
               </h3>
               <p className="text-muted-foreground">
-                {format(bookingData.startDate, "PPP p")} -{" "}
-                {format(bookingData.endDate, "PPP p")}
+                {format(new Date(bookingData.startDateTime), "PPP p")} -{" "}
+                {format(new Date(bookingData.endDateTime), "PPP p")}
               </p>
               <p className="text-muted-foreground">
                 <strong>Pickup:</strong>{" "}
