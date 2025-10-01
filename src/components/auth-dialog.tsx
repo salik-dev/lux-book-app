@@ -274,7 +274,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                 )}
               </Button>
 
-              <div className="flex flex-col">
+              <div className="flex flex-col justify-center items-center">
                 <p className="text-sm text-gray-600 text-center">
                   {isLogin ? "Don't have an account? " : 'Already have an account? '}
                 </p>
@@ -285,7 +285,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                     form.reset();
                     setIsLogin(!isLogin);
                   }}
-                  className="text-[#E3C08D] font-medium hover:underline hover:cursor-pointer leading-6"
+                  className="w-24 text-[#E3C08D] font-medium hover:underline hover:cursor-pointer leading-6"
                 >
                   {isLogin ? 'Sign up' : 'Sign in'}
                 </Button>
