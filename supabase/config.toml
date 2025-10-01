@@ -1,0 +1,13 @@
+project_id = "nagzgmnsaiyyzmpzkiey"
+
+[functions.create-payment]
+verify_jwt = true
+
+[functions.generate-car-images]
+verify_jwt = false
+
+[functions.send-booking-email]
+verify_jwt = false
+
+[functions.upload-license]
+verify_jwt = true
