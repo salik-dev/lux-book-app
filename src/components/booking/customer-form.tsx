@@ -245,10 +245,21 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel className="text-sm font-medium text-gray-700">Date of Birth <span className="text-red-500">*</span></FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
+                      {/* <Popover>
+                        <PopoverTrigger asChild> */}
                           <FormControl>
-                            <Button
+                          <Input
+                            type="date"
+                            value={field.value ? format(new Date(field.value), "yyyy-MM-dd") : ""}
+                            onChange={(e) => {
+                              const date = e.target.value ? new Date(e.target.value) : null;
+                              field.onChange(date);
+                            }}
+                            onBlur={field.onBlur}
+                            className="border h-9 border-gray-200"
+                            max={format(new Date(), "yyyy-MM-dd")} // Allow dates up to today
+                          />
+                            {/* <Button
                               variant="outline"
                               type="button"
                               className={cn(
@@ -263,10 +274,10 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                                 <span>Pick a date</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
+                            </Button> */}
                           </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent
+                        {/* </PopoverTrigger> */}
+                        {/* <PopoverContent
                           className="w-auto p-0"
                           align="start"
                         >
@@ -288,8 +299,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                             fromYear={1900}
                             toYear={new Date().getFullYear()}
                           />
-                        </PopoverContent>
-                      </Popover>
+                        </PopoverContent> */}
+                      {/* </Popover> */}
                       <FormMessage className="text-red-500 text-xs mt-1" />
                     </FormItem>
                   )}
