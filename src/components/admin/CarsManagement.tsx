@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Plus, Search, Edit, Trash2, Image, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CarFormDialog } from './CarFormDialog';
-import { getCarPlaceholder } from '@/utils/carPlaceholders';
+import { getCarPlaceholder } from '@/utils/carPlaceholder';
 
 interface Car {
   id: string;
@@ -19,10 +19,10 @@ interface Car {
   year: number;
   base_price_per_hour: number;
   base_price_per_day: number;
-  included_km_per_day: number;
-  extra_km_rate: number;
-  image_url?: string;
-  is_available: boolean;
+  included_km_per_day: number | null;
+  extra_km_rate: number | null;
+  image_url?: string | null;
+  is_available: boolean | null;  // Make this nullable
   created_at: string;
 }
 
@@ -219,7 +219,7 @@ export const CarsManagement: React.FC = () => {
                     <div className="text-sm">
                       <div>{car.included_km_per_day} km/day</div>
                       <div className="text-muted-foreground">
-                        +{formatPrice(car.extra_km_rate)}/km
+                        +{formatPrice((car.extra_km_rate ?? 0) as number)}/km
                       </div>
                     </div>
                   </TableCell>
@@ -259,7 +259,7 @@ export const CarsManagement: React.FC = () => {
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => toggleCarAvailability(car.id, car.is_available)}
+                        onClick={() => toggleCarAvailability(car.id, car.is_available || false)}
                       >
                         {car.is_available ? 'Disable' : 'Enable'}
                       </Button>

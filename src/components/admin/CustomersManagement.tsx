@@ -17,13 +17,13 @@ interface Customer {
   address: string;
   postal_code: string;
   city: string;
-  date_of_birth?: string;
+  date_of_birth?: string | null;
   created_at: string;
-  user_id?: string;
+  user_id?: string | null;
   bookings?: Array<{
     id: string;
     booking_number: string;
-    status: string;
+    status: string | null;
     total_price: number;
   }>;
 }

@@ -14,28 +14,28 @@ import { useToast } from '@/hooks/use-toast';
 interface Booking {
   id: string;
   booking_number: string;
-  status: string;
+  status: string | null;
   start_datetime: string;
   end_datetime: string;
   pickup_location: string;
-  delivery_location?: string;
+  delivery_location?: string | null;
   total_price: number;
   created_at: string;
   car: {
     name: string;
     brand: string;
     model: string;
-  };
+  } | null;
   customer: {
     full_name: string;
     email: string;
     phone: string;
-  };
+  } | null;
   payment: Array<{
-    status: string;
-    method: string;
+    status: "pending" | "paid" | "refunded" | "failed" | null;
+    method: "stripe" | "vipps";
     amount: number;
-  }>;
+  }> | null;
 }
 
 export const BookingsManagement: React.FC = () => {
@@ -127,7 +127,7 @@ export const BookingsManagement: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | null = 'unknown') => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'confirmed': return 'bg-blue-100 text-blue-800';
@@ -274,8 +274,8 @@ export const BookingsManagement: React.FC = () => {
                         <Mail className="h-4 w-4" />
                       </Button>
                       <Select
-                        value={booking.status}
-                        onValueChange={(value) => updateBookingStatus(booking.id, value as 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled')}
+                        value={booking.status || ''}
+                        onValueChange={(value) => updateBookingStatus(booking.id, (value || 'pending') as 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled')}
                       >
                         <SelectTrigger className="w-[120px] h-8">
                           <SelectValue />

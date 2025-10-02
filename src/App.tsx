@@ -12,6 +12,8 @@ import Arrangementer from "./pages/arrangementer";
 import GallerietVart from "./pages/galleriet-vart";
 import VareBildetaljer from "./pages/vare-bildetaljer";
 import KontaktOss from "./pages/kontakt-oss";
+import NotFound from "./pages/not-found";
+import Admin from "./pages/admin";
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -32,6 +34,13 @@ export default function App() {
         <Route path="/" element={
           <Layout>
             <HomePage />
+          </Layout>
+        } />
+
+        {/* Admin Routes */}
+        <Route path="/admin" element={
+          <Layout>
+            <Admin />
           </Layout>
         } />
 
@@ -65,6 +74,7 @@ export default function App() {
             <KontaktOss />
           </Layout>
         } />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </AuthProvider>
   );

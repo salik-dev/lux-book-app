@@ -7,21 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Loader2 } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 
-interface Car {
-  id?: string;
-  name: string;
-  model: string;
-  brand: string;
-  year: number;
-  base_price_per_hour: number;
-  base_price_per_day: number;
-  included_km_per_day: number;
-  extra_km_rate: number;
-  description?: string;
-  is_available: boolean;
-}
+import { Car } from '@/types/car';
 
 interface CarFormDialogProps {
   car?: Car;
@@ -241,8 +229,8 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
               <Input
                 id="included_km_per_day"
                 type="number"
-                value={formData.included_km_per_day}
-                onChange={(e) => handleInputChange('included_km_per_day', parseInt(e.target.value))}
+                value={formData.included_km_per_day ?? ''}
+                onChange={(e) => handleInputChange('included_km_per_day', e.target.value ? parseInt(e.target.value) : null)}
                 min="0"
                 required
               />
@@ -253,8 +241,8 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
               <Input
                 id="extra_km_rate"
                 type="number"
-                value={formData.extra_km_rate}
-                onChange={(e) => handleInputChange('extra_km_rate', parseFloat(e.target.value))}
+                value={formData.extra_km_rate ?? ''}
+                onChange={(e) => handleInputChange('extra_km_rate', e.target.value ? parseFloat(e.target.value) : null)}
                 min="0"
                 step="0.01"
                 required
@@ -276,7 +264,7 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
           <div className="flex items-center space-x-2">
             <Switch
               id="is_available"
-              checked={formData.is_available}
+              checked={formData.is_available ?? false}
               onCheckedChange={(checked) => handleInputChange('is_available', checked)}
             />
             <Label htmlFor="is_available">Available for booking</Label>

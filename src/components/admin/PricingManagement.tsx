@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui//table';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Edit, Trash2, Save } from 'lucide-react';
@@ -14,20 +14,23 @@ interface PricingRule {
   id: string;
   name: string;
   rule_type: string;
-  zone_name?: string;
-  min_distance_km?: number;
-  max_distance_km?: number;
-  price_per_km?: number;
-  flat_fee?: number;
-  is_active: boolean;
+  zone_name: string | null;  // Changed from zone_name?: string
+  min_distance_km: number | null;
+  max_distance_km: number | null;
+  price_per_km: number | null;
+  flat_fee: number | null;
+  is_active: boolean | null;
   created_at: string;
+  updated_at: string;
 }
 
 interface AppSetting {
   id: string;
   key: string;
   value: any;
-  description?: string;
+  description?: string | null;
+  updated_at: string;
+  updated_by: string | null;
 }
 
 export const PricingManagement: React.FC = () => {
@@ -249,8 +252,8 @@ export const PricingManagement: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Switch
-                        checked={rule.is_active}
-                        onCheckedChange={() => togglePricingRule(rule.id, rule.is_active)}
+                        checked={rule.is_active || false}
+                        onCheckedChange={() => togglePricingRule(rule.id, rule.is_active || false)}
                       />
                     </TableCell>
                     <TableCell>
