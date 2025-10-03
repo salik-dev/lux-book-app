@@ -1,116 +1,99 @@
 "use client"
-import React from "react"
-import { Key, Users, Settings, Plus, Minus } from "lucide-react"
+import React, { useState } from "react"
+import { Key, Users, Settings, Plus, Minus, Hourglass, HourglassIcon, CalendarDays, LocateFixed } from "lucide-react"
 import { Button } from "./button"
 import { CarCardProps } from "../../@types/data"
+import defaultImg from '../../assets/luxury-car-showroom-dark-elegant.jpg'
 
-export function CarCard({ image_url, price, transmission, fuel, category, name = "Luksusbil", vehicleType, doors,
-  moreInfo = [
-    "Premium interiør med skinntrukne seter",
-    "Avansert navigasjonssystem og infotainment",
-    "Automatisk klimakontroll",
-    "Sikkerhetssystemer og assistanse",
-    "Bluetooth og USB-tilkobling",
-  ], index, isExpanded, onToggleExpand, onNavigateToBooking, onCarSelect }: CarCardProps) {
+export function CarCard({ id, name='Luksusbil', image_url, description, base_price_per_day, base_price_per_hour, included_km_per_day, extra_km_rate, is_available, onNavigateToBooking, onCarSelect }: CarCardProps) {
+  const [isInfoOpen, setIsInfoOpen] = useState(false)
     
   const handleCarSelect = () => {
     onCarSelect({
-      image_url,
-      price,
-      transmission,
-      fuel,
-      category,
+      id,
       name,
-      vehicleType: vehicleType || transmission,
-      doors: doors || fuel,
-      moreInfo,
+      image_url,
+      base_price_per_day,
+      base_price_per_hour,
+      included_km_per_day,
+      extra_km_rate,
+      is_available,
+      description
     })
     onNavigateToBooking()
   }
 
   return (
     <div
-      className={`bg-white overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 ${
-        isExpanded ? "row-span-2" : ""
-      }`}
+      className={`bg-white overflow-hidden shadow-md hover:shadow-xl transition-all duration-300`}
     >
       <div className="relative">
         <img
-          src={image_url || "/placeholder.svg?height=300&width=400&query=luxury car"}
+          src={image_url || defaultImg}
           alt={name}
-          className={`w-full object-cover transition-all duration-300 ${isExpanded ? "h-64" : "h-60"}`}
+          className={`w-full h-60 object-cover transition-all duration-300 `}
         />
-        {isExpanded && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6">
-            <div>
-              <h3 className="text-2xl font-bold text-white mb-1">{name}</h3>
-              <div className="text-lg text-gray-200">{price}</div>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="p-6">
-        {!isExpanded && (
-          <>
-            <h3 className="text-xl font-semibold text-[#E3C08D] mb-2">{name}</h3>
-            <div className="text-2xl font-bold text-black mb-4">{price}</div>
-          </>
-        )}
+        <h3 className="text-xl font-semibold text-[#E3C08D] mb-2">{name}</h3>
         <hr className="border-t border-gray-200 mb-4" />
 
-        <div className="space-y-3 mb-6">
+        <div className="space-y-2 mb-6">
           <div className="flex items-center space-x-3 text-sm text-gray-700">
-            <Key className="h-4 w-4 text-[#E3C08D] flex-shrink-0" />
-            <span>Kjøretøytype: {vehicleType || transmission}</span>
+            <HourglassIcon className="h-3 w-3 text-[#E3C08D] flex-shrink-0" />
+            <span>per hour: {base_price_per_hour} pkr</span>
           </div>
           <div className="flex items-center space-x-3 text-sm text-gray-700">
-            <Users className="h-4 w-4 text-[#E3C08D] flex-shrink-0" />
-            <span>{doors || fuel}</span>
+            <CalendarDays className="h-3 w-3 text-[#E3C08D] flex-shrink-0" />
+            <span>per day: {base_price_per_day} pkr</span>
           </div>
           <div className="flex items-center space-x-3 text-sm text-gray-700">
-            <Settings className="h-4 w-4 text-[#E3C08D] flex-shrink-0" />
-            <span>Gir: {category}</span>
+            <LocateFixed className="h-3 w-3 text-[#E3C08D] flex-shrink-0" />
+            <span>{included_km_per_day} km included per day</span>
+          </div>
+          <div className="flex items-center space-x-3 text-sm text-gray-700">
+            <LocateFixed className="h-3 w-3 text-[#E3C08D] flex-shrink-0" />
+            <span>Extra km: {extra_km_rate} / km</span>
           </div>
         </div>
 
-        <Button onClick={handleCarSelect} className="w-full mt-4 tracking-wide text-black bg-[#E3C08D] hover:bg-[#E3C08D]/90 hover:cursor-pointer transition-all duration-300 hover:text-white">
-          Reserver nå
-        </Button>
 
-        <div className="border-t border-gray-200 pt-4">
+        <div className="mt-6">
+          <Button onClick={handleCarSelect} className="w-full tracking-wide text-black bg-[#E3C08D] hover:bg-[#E3C08D]/90 hover:cursor-pointer transition-all duration-300 hover:text-white">
+            Reserver nå
+          </Button>
+        </div>
+        {/* Mer informasjon - expandable section at bottom */}
+        <div className="mt-2">
           <button
-            onClick={() => onToggleExpand(index)}
-            className="flex items-center justify-between w-full text-left focus:outline-none"
-            aria-expanded={isExpanded}
+            type="button"
+            aria-expanded={isInfoOpen}
+            onClick={() => setIsInfoOpen((v) => !v)}
+            className="w-full flex items-center justify-between py-3 hover:cursor-pointer"
           >
-            <span className="text-[#E3C08D] font-medium">{isExpanded ? "Vis mindre" : "Mer informasjon"}</span>
-            <div className="w-6 h-6 rounded-full bg-[#E3C08D] flex items-center justify-center transition-all duration-200 hover:cursor-pointer">
-              {isExpanded ? <Minus className="h-3 w-3 text-white" /> : <Plus className="h-3 w-3 text-white" />}
-            </div>
+            <span className="font-semibold text-lg text-[#E3C08D]">Mer informasjon</span>
+            {isInfoOpen ? (
+              <span className="rounded-full bg-gray-400 p-1">
+              <Minus className="h-3 w-3 text-white" />
+            </span>
+            ) : (
+              <span className="rounded-full bg-[#E3C08D] p-1">
+              <Plus className="h-3 w-3 text-white" />
+            </span>
+            )}
           </button>
-
           <div
-            className={`overflow-hidden transition-all duration-300 ease-in-out ${
-              isExpanded ? "opacity-100 mt-4" : "opacity-0 mt-0"
+            className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${
+              isInfoOpen ? 'max-h-40' : 'max-h-0'
             }`}
-            style={{
-              height: isExpanded ? 'auto' : '0',
-              transitionProperty: 'height, opacity, margin',
-              willChange: 'height, opacity, margin'
-            }}
           >
-            <div className="space-y-3 pt-2">
-              {moreInfo.map((info, i) => (
-                <p key={i} className="text-sm text-gray-600 flex items-start">
-                  <span className="text-[#E3C08D] mr-2">•</span>
-                  <span>{info}</span>
-                </p>
-              ))}
+            <div className="pt-2 text-sm tracking-wide text-gray-700">
+              {description}
             </div>
-            
           </div>
         </div>
+
       </div>
     </div>
   )

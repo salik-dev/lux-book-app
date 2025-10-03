@@ -13,7 +13,8 @@ import GallerietVart from "./pages/galleriet-vart";
 import VareBildetaljer from "./pages/vare-bildetaljer";
 import KontaktOss from "./pages/kontakt-oss";
 import NotFound from "./pages/not-found";
-import Admin from "./pages/admin";
+import Admin from "./pages/admin/admin";
+import Bookings from "./pages/bookings/booking";
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -34,6 +35,13 @@ export default function App() {
         <Route path="/" element={
           <Layout>
             <HomePage />
+          </Layout>
+        } />
+
+        {/* Booking Routes */}
+        <Route path="/bookings" element={
+          <Layout>
+            <Bookings />
           </Layout>
         } />
 

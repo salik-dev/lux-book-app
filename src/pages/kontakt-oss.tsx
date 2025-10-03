@@ -47,15 +47,15 @@ export default function KontaktOssPage() {
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-8">92 92 07 71</h2>
           
           <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-8">
-            <div className="flex items-center gap-3 bg-black/40 px-6 py-3 rounded-lg backdrop-blur-sm">
+            <div className="flex items-center gap-3 bg-black/40 px-6 py-3 backdrop-blur-sm">
               <Mail size={36} className="text-[#E3C08D]" />
               <span className="text-lg tracking-wide text-white">hei@primebil.no</span>
             </div>
-            <div className="flex items-center gap-3 bg-black/40 px-6 py-3 rounded-lg backdrop-blur-sm">
+            <div className="flex items-center gap-3 bg-black/40 px-6 py-3 backdrop-blur-sm">
               <Phone size={36} className="text-[#E3C08D]" />
               <span>92 92 07 71</span>
             </div>
-            <div className="flex items-center gap-3 bg-black/40 px-6 py-3 rounded-lg backdrop-blur-sm">
+            <div className="flex items-center gap-3 bg-black/40 px-6 py-3 backdrop-blur-sm">
               <MapPin size={36} className="text-[#E3C08D]" />
               <span>Tvetenveien 152, 0671 Oslo</span>
             </div>

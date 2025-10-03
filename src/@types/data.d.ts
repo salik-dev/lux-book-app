@@ -4,19 +4,18 @@ export interface CardProps {
 }
 
 export interface CarCardProps {
-  // id: string
-  name?: string
-  image_url: string
-  price: string
-  transmission: string
-  fuel: string
-  category: string
-  vehicleType?: string
-  doors?: string
-  moreInfo?: string[]
-  index: number
-  isExpanded: boolean
-  onToggleExpand: (index: number) => void
+  id: number | string;
+  name: string;
+  model: string;
+  brand: string;
+  year: number;
+  description: string;
+  base_price_per_hour: number;
+  base_price_per_day: number;
+  included_km_per_day: number;
+  extra_km_rate: number;
+  image_url: string;
+  is_available: boolean;
   onNavigateToBooking: () => void
   onCarSelect: (car: any) => void
 }

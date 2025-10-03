@@ -23,67 +23,6 @@ export const leadingRentalList = [
     }
 ];
 
-export const vehicles = [
-    {
-      
-      name: "Mercedes Benz G-Wagon",
-      image_url: lamborghiniImage,
-      price: "7.990kr",
-      vehicleType: "Luksus SUV",
-      doors: "4 dører, 5 seter",
-      transmission: "Automatisk",
-      fuel: "5 dører, 5 seter",
-      category: "Automatisk",
-      moreInfo: [
-        "Premium lær interiør med oppvarming",
-        "Firehjulstrekk system med terrengmodus",
-        "Avansert sikkerhetspakke med blindsone-assistanse",
-        "Panorama soltak med elektrisk betjening",
-        "Harman Kardon premium lydsystem",
-        "Adaptiv cruise control",
-        "360-graders kamerasystem",
-      ],
-    },
-    {
-      name: "BMW i7",
-      image_url: audiImage,
-      price: "5.990kr",
-      vehicleType: "Luksus Sedan",
-      doors: "4 dører, 5 seter",
-      transmission: "Automatisk",
-      fuel: "5 dører, 5 seter",
-      category: "Automatisk",
-      moreInfo: [
-        "Elektrisk drivlinje med 500+ km rekkevidde",
-        "Executive lounge seter med massasje",
-        "Bowers & Wilkins Diamond surround lyd",
-        "Luftfjæring med adaptiv demping",
-        "BMW Live Cockpit Professional",
-        "Wireless charging og WiFi hotspot",
-        "Gesture control og voice assistant",
-      ],
-    },
-    {
-      name: "Rolls Royce Ghost",
-      image_url: rangeImage,
-      price: "9.990kr",
-      vehicleType: "Luksus Sedan",
-      doors: "4 dører, 4 seter",
-      transmission: "Automatisk",
-      fuel: "5 dører, 5 seter",
-      category: "Automatisk",
-      moreInfo: [
-        "Håndlaget interiør med finest lær",
-        "Whisper quiet kabin med lyddemping",
-        "Bespoke audio system med 18 høyttalere",
-        "Starlight headliner med 1,340 fiber optikk",
-        "Magic carpet ride luftfjæring",
-        "Spirit of Ecstasy med belysning",
-        "Champagne kjøler og crystal glass",
-      ],
-    },
-  ];
-
   export  const benefits = [
     {
       icon: Shield,

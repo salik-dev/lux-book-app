@@ -64,7 +64,7 @@ export function Header() {
                     <Link to="/" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
                       Home
                     </Link>
-                    <Link to="/booking" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+                    <Link to="/bookings" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
                       My Booking
                     </Link>
                     <Link to="/admin" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
