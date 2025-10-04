@@ -77,6 +77,7 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
             style={{ width: `${progress}%` }}
           />
         </div>
+        
         <div>
             {currentStep > 1 && (
               <Button
@@ -116,7 +117,7 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
         </div>
 
         <div className="px-8 pb-8 max-h-[calc(90vh-120px)] overflow-y-auto">
-          <div className="bg-white shadow-sm p-6">
+          {/* <div className="bg-white shadow-sm p-6"> */}
             {currentStep === 1 && selectedCar && (
               <BookingDetails
                 car={selectedCar}
@@ -141,7 +142,7 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
               />
             )}
           </div>
-        </div>
+        {/* </div> */}
       </DialogContent>
     </Dialog>
   );

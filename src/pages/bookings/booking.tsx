@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth-context';
 import { useNavigate } from 'react-router-dom';
-import { Header } from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { Calendar, Car, MapPin, CreditCard } from 'lucide-react';
 import { getCarPlaceholder } from '@/utils/carPlaceholder';
+import { Header } from '@/components/header';
+import { CarCardProps } from '@/@types/data';
 
-interface Booking {
+interface BookingProps {
   id: string;
   booking_number: string;
   start_datetime: string;
@@ -25,14 +26,13 @@ interface Booking {
     brand: string;
     model: string;
     image_url: string | null;
-  };
-}
+  };}
 
 const Bookings = () => {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<BookingProps[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -61,11 +61,11 @@ const Bookings = () => {
             image_url
           )
         `)
+        .eq('customer_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      console.log('book data', data);
-    //   setBookings(data || []);
+      setBookings(data || []);
     } catch (error) {
       console.error('Error loading bookings:', error);
     } finally {

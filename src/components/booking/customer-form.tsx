@@ -3,36 +3,10 @@ import { useTranslation } from "react-i18next";
 import { useForm, FormProvider } from "react-hook-form";
 import { useDropzone } from "react-dropzone";
 import { Button } from "../ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "../ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { Input } from "../ui/input";
-import { Calendar } from "../ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "../ui/popover";
 import { format } from "date-fns";
-import {
-  CalendarIcon,
-  Upload,
-  User,
-  FileText,
-  MapPin,
-  Truck,
-} from "lucide-react";
+import { Upload, User, FileText, MapPin, Truck } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { BookingData, CustomerData } from "@/@types/data";
 
@@ -42,11 +16,7 @@ interface CustomerFormProps {
   initialData?: CustomerData;
 }
 
-export const CustomerForm: React.FC<CustomerFormProps> = ({
-  bookingData,
-  onComplete,
-  initialData,
-}) => {
+export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onComplete, initialData }) => {
   const { t } = useTranslation();
   const [licenseFile, setLicenseFile] = useState<File | null>(
     null,
@@ -128,7 +98,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
   return (
     <div className="space-y-6">
       {/* Booking Summary */}
-      <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
+      <div className="bg-gray-50 rounded-xl p-6 border border-gray-100 bg-white">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Booking Summary</h3>
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-1 space-y-3">
@@ -196,7 +166,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                         <div className="relative">
                           <Input 
                             {...field} 
-                            className="mt-1 h-9 block w-full rounded-md border-gray-300 shadow-sm"
+                            className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
                             placeholder="John Doe"
                           />
                         </div>
@@ -225,7 +195,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                           <Input 
                             type="email" 
                             {...field} 
-                            className="mt-1 h-9 block w-full rounded-md border-gray-300 shadow-sm"
+                            className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
                             placeholder="john.doe@example.com"
                           />
                         </div>
@@ -250,7 +220,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                         <div className="relative">
                           <Input 
                             {...field} 
-                            className="mt-1 h-9 block w-full rounded-md border-gray-300 shadow-sm"
+                            className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
                             placeholder="+47 123 45 678"
                           />
                         </div>
@@ -280,7 +250,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                               field.onChange(date);
                             }}
                             onBlur={field.onBlur}
-                            className="border h-9 border-gray-200"
+                            className="border h-9 border-gray-200 bg-gray-50 rounded-md border-gray-300"
                             max={format(new Date(), "yyyy-MM-dd")} // Allow dates up to today
                           />
                             {/* <Button
@@ -342,7 +312,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                         <div className="relative">
                           <Input 
                             {...field} 
-                            className="mt-1 h-9 block w-full rounded-md border-gray-300 shadow-sm"
+                            className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
                             placeholder="Insert your address ..."
                           />
                         </div>
@@ -366,7 +336,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                         <div className="relative">
                           <Input 
                             {...field} 
-                            className="mt-1 h-9 block w-full rounded-md border-gray-300 shadow-sm"
+                            className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
                             placeholder="1234"
                           />
                         </div>
@@ -387,7 +357,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                         <div className="relative">
                           <Input 
                             {...field} 
-                            className="mt-1 h-9 block w-full rounded-md border-gray-300 shadow-sm"
+                            className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
                             placeholder="Oslo"
                           />
                         </div>

@@ -167,7 +167,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
         <>
 
           {/* Selected Car Display */}
-          <Card className="bg-gray-50">
+          <Card className="bg-white">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Car className="h-5 w-5" />
@@ -198,7 +198,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           </Card>
 
           {/* Date and Time Selection */}
-          <Card className="card-premium">
+          <Card className="bg-white card-premium">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5" />
@@ -229,7 +229,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                               }
                             }}
                             onBlur={field.onBlur}
-                            className="border h-9 border-gray-200"
+                            className="border h-9 border-gray-200 bg-gray-50 rounded-md"
                             min={format(new Date(), "yyyy-MM-dd'T'HH:mm")} // Optional: prevents selecting past dates
                           />
                             {/* <Button
@@ -290,12 +290,12 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                             value={field.value ? format(field.value, "yyyy-MM-dd'T'HH:mm") : ""}
                             onChange={(e) => field.onChange(new Date(e.target.value))}
                             onBlur={field.onBlur}
-                            className="border h-9 border-gray-200"
                             min={
                               watchedValues.startDateTime
-                                ? format(watchedValues.startDateTime, "yyyy-MM-dd'T'HH:mm")
-                                : format(new Date(), "yyyy-MM-dd'T'HH:mm")
+                              ? format(watchedValues.startDateTime, "yyyy-MM-dd'T'HH:mm")
+                              : format(new Date(), "yyyy-MM-dd'T'HH:mm")
                             }
+                            className="border h-9 border-gray-200 bg-gray-50 rounded-md"
                           />
                             {/* <Button
                               variant="outline"
@@ -381,7 +381,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           </Card>
 
           {/* Location Selection */}
-          <Card className="card-premium">
+          <Card className="card-premium bg-white">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="h-5 w-5" />
@@ -400,8 +400,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                       <Input
                         placeholder="Enter pickup location"
                         {...field}
-                        className="border h-9 border-gray-200"
-                      />
+                        className="border h-9 border-gray-200 bg-gray-50 rounded-md"
+                        />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -418,8 +418,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                       <Input
                         placeholder="Optional delivery location"
                         {...field}
-                        className="border h-9 border-gray-200"
-                      />
+                        className="border h-9 border-gray-200 bg-gray-50 rounded-md"
+                        />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -429,7 +429,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           </Card>
 
           {/* Pricing Summary */}
-          <Card className="card-premium">
+          <Card className="card-premium bg-white">
             <CardHeader>
               <CardTitle>Pricing Summary</CardTitle>
             </CardHeader>

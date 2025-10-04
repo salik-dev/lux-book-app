@@ -19,14 +19,13 @@ import {
   Loader2,
 } from "lucide-react";
 import { PaymentStepProps } from "@/@types/data";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/auth-context";
 
-export const PaymentStep: React.FC<PaymentStepProps> = ({
-  bookingData,
-  customerData,
-  onComplete,
-}) => {
+export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerData, onComplete }) => {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [contractSigned, setContractSigned] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<
@@ -65,6 +64,18 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   };
 
   const handlePayment = async (method: "stripe" | "vipps") => {
+
+    const getUser = localStorage.getItem('sb-nagzgmnsaiyyzmpzkiey-auth-token');
+    if (!getUser) {
+      toast({
+        title: "User Not Logged In !",
+        description:
+          "Please Sign In first to proceed with payment.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (!contractSigned) {
       toast({
         title: "Contract Required",
@@ -79,6 +90,100 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     setPaymentMethod(method);
 
     try {
+
+      // First, create customer record if user is logged in
+      let customerId = null;
+      if (user) {
+        const { data: existingCustomer } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (existingCustomer) {
+          customerId = existingCustomer.id;
+        } else {
+          const { data: newCustomer, error: customerError } = await supabase
+            .from('customers')
+            .insert({
+              user_id: user.id,
+              full_name: customerData.fullName,
+              email: customerData.email,
+              phone: customerData.phone,
+              address: customerData.address,
+              postal_code: customerData.postalCode,
+              city: customerData.city,
+              date_of_birth: format(customerData.dateOfBirth, 'yyyy-MM-dd'),
+            })
+            .select('id')
+            .single();
+
+          if (customerError) throw customerError;
+          customerId = newCustomer.id;
+        }
+      }
+
+      // Create booking record
+
+      console.log('bk data', bookingData);
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          booking_number: `FJB${Date.now()}`,
+          customer_id: customerId,
+          car_id: bookingData.car.id,
+          start_datetime: bookingData.startDateTime.toISOString(),
+          end_datetime: bookingData.endDateTime.toISOString(),
+          pickup_location: bookingData.pickupLocation,
+          delivery_location: bookingData.deliveryLocation,
+          delivery_fee: bookingData.deliveryFee,
+          base_price: bookingData.basePrice,
+          total_price: bookingData.totalPrice,
+          vat_amount: bookingData.vatAmount,
+          status: 'pending',
+          contract_signed_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+        console.log('supabase booking', booking);
+
+      if (bookingError) throw bookingError;
+
+      if (method === 'stripe') {
+        // Call Stripe payment function
+        const { data, error } = await supabase.functions.invoke('create-payment', {
+          body: {
+            bookingId: booking.id,
+            amount: Math.round(bookingData.totalPrice * 100), // Convert to cents
+            currency: 'nok',
+            customerEmail: customerData.email,
+            customerName: customerData.fullName,
+          },
+        });
+
+        if (error) throw error;
+
+        if (data.url) {
+          // Redirect to Stripe Checkout
+          window.open(data.url, '_blank');
+        }
+      } else if (method === 'vipps') {
+        // Call Vipps payment function
+        const { data, error } = await supabase.functions.invoke('create-vipps-payment', {
+          body: {
+            bookingId: booking.id,
+            amount: Math.round(bookingData.totalPrice * 100), // Convert to øre
+            customerPhone: customerData.phone,
+          },
+        });
+
+        if (error) throw error;
+
+        if (data.url) {
+          // Redirect to Vipps
+          window.open(data.url, '_blank');
+        }
+      }
       toast({
         // title: t('payment.success'),
         title: "Success",
@@ -94,11 +199,13 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       console.error("Payment error:", error);
       toast({
         // title: t('payment.error'),
-        title: "Error",
+        title: "Payment failed: Try Again",
         description:
           error instanceof Error
             ? error.message
-            : "An unexpected error occurred.",
+            : typeof error === "string"
+              ? error
+              : "An unexpected error occurred.",
         variant: "destructive",
       });
     } finally {
@@ -110,27 +217,27 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   return (
     <div className="space-y-6">
       {/* Booking Review */}
-      <Card className="card-premium">
+      <Card className="bg-white">
         <CardHeader>
           {/* <CardTitle>{t('payment.reviewBooking')}</CardTitle> */}
-          <CardTitle>Review Booking</CardTitle>
+          <CardTitle className="text-xl font-semibold">Review Booking</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="font-semibold text-lg">
+              <h3 className="font-semibold text-">
                 {bookingData.car.name}
               </h3>
-              <p className="text-muted-foreground">
+              <p className="text-gray-600 text-sm">
                 {format(new Date(bookingData.startDateTime), "PPP p")} -{" "}
                 {format(new Date(bookingData.endDateTime), "PPP p")}
               </p>
-              <p className="text-muted-foreground">
+              <p className="text-gray-600 text-sm">
                 <strong>Pickup:</strong>{" "}
                 {bookingData.pickupLocation}
               </p>
               {bookingData.deliveryLocation && (
-                <p className="text-muted-foreground">
+                <p className="text-gray-600 text-sm">
                   <strong>Delivery:</strong>{" "}
                   {bookingData.deliveryLocation}
                 </p>
@@ -138,15 +245,15 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
             </div>
           </div>
 
-          <Separator />
+          <Separator className="border-[0.2px]" />
 
           <div className="space-y-2">
-            <div className="flex justify-between">
+            <div className="flex justify-between text-sm">
               <span>Base Price:</span>
               <span>{formatPrice(bookingData.basePrice)}</span>
             </div>
             {bookingData.deliveryFee > 0 && (
-              <div className="flex justify-between">
+              <div className="flex justify-between text-sm">
                 <span>Delivery Fee:</span>
                 <span>
                   {formatPrice(bookingData.deliveryFee)}
@@ -157,7 +264,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
               <span>VAT (25%):</span>
               <span>{formatPrice(bookingData.vatAmount)}</span>
             </div>
-            <Separator />
+            <Separator className="border-[0.2px]" />
             <div className="flex justify-between text-lg font-bold">
               <span>Total:</span>
               <span className="text-primary">
@@ -166,13 +273,13 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
             </div>
           </div>
 
-          <Separator />
+          <Separator className="border-[0.2px]" />
 
           <div>
-            <h4 className="font-semibold mb-2">
+            <h4 className="font-semibold mb-2 text-[14px]">
               Customer Information:
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs tracking-wide">
               <div>
                 <strong>Name:</strong> {customerData.fullName}
               </div>
@@ -192,20 +299,20 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       </Card>
 
       {/* Contract Signing */}
-      <Card className="card-premium">
+      <Card className="card-premium bg-white">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-xl">
             <FileText className="h-5 w-5" />
             {/* {t('payment.terms')} */}
             Terms & Conditions
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="bg-muted p-4 rounded-md">
-            <h4 className="font-semibold mb-2">
+          <CardContent>
+          <div className="bg-gray-50 p-4 rounded-md">
+            <h4 className="text-[14px] font-semibold mb-2">
               Rental Terms & Conditions
             </h4>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs tracking-wide text-gray-600">
               By proceeding with this booking, you agree to our
               terms and conditions including: insurance
               coverage, damage liability, age restrictions, and
@@ -217,7 +324,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           <Button
             onClick={handleSignContract}
             disabled={contractSigned || isProcessing}
-            className="w-full bg-primary hover:bg-primary/90 hover:cursor-pointer"
+            className="w-full rounded-md h-9 text-white mt-3 bg-[#E3C08D] hover:bg-[#E3C08D]/90 hover:cursor-pointer"
             size="lg"
           >
             {isProcessing ? (
@@ -243,7 +350,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           {contractSigned && (
             <Badge
               variant="default"
-              className="w-full py-1 tracking-wide justify-center bg-green-100 text-green-800"
+              className="w-full py-1 mt-2 tracking-wide justify-center bg-green-100 text-green-800"
             >
               Contract successfully signed with BankID
             </Badge>
@@ -252,7 +359,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       </Card>
 
       {/* Payment Methods */}
-      <Card className="card-premium">
+      <Card className="bg-white">
         <CardHeader>
           {/* <CardTitle>{t('payment.paymentMethod')}</CardTitle> */}
           <CardTitle>Payment Method</CardTitle>
@@ -264,7 +371,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
               disabled={!contractSigned || isProcessing}
               variant="outline"
               size="lg"
-              className="h-20 py-12 flex flex-col items-center border-gray-200 hover:bg-[#E3C08D] hover:border-[#E3C08D] hover:cursor-pointer transition-premium "
+              className="h-20 py-12 flex flex-col items-center border-gray-200 hover:bg-[#E3C08D] hover:border-[#E3C08D] hover:cursor-pointer transition-premium rounded-md bg-gray-50"
             >
               {isProcessing && paymentMethod === "stripe" ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -283,7 +390,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
               disabled={!contractSigned || isProcessing}
               variant="outline"
               size="lg"
-              className="h-20 py-12 flex flex-col items-center gap-2 border-gray-200 hover:bg-[#E3C08D] hover:border-[#E3C08D] hover:cursor-pointer transition-premium"
+              className="h-20 py-12 flex flex-col items-center gap-2 border-gray-200 hover:bg-[#E3C08D] hover:border-[#E3C08D] hover:cursor-pointer transition-premium rounded-md bg-gray-50"
             >
               {isProcessing && paymentMethod === "vipps" ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -307,14 +414,14 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         </CardContent>
       </Card>
 
-      <Button
+      {/* <Button
         onClick={() => contractSigned && handlePayment("stripe")}
         disabled={!contractSigned}
-        className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-5 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-md h-9 bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-5 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
         size="lg"
       >
         Complete Booking
-      </Button>
+      </Button> */}
     </div>
   );
 };
