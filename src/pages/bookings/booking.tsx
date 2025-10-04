@@ -50,19 +50,14 @@ const Bookings = () => {
   const loadBookings = async () => {
     try {
       const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          car:cars (
-            id,
-            name,
-            brand,
-            model,
-            image_url
-          )
-        `)
-        .eq('customer_id', user.id)
-        .order('created_at', { ascending: false });
+      .from('bookings')
+      .select(`
+        *,
+        car:cars (id, name, brand, model, image_url),
+        customers!inner(user_id)
+      `)
+      // .eq('customers.user_id', user.id)
+      .order('created_at', { ascending: false });
 
       if (error) throw error;
       setBookings(data || []);
