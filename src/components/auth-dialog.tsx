@@ -8,7 +8,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { googleIcon, linkedInIcon } from '@/constants/icons';
 
 interface AuthFormData {
   email: string;
@@ -41,10 +40,20 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       if (isLogin) {
-        await signIn(data.email, data.password);
-        setOpen(false);
+        const {user, error} = await signIn(data.email, data.password);
+        console.log('user login', user)
+        if(error){
+          toast({
+            title: 'Error',
+            description: "Invalid email or password! Please try again.",
+            variant: 'destructive',
+          });
+          // setOpen(false);
+          return;
+        }
       } else {
         if (data.password !== data.confirmPassword) {
+          console.log('Passwords do not match')
           toast({
             title: 'Error',
             description: 'Passwords do not match',

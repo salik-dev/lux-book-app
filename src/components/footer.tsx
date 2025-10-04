@@ -3,6 +3,7 @@ import { Phone, Mail, MapPin, Clock, Facebook, Twitter, Instagram, Linkedin, Sen
 import { Input } from "./ui/input"
 import { Button } from "./ui/button"
 import logo from "../assets/logo.png"
+import { Link } from "react-router-dom"
 
 export function Footer() {
   return (
@@ -11,10 +12,12 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           {/* Contact Info */}
           <div className="space-y-6">
-            <h3 className="text-2xl font-bold text-[#E3C08D] -mt-10">
-              <img src={logo} alt="Logo" className='w-32' />         
-            </h3>
-            
+            <Link to='/' className="text-2xl font-bold text-[#E3C08D]">
+              <h3 className="text-2xl font-bold text-[#E3C08D] -mt-10">
+                <img src={logo} alt="Logo" className='w-32' />
+              </h3>
+            </Link>
+
             <div className="flex items-start space-x-4">
               <div className="mt-1">
                 <Phone className="h-5 w-5 text-[#E3C08D]" />
@@ -24,7 +27,7 @@ export function Footer() {
                 <p className="text-gray-400">+47 92 92 07 71</p>
               </div>
             </div>
-            
+
             <div className="flex items-start space-x-4">
               <div className="mt-1">
                 <Mail className="h-5 w-5 text-[#E3C08D]" />
@@ -34,7 +37,7 @@ export function Footer() {
                 <p className="text-gray-400">post@primenorge.no</p>
               </div>
             </div>
-            
+
             <div className="flex items-start space-x-4">
               <div className="mt-1">
                 <MapPin className="h-5 w-5 text-[#E3C08D]" />
@@ -44,7 +47,7 @@ export function Footer() {
                 <p className="text-gray-400">Heggedalsveien 23, 1389 Heggedal</p>
               </div>
             </div>
-            
+
             <div className="flex items-start space-x-4">
               <div className="mt-1">
                 <Clock className="h-5 w-5 text-[#E3C08D]" />
@@ -105,7 +108,7 @@ export function Footer() {
                 Abonner
               </Button>
             </div>
-            
+
             <div className="mt-8">
               <h4 className="font-semibold mb-4">Følg oss</h4>
               <div className="flex space-x-4">
@@ -127,16 +130,16 @@ export function Footer() {
         </div>
 
       </div>
-        {/* Bottom Bar */}
-        <div className="border-gray-800 mt-6 py-3 w-full bg-[#0d1527]">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex space-x-2 mx-auto">
-              <a href="https://absoluit.com" className="text-gray-500 hover:text-[#E3C08D] text-[15px] tracking-wide transition-colors">
-                Copyright © 2023 <span className="font-semibold">Absoluit</span>. All Rights Reserved.
-              </a>
-            </div>
+      {/* Bottom Bar */}
+      <div className="border-gray-800 mt-6 py-3 w-full bg-[#0d1527]">
+        <div className="flex flex-col md:flex-row justify-between items-center">
+          <div className="flex space-x-2 mx-auto">
+            <a href="https://absoluit.com" className="text-gray-500 hover:text-[#E3C08D] text-[15px] tracking-wide transition-colors">
+              Copyright © 2023 <span className="font-semibold">Absoluit</span>. All Rights Reserved.
+            </a>
           </div>
         </div>
+      </div>
     </footer>
   )
 }

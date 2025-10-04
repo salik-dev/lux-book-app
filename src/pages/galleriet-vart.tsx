@@ -9,6 +9,7 @@ import mercedesImage from "@/assets/luxury-porsche-sports-car-in-urban-environme
 import { CarCardProps } from "@/@types/data"
 import { Pagination } from "@/components/ui/pagination"
 import { useCarFetch } from "@/hooks/use-car-fetch"
+import { CarLoader } from "@/components/common/car-loader"
 
 export default function GallerietVartPage() {
   const [cars, setCars] = useState<CarCardProps[]>([])
@@ -59,10 +60,6 @@ export default function GallerietVartPage() {
     currentPage * imagesPerPage
   )
 
-  if (loading) {
-    return <div>Loading...</div>
-  }
-
   return (
     <div className="min-h-screen bg-[#0d1518] text-white">
       {/* Hero Section */}
@@ -103,9 +100,11 @@ export default function GallerietVartPage() {
             ))}
           </div>
 
+          {loading && <CarLoader />}
+
           {/* Cars Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12 xl:px-24">
-            {currentCars.map((car, index) => (
+            {!loading && currentCars.map((car, index) => (
               <div 
                 key={car.id}
                 className="relative group cursor-pointer"
