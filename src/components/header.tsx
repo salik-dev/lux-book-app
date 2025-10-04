@@ -129,7 +129,7 @@ export function Header() {
               <Link to="/om-oss" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
                 Om oss
               </Link>
-              <Link to="/arrangementer" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+              <Link to="/arrangementer" className="text-gray-300 hover:text-[#e3c08d] tracki  ng-wide text-[15px] transition-colors">
                 Arrangementer
               </Link>
               <Link to="/galleriet-vart" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">

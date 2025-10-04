@@ -96,7 +96,7 @@ const Bookings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background mt-28">
       <Header />
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
@@ -124,7 +124,7 @@ const Bookings = () => {
               </Card>
             ))}
           </div>
-        ) : bookings.length === 0 ? (
+        ) : bookings?.length === 0 ? (
           <Card className="card-premium text-center py-12">
             <CardContent>
               <Car className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -142,7 +142,7 @@ const Bookings = () => {
           </Card>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {bookings.map((booking) => (
+            {bookings?.map((booking) => (
               <Card key={booking.id} className="card-premium overflow-hidden">
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
