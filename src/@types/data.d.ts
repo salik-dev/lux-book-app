@@ -21,15 +21,18 @@ export interface CarCardProps {
 }
 
 export interface CarData {
+  id: number | string;
   name: string;
+  model: string;
+  brand: string;
+  year: number;
+  description: string;
+  base_price_per_hour: number;
+  base_price_per_day: number;
+  included_km_per_day: number;
+  extra_km_rate: number;
   image_url: string;
-  price: string;
-  vehicleType: string;
-  doors: string;
-  transmission: string;
-  fuel: string;
-  category: string;
-  moreInfo: string[];
+  is_available: boolean;
 }
 
 export interface BookingData {

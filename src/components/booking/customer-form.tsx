@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useForm, FormProvider } from "react-hook-form";
 import { useDropzone } from "react-dropzone";
@@ -39,11 +39,13 @@ import { BookingData, CustomerData } from "@/@types/data";
 interface CustomerFormProps {
   bookingData: BookingData;
   onComplete: (data: CustomerData) => void;
+  initialData?: CustomerData;
 }
 
 export const CustomerForm: React.FC<CustomerFormProps> = ({
   bookingData,
   onComplete,
+  initialData,
 }) => {
   const { t } = useTranslation();
   const [licenseFile, setLicenseFile] = useState<File | null>(
@@ -52,15 +54,37 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
 
   const form = useForm<CustomerData>({
     defaultValues: {
-      fullName: "",
-      email: "",
-      phone: "",
-      address: "",
-      postalCode: "",
-      city: "",
-      dateOfBirth: new Date("1990-01-01"),
+      fullName: initialData?.fullName || "",
+      email: initialData?.email || "",
+      phone: initialData?.phone || "",
+      address: initialData?.address || "",
+      postalCode: initialData?.postalCode || "",
+      city: initialData?.city || "",
+      dateOfBirth: initialData?.dateOfBirth ? new Date(initialData.dateOfBirth) : new Date("1990-01-01"),
+      driverLicenseFile: initialData?.driverLicenseFile,
     },
+    mode: "onChange",
   });
+
+  // Hydrate/reset when navigating back with existing data
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        fullName: initialData.fullName || "",
+        email: initialData.email || "",
+        phone: initialData.phone || "",
+        address: initialData.address || "",
+        postalCode: initialData.postalCode || "",
+        city: initialData.city || "",
+        dateOfBirth: initialData.dateOfBirth ? new Date(initialData.dateOfBirth) : new Date("1990-01-01"),
+        driverLicenseFile: initialData.driverLicenseFile,
+      });
+      // Also hydrate local file preview state so dropzone shows the file name
+      if (initialData.driverLicenseFile) {
+        setLicenseFile(initialData.driverLicenseFile as File);
+      }
+    }
+  }, [initialData, form]);
 
   const onDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -99,7 +123,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
     };
     onComplete(customerData);
   };
-  console.log('booking data', bookingData)
+  // console.log('booking data', bookingData)
 
   return (
     <div className="space-y-6">
@@ -177,7 +201,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                           />
                         </div>
                       </FormControl>
-                      <FormMessage className="text-red-500 text-xs mt-1" />
+                      <FormMessage className="text-red-500 mt-1" />
                     </FormItem>
                   )}
                 />
@@ -206,7 +230,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                           />
                         </div>
                       </FormControl>
-                      <FormMessage className="text-red-500 text-xs mt-1" />
+                      <FormMessage className="text-red-500 mt-1" />
                     </FormItem>
                   )}
                 />
@@ -231,7 +255,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                           />
                         </div>
                       </FormControl>
-                      <FormMessage className="text-red-500 text-xs mt-1" />
+                      <FormMessage className="text-red-500 mt-1" />
                     </FormItem>
                   )}
                 />
@@ -301,11 +325,32 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                           />
                         </PopoverContent> */}
                       {/* </Popover> */}
-                      <FormMessage className="text-red-500 text-xs mt-1" />
+                      <FormMessage className="text-red-500 mt-1" />
                     </FormItem>
                   )}
                 />
               </div>
+
+              <FormField
+                  control={form.control}
+                  name="address"
+                  rules={{ required: "Address is required" }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">Address <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input 
+                            {...field} 
+                            className="mt-1 h-9 block w-full rounded-md border-gray-300 shadow-sm"
+                            placeholder="Insert your address ..."
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-red-500 mt-1" />
+                    </FormItem>
+                  )}
+                />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
@@ -326,7 +371,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                           />
                         </div>
                       </FormControl>
-                      <FormMessage className="text-red-500 text-xs mt-1" />
+                      <FormMessage className="text-red-500 mt-1" />
                     </FormItem>
                   )}
                 />
@@ -347,7 +392,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                           />
                         </div>
                       </FormControl>
-                      <FormMessage className="text-red-500 text-xs mt-1" />
+                      <FormMessage className="text-red-500 mt-1" />
                     </FormItem>
                   )}
                 />

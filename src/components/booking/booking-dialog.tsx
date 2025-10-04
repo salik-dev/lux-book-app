@@ -56,6 +56,7 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
 
   const handleCustomerFormComplete = (data: CustomerData) => {
     setCustomerData(data);
+    console.log('customer data', data);
     setCurrentStep(3);
   };
 
@@ -120,6 +121,7 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
               <BookingDetails
                 car={selectedCar}
                 onComplete={handleBookingDetailsComplete}
+                initialData={bookingData || undefined}
               />
             )}
 
@@ -127,6 +129,7 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
               <CustomerForm
                 bookingData={bookingData}
                 onComplete={handleCustomerFormComplete}
+                initialData={customerData || undefined}
               />
             )}
 

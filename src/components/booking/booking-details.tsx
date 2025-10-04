@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { format, addDays, differenceInHours } from "date-fns";
 import {
@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Form as UIForm, FormItem, FormLabel, FormControl, FormMessage, FormField } from "../ui/form";
+import defaultImg from "../../assets/luxury-car-collection-garage-premium.jpg";
 
 // Create a wrapper component that properly uses FormProvider
 const Form = ({ children, form, onSubmit }: { 
@@ -33,6 +34,7 @@ import { BookingData, CarData } from "@/@types/data";
 interface BookingDetailsProps {
   car: CarData;
   onComplete: (data: BookingData) => void;
+  initialData?: BookingData;
 }
 
 interface FormData {
@@ -47,33 +49,45 @@ interface FormData {
 export const BookingDetails: React.FC<BookingDetailsProps> = ({
   car,
   onComplete,
+  initialData,
 }) => {
   // const { t } = useTranslation();
   const [deliveryFee, setDeliveryFee] = useState(0);
 
   const form = useForm<FormData>({
     defaultValues: {
-      startDateTime: new Date(),
-      endDateTime: addDays(new Date(), 1),
+      startDateTime: initialData ? new Date(initialData.startDateTime) : new Date(),
+      endDateTime: initialData ? new Date(initialData.endDateTime) : addDays(new Date(), 1),
       startTime: "10:00",
       endTime: "10:00",
-      pickupLocation: "Oslo Sentrum",
-      deliveryLocation: "",
+      pickupLocation: initialData?.pickupLocation || "Oslo Sentrum",
+      deliveryLocation: initialData?.deliveryLocation || "",
     },
     mode: "onChange",
   });
 
   const watchedValues = form.watch();
 
-  // Calculate pricing
+  // Persist values when navigating back by resetting with initialData
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        startDateTime: new Date(initialData.startDateTime),
+        endDateTime: new Date(initialData.endDateTime),
+        startTime: "10:00",
+        endTime: "10:00",
+        pickupLocation: initialData.pickupLocation,
+        deliveryLocation: initialData.deliveryLocation || "",
+      });
+    }
+  }, [initialData, form]);
+
+  // Calculate pricing based on the full Date values from datetime-local inputs
   const calculatePricing = () => {
-    // Ensure we have valid dates and times before proceeding
-    if (
-      !watchedValues.startDateTime ||
-      !watchedValues.endDateTime ||
-      !watchedValues.startTime ||
-      !watchedValues.endTime
-    ) {
+    const start = watchedValues.startDateTime;
+    const end = watchedValues.endDateTime;
+
+    if (!start || !end) {
       return {
         basePrice: 0,
         deliveryFee: 0,
@@ -82,34 +96,9 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
         duration: "0 days (0 hours)",
       };
     }
-
-    // Create date strings in ISO format
-    const startDateStr = format(
-      watchedValues.startDateTime,
-      "yyyy-MM-dd",
-    );
-    const endDateStr = format(
-      watchedValues.endDateTime,
-      "yyyy-MM-dd",
-    );
-
-    // Parse dates with proper timezone handling
-    const startDateTime = new Date(
-      `${startDateStr}T${watchedValues.startTime}:00`,
-    );
-    const endDateTime = new Date(
-      `${endDateStr}T${watchedValues.endTime}:00`,
-    );
 
     // Validate dates
-    if (
-      isNaN(startDateTime.getTime()) ||
-      isNaN(endDateTime.getTime())
-    ) {
-      console.error("Invalid date values:", {
-        startDateTime,
-        endDateTime,
-      });
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return {
         basePrice: 0,
         deliveryFee: 0,
@@ -119,23 +108,16 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
       };
     }
 
-    // Calculate total hours, ensuring it's at least 1 hour
-    let totalHours = Math.max(
-      1,
-      differenceInHours(endDateTime, startDateTime),
-    );
+    // Total hours between end and start (minimum 1 hour)
+    const totalHours = Math.max(1, differenceInHours(end, start));
     const totalDays = Math.ceil(totalHours / 24);
 
     let basePrice = 0;
-    // if (totalHours <= 24) {
-    //   basePrice = car.base_price_per_hour 
-    //     ? car.base_price_per_hour * totalHours
-    //     : 0;
-    // } else {
-    //   basePrice = car.base_price_per_day
-    //     ? car.base_price_per_day * totalDays
-    //     : 0;
-    // }
+    if (totalHours <= 24) {
+      basePrice = car.base_price_per_hour ? car.base_price_per_hour * totalHours : 0;
+    } else {
+      basePrice = car.base_price_per_day ? car.base_price_per_day * totalDays : 0;
+    }
 
     const vatRate = 0.25;
     const vatAmount = basePrice * vatRate;
@@ -161,14 +143,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
   };
 
   const onSubmit = (data: FormData) => {
-
-    console.log('form data', data);
-    const startDateTime = new Date(
-      `${format(data.startDateTime, "yyyy-MM-dd")}T${data.startTime}`,
-    );
-    const endDateTime = new Date(
-      `${format(data.endDateTime, "yyyy-MM-dd")}T${data.endTime}`,
-    );
+    const startDateTime = data.startDateTime;
+    const endDateTime = data.endDateTime;
 
     const bookingData: BookingData = {
       car,
@@ -200,23 +176,22 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
             </CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row gap-4">
-                {car.image_url && (
                   <img
-                    src={car.image_url}
+                    src={car.image_url || defaultImg}
                     alt={car.name}
-                    className="w-[128px] h-[128px] rounded-md object-cover"
-                    style={{ width: "260px", height: "160px" }}
+                    className="w-[132px] h-[132px] rounded-md object-cover"
+                    style={{ width: "280px", height: "170px" }}
                   />
-                )}
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold mb-2">
-                    {car.name}
-                  </h3>
-                  <p className="text-lg font-semibold mb-2">{car.price}</p>
-                  <p className="text-muted-foreground text-sm tracking-wider leading-[18px]">
-                    {car.moreInfo[0]}
-                    {car.moreInfo[1]}
-                  </p>
+                <div className="flex-1 tracking-wide">
+                 <div className="flex flex-col gap-2">
+                 <h3 className="text-xl font-semibold text-[#E3C08D]">{car.name}</h3>
+                  <p className="text-sm text-gray-600 tracking-wide ">{car.description.length > 250 ? `${car.description.slice(0, 300)}...` : car.description}</p>
+                  <div className="flex gap-4 flex-wrap">
+                  <p className="text-sm"><span className="font-semibold">Per Hour: </span>{car.base_price_per_hour}</p>
+                  <p className="text-sm"><span className="font-semibold">Per Day: </span>{car.base_price_per_day}</p>
+                  <p className="text-sm"><span className="font-semibold">Included KM: </span>{car.included_km_per_day}/day</p>
+                  </div>
+                </div>
                 </div>
               </div>
             </CardContent>
@@ -245,7 +220,14 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                           <Input
                             type="datetime-local"
                             value={field.value ? format(field.value, "yyyy-MM-dd'T'HH:mm") : ""}
-                            onChange={(e) => field.onChange(new Date(e.target.value))}
+                            onChange={(e) => {
+                              const newStart = new Date(e.target.value);
+                              field.onChange(newStart);
+                              const currentEnd = form.getValues("endDateTime");
+                              if (currentEnd && currentEnd < newStart) {
+                                form.setValue("endDateTime", newStart, { shouldValidate: true, shouldDirty: true });
+                              }
+                            }}
                             onBlur={field.onBlur}
                             className="border h-9 border-gray-200"
                             min={format(new Date(), "yyyy-MM-dd'T'HH:mm")} // Optional: prevents selecting past dates
@@ -290,7 +272,13 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 <FormField
                   control={form.control}
                   name="endDateTime"
-                  rules={{ required: "Return date is required" }}
+                  rules={{
+                    required: "Return date is required",
+                    validate: (value) => {
+                      const start = form.getValues("startDateTime");
+                      return !start || !value || value >= start || "Return date-time must be after pickup";
+                    },
+                  }}
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Return Date-Time <span className="text-red-500">*</span></FormLabel>
@@ -303,7 +291,11 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                             onChange={(e) => field.onChange(new Date(e.target.value))}
                             onBlur={field.onBlur}
                             className="border h-9 border-gray-200"
-                            min={format(new Date(), "yyyy-MM-dd'T'HH:mm")} // Optional: prevents selecting past dates
+                            min={
+                              watchedValues.startDateTime
+                                ? format(watchedValues.startDateTime, "yyyy-MM-dd'T'HH:mm")
+                                : format(new Date(), "yyyy-MM-dd'T'HH:mm")
+                            }
                           />
                             {/* <Button
                               variant="outline"
@@ -461,7 +453,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 </div>
               )}
               <div className="flex justify-between">
-                <span>Vat: </span>
+                <span>Vat (25%): </span>
                 <span>{formatPrice(pricing.vatAmount)}</span>
               </div>
               <div className="border-t pt-3">
