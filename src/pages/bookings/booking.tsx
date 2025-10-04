@@ -9,24 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Calendar, Car, MapPin, CreditCard } from 'lucide-react';
 import { getCarPlaceholder } from '@/utils/carPlaceholder';
 import { Header } from '@/components/header';
-import { CarCardProps } from '@/@types/data';
-
-interface BookingProps {
-  id: string;
-  booking_number: string;
-  start_datetime: string;
-  end_datetime: string;
-  pickup_location: string;
-  delivery_location: string | null;
-  total_price: number;
-  status: string;
-  car: {
-    id: string;
-    name: string;
-    brand: string;
-    model: string;
-    image_url: string | null;
-  };}
+import { BookingProps } from '@/@types/data';
 
 const Bookings = () => {
   const { t } = useTranslation();
@@ -56,7 +39,7 @@ const Bookings = () => {
         car:cars (id, name, brand, model, image_url),
         customers!inner(user_id)
       `)
-      // .eq('customers.user_id', user.id)
+      .eq('customers.user_id', user.id)
       .order('created_at', { ascending: false });
 
       if (error) throw error;

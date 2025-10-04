@@ -80,3 +80,21 @@ export interface BookingFlowProps {
   onClose: () => void;
   selectedCar: CarData | null;
 }
+
+export interface BookingProps {
+  id: string;
+  booking_number: string;
+  start_datetime: string;
+  end_datetime: string;
+  pickup_location: string;
+  delivery_location: string | null;
+  total_price: number;
+  status: string;
+  car: {
+    id: string;
+    name: string;
+    brand: string;
+    model: string;
+    image_url: string | null;
+  };
+}
