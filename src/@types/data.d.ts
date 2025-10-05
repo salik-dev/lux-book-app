@@ -89,7 +89,7 @@ export interface BookingProps {
   pickup_location: string;
   delivery_location: string | null;
   total_price: number;
-  status: string;
+  status: string | null;
   car: {
     id: string;
     name: string;
