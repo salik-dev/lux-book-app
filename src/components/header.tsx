@@ -20,7 +20,7 @@ export function Header() {
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
-    
+
     await signOut();
     navigate('/');
   };
@@ -34,15 +34,12 @@ export function Header() {
     { id: 6, title: "Kontakt oss", path: "/kontakt-oss" },
   ];
 
-  // Show welcome toast when user logs in
-  useEffect(() => {
-    if (user?.id) {
-      toast({
-        title: 'Success',
-        description: 'You are logged in',
-      });
-    }
-  }, [user?.id]);
+  const loginItems = [
+    { id: 1, title: 'Home', path: '/' },
+    { id: 2, title: 'My Booking', path: '/bookings' },
+    { id: 3, title: 'Dashboard', path: '/admin' },
+    { id: 4, title: 'Profile', path: '/' },
+  ];
 
   return (
     <header
@@ -114,26 +111,25 @@ export function Header() {
                   </button>
                   <div className="absolute right-0 mt-1 w-50 rounded-md bg-white shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 borde">
                     <div className="py-1 flex flex-col">
-                      <Link
-                        to="/bookings"
-                        className="flex items-center align-middle w-44 mx-auto gap-2 px-4 py-1 mt-1 rounded-md text-sm text-gray-700 hover:bg-[#E3C08D] hover:text-white transition-all duration-300 hover:cursor-pointer"
-                      >
-                        <BookUserIcon className="h-3 w-3" /><span className="relative -top-[0.6px] text-[14px] tracking-wide">My Bookings</span>
-                      </Link>
-                      <Link
-                        to="/admin"
-                        className="flex items-center align-middle w-44 mx-auto gap-2 px-4 py-1 mt-1 rounded-md text-sm text-gray-700 hover:bg-[#E3C08D] hover:text-white transition-all duration-300 hover:cursor-pointer"                      >
-                        <LayoutDashboard className="h-3 w-3" /><span className="relative -top-[0.6px] text-[14px] tracking-wide">Dashboard</span>
-                      </Link>
-                      <Link
-                        to="/"
-                        className="flex items-center align-middle w-44 mx-auto gap-2 px-4 py-1 mt-1 rounded-md text-sm text-gray-700 hover:bg-[#E3C08D] hover:text-white transition-all duration-300 hover:cursor-pointer"                      >
-                        <User className="h-3 w-3" /><span className="relative -top-[0.6px] text-[14px] tracking-wide">Profile</span>
-                      </Link>
+                      {loginItems.slice(1).map((item) => (
+                        <Link
+                          key={item.id}
+                          to={item.path}
+                          className="flex items-center align-middle w-44 mx-auto gap-2 px-4 py-[6px] mt-1 rounded-md text-sm text-gray-700 hover:bg-[#E3C08D] hover:text-white transition-all duration-300 hover:cursor-pointer"
+                        >
+                          {{
+                            'My Booking': <BookUserIcon className="h-3 w-3" />,
+                            'Dashboard': <LayoutDashboard className="h-3 w-3" />,
+                            'Profile': <User className="h-3 w-3" />
+                          }[item.title] || null}
+                          <span className="relative -top-[0.6px] text-[14px] tracking-wide">{item.title}</span>
+                        </Link>
+                      ))}
+
                       <Separator className="border mt-2" />
                       <button
                         onClick={handleSignOut}
-                        className="flex items-center align-middle w-44 mx-auto gap-2 px-4 py-1 mt-1 rounded-md text-sm text-gray-800 hover:bg-[#E3C08D] hover:text-white transition-all duration-300 hover:cursor-pointer">
+                        className="flex items-center align-middle w-44 mx-auto gap-2 px-4 py-[6px] mt-1 rounded-md text-sm text-gray-800 hover:bg-[#E3C08D] hover:text-white transition-all duration-300 hover:cursor-pointer">
                         <LogOut className="h-3 w-3" /><span className="relative -top-[0.6px] text-[14px] tracking-wide">Log Out</span>
                       </button>
                     </div>
@@ -156,7 +152,15 @@ export function Header() {
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-800">
             <nav className="flex flex-col space-y-4">
-              {homeItems.map((item) => (
+              {user === null ? homeItems.map((item) => (
+                <Link
+                  key={item.id}
+                  to={item.path}
+                  className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors"
+                >
+                  {item.title}
+                </Link>
+              )) : loginItems.map((item) => (
                 <Link
                   key={item.id}
                   to={item.path}

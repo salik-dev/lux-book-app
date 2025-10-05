@@ -167,18 +167,18 @@ export const PricingManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* App Settings */}
-      <Card className="card-premium">
+      <Card className="card-premium bg-white">
         <CardHeader>
           <CardTitle>Application Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
             {appSettings.map((setting) => (
-              <div key={setting.id} className="space-y-2">
+              <div key={setting.id} className="space-y-3">
                 <Label htmlFor={setting.key} className="text-sm font-medium">
                   {setting.key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                 </Label>
-                <p className="text-xs text-muted-foreground">{setting.description}</p>
+                <p className="text-xs text-muted-foreground pt-1">{setting.description}</p>
                 <div className="flex items-center gap-2">
                   <Input
                     id={setting.key}
@@ -189,11 +189,12 @@ export const PricingManagement: React.FC = () => {
                       ...prev,
                       [setting.key]: e.target.value
                     }))}
-                    className="flex-1"
+                    className="flex-1 bg-[#fafafa] rounded-lg border-gray-200 h-9"
                   />
                   <Button
                     size="sm"
                     onClick={() => updateSetting(setting.key, editingSettings[setting.key])}
+                    className='bg-[#e3c08d] rounded-lg hover:cursor-pointer hover:bg-[#e3c08d]/80'
                   >
                     <Save className="h-4 w-4" />
                   </Button>
@@ -205,21 +206,21 @@ export const PricingManagement: React.FC = () => {
       </Card>
 
       {/* Delivery Zones */}
-      <Card className="card-premium">
+      <Card className="card-premium bg-white">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Delivery Pricing Rules</span>
-            <Button className="bg-gradient-fjord hover:opacity-90">
+            <Button className="rounded-lg border-gray-200 bg-[#e3c08d] hover:bg-[#e3c08d]/80 hover:cursor-pointer transition-colors duration-500">
               <Plus className="h-4 w-4 mr-2" />
               Add Rule
             </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
+          <div className="rounded-md border border-gray-200">
+            <Table className="bg-white rounded-lg">
               <TableHeader>
-                <TableRow>
+                <TableRow className="text-gray-500 border-gray-200">
                   <TableHead>Rule Name</TableHead>
                   <TableHead>Zone</TableHead>
                   <TableHead>Distance Range</TableHead>
@@ -230,7 +231,7 @@ export const PricingManagement: React.FC = () => {
               </TableHeader>
               <TableBody>
                 {pricingRules.filter(rule => rule.rule_type === 'delivery_zone').map((rule) => (
-                  <TableRow key={rule.id}>
+                <TableRow key={rule.id} className='hover:bg-[#fafafa] transition-colors duration-500 border-gray-200   '>
                     <TableCell className="font-medium">{rule.name}</TableCell>
                     <TableCell>{rule.zone_name}</TableCell>
                     <TableCell>
@@ -251,17 +252,22 @@ export const PricingManagement: React.FC = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Switch
+                      {/* <Switch
                         checked={rule.is_active || false}
                         onCheckedChange={() => togglePricingRule(rule.id, rule.is_active || false)}
-                      />
+                      /> */}
+                       <Switch
+                                    checked={rule.is_active || false}
+                                    onCheckedChange={(checked) => togglePricingRule(rule.id, rule.is_active || false)}
+                                    className="h-5 w-9 hover:cursor-pointer data-[state=checked]:bg-[#e3c08d] data-[state=unchecked]:bg-gray-200"
+                                  />
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" className="rounded-lg border-gray-200 hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500">
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" className="rounded-lg border-gray-200 hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, Filter, Download, Eye, Edit, Mail } from 'lucide-react';
+import { Search, Filter, Download, Eye, Edit, Mail, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Booking {
@@ -45,6 +45,8 @@ export const BookingsManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   useEffect(() => {
     loadBookings();
@@ -148,13 +150,25 @@ export const BookingsManagement: React.FC = () => {
 
   const filteredBookings = bookings.filter(booking => {
     const matchesSearch = booking.booking_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (booking.customer?.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (booking.car?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
-    
+      (booking.customer?.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (booking.car?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
+
+
+  // Add these calculations before the return statement
+  const totalItems = filteredBookings.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentItems = filteredBookings.slice(startIndex, startIndex + itemsPerPage);
+
+  // Add this function to handle page changes
+  const handlePageChange = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
 
   if (loading) {
     return (
@@ -174,12 +188,12 @@ export const BookingsManagement: React.FC = () => {
   }
 
   return (
-    <Card className="card-premium">
+    <Card className="card-premium bg-white">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>{t('admin.bookings')} Management</span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className='rounded-lg border-gray-200 hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500'>
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
@@ -196,16 +210,16 @@ export const BookingsManagement: React.FC = () => {
                 placeholder="Search bookings..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 rounded-lg border-gray-200 bg-[#fafafa]"
               />
             </div>
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[180px] bg-[#fafafa] border-gray-200 hover:cursor-pointer data-[size=default]:h-10">
               <Filter className="h-4 w-4 mr-2" />
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className='rounded-lg border-gray-200'>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
@@ -217,10 +231,10 @@ export const BookingsManagement: React.FC = () => {
         </div>
 
         {/* Bookings Table */}
-        <div className="rounded-md border">
-          <Table>
+        <div className="rounded-md border border-gray-200">
+          <Table className='bg-white rounded-lg'>
             <TableHeader>
-              <TableRow>
+              <TableRow className="text-gray-500 border-gray-200">
                 <TableHead>Booking #</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Vehicle</TableHead>
@@ -231,15 +245,15 @@ export const BookingsManagement: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredBookings.map((booking) => (
-                <TableRow key={booking.id}>
+              {currentItems.map((booking) => (
+                <TableRow key={booking.id} className='hover:bg-[#fafafa] transition-colors duration-500 border-gray-200   '>
                   <TableCell className="font-medium">
                     {booking.booking_number}
                   </TableCell>
                   <TableCell>
                     <div>
                       <div className="font-medium">{booking.customer?.full_name || 'No customer data'}</div>
-                      <div className="text-sm text-muted-foreground">{booking.customer?.email || ''}</div>
+                      <div className="text-sm text-gray-500">{booking.customer?.email || ''}</div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -248,7 +262,7 @@ export const BookingsManagement: React.FC = () => {
                   <TableCell>
                     <div className="text-sm">
                       <div>{format(new Date(booking.start_datetime), 'MMM dd, yyyy')}</div>
-                      <div className="text-muted-foreground">
+                      <div className="text-gray-500">
                         {format(new Date(booking.start_datetime), 'HH:mm')} - {format(new Date(booking.end_datetime), 'HH:mm')}
                       </div>
                     </div>
@@ -263,13 +277,14 @@ export const BookingsManagement: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" className='hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl'>
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         onClick={() => sendEmailReminder(booking.id)}
+                        className='hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl'
                       >
                         <Mail className="h-4 w-4" />
                       </Button>
@@ -277,10 +292,10 @@ export const BookingsManagement: React.FC = () => {
                         value={booking.status || ''}
                         onValueChange={(value) => updateBookingStatus(booking.id, (value || 'pending') as 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled')}
                       >
-                        <SelectTrigger className="w-[120px] h-8">
+                        <SelectTrigger className="w-[120px] rounded-xl bg-[#fafafa] border-gray-200 hover:cursor-pointer">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className='rounded-lg border-gray-200'>
                           <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="confirmed">Confirmed</SelectItem>
                           <SelectItem value="active">Active</SelectItem>
@@ -295,6 +310,73 @@ export const BookingsManagement: React.FC = () => {
             </TableBody>
           </Table>
         </div>
+
+        {/* Pagination Rendering */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-white rounded-b-lg border-gray-200">
+            <div className="text-sm text-gray-500">
+              Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, totalItems)} of {totalItems} bookings
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const page = currentPage <= 3
+                    ? i + 1
+                    : currentPage >= totalPages - 2
+                      ? totalPages - 4 + i
+                      : currentPage - 2 + i;
+                  return (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handlePageChange(page)}
+                      className={`h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer ${currentPage === page ? 'bg-[#e3c08d] text-white' : ''}`}
+                    >
+                      {page}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
 
         {filteredBookings.length === 0 && (
           <div className="text-center py-8">

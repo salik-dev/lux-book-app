@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, Download, Eye, Mail } from 'lucide-react';
+import { Search, Download, Eye, Mail, ChevronsRight, ChevronRight, ChevronLeft, ChevronsLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Customer {
@@ -34,6 +34,8 @@ export const CustomersManagement: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     loadCustomers();
@@ -82,6 +84,17 @@ export const CustomersManagement: React.FC = () => {
     customer.phone.includes(searchTerm)
   );
 
+   // Add these calculations before the return statement
+   const totalItems = filteredCustomers.length;
+   const totalPages = Math.ceil(totalItems / itemsPerPage);
+   const startIndex = (currentPage - 1) * itemsPerPage;
+   const currentItems = filteredCustomers.slice(startIndex, startIndex + itemsPerPage);
+ 
+   // Add this function to handle page changes
+   const handlePageChange = (page: number) => {
+     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+   };
+
   if (loading) {
     return (
       <Card className="card-premium">
@@ -100,12 +113,12 @@ export const CustomersManagement: React.FC = () => {
   }
 
   return (
-    <Card className="card-premium">
+    <Card className="card-premium bg-white">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Customer Management</span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="bg-[#fafafa] rounded-lg border-gray-200 hover:cursor-pointer">
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
@@ -121,16 +134,16 @@ export const CustomersManagement: React.FC = () => {
               placeholder="Search customers..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 bg-[#fafafa] rounded-lg border-gray-200"
             />
           </div>
         </div>
 
         {/* Customers Table */}
-        <div className="rounded-md border">
-          <Table>
+        <div className="rounded-md border border-gray-200">
+          <Table className="bg-white rounded-lg">
             <TableHeader>
-              <TableRow>
+              <TableRow className="text-gray-500 border-gray-200">
                 <TableHead>Customer</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Location</TableHead>
@@ -142,12 +155,12 @@ export const CustomersManagement: React.FC = () => {
             </TableHeader>
             <TableBody>
               {filteredCustomers.map((customer) => (
-                <TableRow key={customer.id}>
+                <TableRow key={customer.id} className='hover:bg-[#fafafa] transition-colors duration-500 border-gray-200   '>
                   <TableCell>
                     <div>
                       <div className="font-medium">{customer.full_name}</div>
                       {customer.date_of_birth && (
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-gray-500">
                           Born {format(new Date(customer.date_of_birth), 'MMM dd, yyyy')}
                         </div>
                       )}
@@ -156,13 +169,13 @@ export const CustomersManagement: React.FC = () => {
                   <TableCell>
                     <div className="text-sm">
                       <div>{customer.email}</div>
-                      <div className="text-muted-foreground">{customer.phone}</div>
+                      <div className="text-gray-500">{customer.phone}</div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
                       <div>{customer.address}</div>
-                      <div className="text-muted-foreground">
+                      <div className="text-gray-500">
                         {customer.postal_code} {customer.city}
                       </div>
                     </div>
@@ -170,7 +183,7 @@ export const CustomersManagement: React.FC = () => {
                   <TableCell>
                     <div className="text-center">
                       <div className="font-medium">{customer.bookings?.length || 0}</div>
-                      <div className="text-sm text-muted-foreground">bookings</div>
+                      <div className="text-sm text-gray-500">bookings</div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -179,16 +192,16 @@ export const CustomersManagement: React.FC = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-gray-500">
                       {format(new Date(customer.created_at), 'MMM dd, yyyy')}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" className="hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" className="hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl">
                         <Mail className="h-4 w-4" />
                       </Button>
                     </div>
@@ -198,6 +211,73 @@ export const CustomersManagement: React.FC = () => {
             </TableBody>
           </Table>
         </div>
+
+          {/* Pagination Rendering */}
+          {totalPages > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t bg-white rounded-b-lg border-gray-200">
+                    <div className="text-sm text-gray-500">
+                      Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, totalItems)} of {totalItems} bookings
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(1)}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+                      >
+                        <ChevronsLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <div className="flex items-center space-x-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          const page = currentPage <= 3
+                            ? i + 1
+                            : currentPage >= totalPages - 2
+                              ? totalPages - 4 + i
+                              : currentPage - 2 + i;
+                          return (
+                            <Button
+                              key={page}
+                              variant={currentPage === page ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handlePageChange(page)}
+                              className={`h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer ${currentPage === page ? 'bg-[#e3c08d] text-white' : ''}`}
+                            >
+                              {page}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(totalPages)}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+                      >
+                        <ChevronsRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
         {filteredCustomers.length === 0 && (
           <div className="text-center py-8">

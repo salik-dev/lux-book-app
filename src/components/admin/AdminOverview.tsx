@@ -96,6 +96,15 @@ export const AdminOverview: React.FC = () => {
     }).format(price);
   };
 
+  const cardItems = [
+    {id: 1, title: 'Total Bookings', icon: <Calendar className="h-4 w-4" />, value: stats.totalBookings, description: 'All time bookings'},
+    {id: 2, title: 'Active Bookings', icon: <Clock className="h-4 w-4" />, value: stats.activeBookings, description: 'Currently active'},
+    {id: 3, title: 'Total Revenue', icon: <DollarSign className="h-4 w-4" />, value: formatPrice(stats.totalRevenue), description: 'Total revenue'},
+    {id: 4, title: 'Monthly Revenue', icon: <TrendingUp className="h-4 w-4" />, value: formatPrice(stats.monthlyRevenue), description: 'This month'},
+    {id: 5, title: 'Fleet Size', icon: <Car className="h-4 w-4" />, value: stats.totalCars, description: 'Available vehicles'},
+    {id: 6, title: 'Total Customers', icon: <Users className="h-4 w-4" />, value: stats.totalCustomers, description: 'Registered customers'},
+  ]
+
   if (loading) {
     return (
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -114,7 +123,7 @@ export const AdminOverview: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="card-premium">
+        <Card className="card-premium bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               {t('admin.totalBookings')}
@@ -123,13 +132,13 @@ export const AdminOverview: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{stats.totalBookings}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               All time bookings
             </p>
           </CardContent>
         </Card>
 
-        <Card className="card-premium">
+        <Card className="card-premium bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               {t('admin.activeBookings')}
@@ -138,13 +147,13 @@ export const AdminOverview: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{stats.activeBookings}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               Currently active
             </p>
           </CardContent>
         </Card>
 
-        <Card className="card-premium">
+        <Card className="card-premium bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               {t('admin.revenue')}
@@ -153,13 +162,13 @@ export const AdminOverview: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{formatPrice(stats.totalRevenue)}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               Total revenue
             </p>
           </CardContent>
         </Card>
 
-        <Card className="card-premium">
+        <Card className="card-premium bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Monthly Revenue
@@ -168,13 +177,13 @@ export const AdminOverview: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-accent">{formatPrice(stats.monthlyRevenue)}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               This month
             </p>
           </CardContent>
         </Card>
 
-        <Card className="card-premium">
+        <Card className="card-premium bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Fleet Size
@@ -183,13 +192,13 @@ export const AdminOverview: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{stats.totalCars}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               Available vehicles
             </p>
           </CardContent>
         </Card>
 
-        <Card className="card-premium">
+        <Card className="card-premium bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               {t('admin.customers')}
@@ -198,7 +207,7 @@ export const AdminOverview: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{stats.totalCustomers}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-500">
               Registered customers
             </p>
           </CardContent>
@@ -206,13 +215,13 @@ export const AdminOverview: React.FC = () => {
       </div>
 
       {/* Recent Activity */}
-      <Card className="card-premium">
+      <Card className="card-premium bg-white">
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-center gap-4 p-4 rounded-lg border">
+            <div className="flex items-center gap-4 p-4 rounded-lg border border-gray-200">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
               <div className="flex-1">
                 <p className="font-medium">New booking received</p>
@@ -221,7 +230,7 @@ export const AdminOverview: React.FC = () => {
               <div className="text-sm text-muted-foreground">2 hours ago</div>
             </div>
             
-            <div className="flex items-center gap-4 p-4 rounded-lg border">
+            <div className="flex items-center gap-4 p-4 rounded-lg border border-gray-200">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
               <div className="flex-1">
                 <p className="font-medium">Payment completed</p>
@@ -230,7 +239,7 @@ export const AdminOverview: React.FC = () => {
               <div className="text-sm text-muted-foreground">4 hours ago</div>
             </div>
             
-            <div className="flex items-center gap-4 p-4 rounded-lg border">
+            <div className="flex items-center gap-4 p-4 rounded-lg border border-gray-200">
               <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
               <div className="flex-1">
                 <p className="font-medium">Vehicle returned</p>

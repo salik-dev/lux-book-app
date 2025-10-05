@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Search, Edit, Trash2, Image, Loader2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Image, Loader2, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CarFormDialog } from './CarFormDialog';
 import { getCarPlaceholder } from '@/utils/carPlaceholder';
@@ -31,6 +31,8 @@ export const CarsManagement: React.FC = () => {
   const { toast } = useToast();
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [generatingImages, setGeneratingImages] = useState<Set<string>>(new Set());
 
@@ -61,7 +63,7 @@ export const CarsManagement: React.FC = () => {
 
   const generateCarImage = async (car: Car) => {
     setGeneratingImages(prev => new Set(prev).add(car.id));
-    
+
     try {
       const { data, error } = await supabase.functions.invoke('generate-car-images', {
         body: {
@@ -137,6 +139,17 @@ export const CarsManagement: React.FC = () => {
     car.model.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Add these calculations before the return statement
+  const totalItems = filteredCars.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentItems = filteredCars.slice(startIndex, startIndex + itemsPerPage);
+
+  // Add this function to handle page changes
+  const handlePageChange = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
   if (loading) {
     return (
       <Card className="card-premium">
@@ -155,7 +168,7 @@ export const CarsManagement: React.FC = () => {
   }
 
   return (
-    <Card className="card-premium">
+    <Card className="card-premium bg-white">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Fleet Management</span>
@@ -171,16 +184,16 @@ export const CarsManagement: React.FC = () => {
               placeholder="Search vehicles..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 bg-[#fafafa] rounded-lg border-gray-200"
             />
           </div>
         </div>
 
         {/* Cars Table */}
-        <div className="rounded-md border">
-          <Table>
+        <div className="rounded-md border border-gray-200">
+          <Table className='bg-white rounded-lg'>
             <TableHeader>
-              <TableRow>
+              <TableRow className="text-gray-500 border-gray-200">
                 <TableHead>Image</TableHead>
                 <TableHead>Vehicle</TableHead>
                 <TableHead>Pricing</TableHead>
@@ -191,7 +204,7 @@ export const CarsManagement: React.FC = () => {
             </TableHeader>
             <TableBody>
               {filteredCars.map((car) => (
-                <TableRow key={car.id}>
+                <TableRow key={car.id} className='hover:bg-[#fafafa] transition-colors duration-500 border-gray-200   '>
                   <TableCell>
                     <div className="relative w-16 h-12 rounded-lg overflow-hidden bg-muted">
                       <img
@@ -204,29 +217,29 @@ export const CarsManagement: React.FC = () => {
                   <TableCell>
                     <div>
                       <div className="font-medium">{car.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {car.brand} {car.model} ({car.year})
+                      <div className="text-sm text-gray-500">
+                        {car.brand} {car.model} ({car.year})d
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
                       <div className="font-medium">{formatPrice(car.base_price_per_day)}/day</div>
-                      <div className="text-muted-foreground">{formatPrice(car.base_price_per_hour)}/hour</div>
+                      <div className="text-gray-500">{formatPrice(car.base_price_per_hour)}/hour</div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
                       <div>{car.included_km_per_day} km/day</div>
-                      <div className="text-muted-foreground">
+                      <div className="text-gray-500">
                         +{formatPrice((car.extra_km_rate ?? 0) as number)}/km
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge 
-                      className={car.is_available 
-                        ? 'bg-green-100 text-green-800' 
+                    <Badge
+                      className={car.is_available
+                        ? 'bg-green-100 text-green-800'
                         : 'bg-red-100 text-red-800'
                       }
                     >
@@ -235,11 +248,12 @@ export const CarsManagement: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         onClick={() => generateCarImage(car)}
                         disabled={generatingImages.has(car.id)}
+                        className='hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl'
                       >
                         {generatingImages.has(car.id) ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -247,7 +261,7 @@ export const CarsManagement: React.FC = () => {
                           <Image className="h-4 w-4" />
                         )}
                       </Button>
-                      <CarFormDialog 
+                      <CarFormDialog
                         car={car}
                         onCarSaved={loadCars}
                         trigger={
@@ -256,10 +270,11 @@ export const CarsManagement: React.FC = () => {
                           </Button>
                         }
                       />
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         onClick={() => toggleCarAvailability(car.id, car.is_available || false)}
+                        className='hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl'
                       >
                         {car.is_available ? 'Disable' : 'Enable'}
                       </Button>
@@ -270,6 +285,73 @@ export const CarsManagement: React.FC = () => {
             </TableBody>
           </Table>
         </div>
+
+        {/* Pagination Rendering */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-white rounded-b-lg border-gray-200">
+            <div className="text-sm text-gray-500">
+              Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, totalItems)} of {totalItems} bookings
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const page = currentPage <= 3
+                    ? i + 1
+                    : currentPage >= totalPages - 2
+                      ? totalPages - 4 + i
+                      : currentPage - 2 + i;
+                  return (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handlePageChange(page)}
+                      className={`h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer ${currentPage === page ? 'bg-[#e3c08d] text-white' : ''}`}
+                    >
+                      {page}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
 
         {filteredCars.length === 0 && (
           <div className="text-center py-8">

@@ -17,10 +17,10 @@ interface CarFormDialogProps {
   trigger?: React.ReactNode;
 }
 
-export const CarFormDialog: React.FC<CarFormDialogProps> = ({ 
-  car, 
+export const CarFormDialog: React.FC<CarFormDialogProps> = ({
+  car,
   onCarSaved,
-  trigger 
+  trigger
 }) => {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -75,7 +75,7 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
       };
 
       let error;
-      
+
       if (car?.id) {
         // Update existing car
         ({ error } = await supabase
@@ -98,7 +98,7 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
 
       setOpen(false);
       onCarSaved();
-      
+
       // Reset form if creating new car
       if (!car?.id) {
         setFormData({
@@ -135,58 +135,61 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+      <DialogTrigger asChild className="rounded-lg border-gray-200 bg-[#e3c08d] hover:bg-[#e3c08d]/80 hover:cursor-pointer transition-colors duration-500">
         {trigger || (
-          <Button className="bg-gradient-fjord hover:opacity-90">
+          <Button className="">
             <Plus className="h-4 w-4 mr-2" />
             Add Vehicle
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white rounded-lg border-gray-200">
         <DialogHeader>
           <DialogTitle>
             {car?.id ? 'Edit Vehicle' : 'Add New Vehicle'}
           </DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Vehicle Name</Label>
+              <Label htmlFor="name">Vehicle Name <span className="text-red-500">*</span></Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="e.g., BMW X7 Luxury"
                 required
+                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="brand">Brand</Label>
+              <Label htmlFor="brand">Brand <span className="text-red-500">*</span></Label>
               <Input
                 id="brand"
                 value={formData.brand}
                 onChange={(e) => handleInputChange('brand', e.target.value)}
                 placeholder="e.g., BMW"
                 required
+                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="model">Model</Label>
+              <Label htmlFor="model">Model <span className="text-red-500">*</span></Label>
               <Input
                 id="model"
                 value={formData.model}
                 onChange={(e) => handleInputChange('model', e.target.value)}
                 placeholder="e.g., X7"
                 required
+                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="year">Year</Label>
+              <Label htmlFor="year">Year <span className="text-red-500">*</span></Label>
               <Input
                 id="year"
                 type="number"
@@ -195,11 +198,12 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
                 min="2010"
                 max={new Date().getFullYear() + 1}
                 required
+                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="base_price_per_hour">Price per Hour (NOK)</Label>
+              <Label htmlFor="base_price_per_hour">Price per Hour (NOK) <span className="text-red-500">*</span></Label>
               <Input
                 id="base_price_per_hour"
                 type="number"
@@ -208,11 +212,12 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
                 min="0"
                 step="0.01"
                 required
+                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="base_price_per_day">Price per Day (NOK)</Label>
+              <Label htmlFor="base_price_per_day">Price per Day (NOK) <span className="text-red-500">*</span></Label>
               <Input
                 id="base_price_per_day"
                 type="number"
@@ -221,11 +226,12 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
                 min="0"
                 step="0.01"
                 required
+                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="included_km_per_day">Included KM per Day</Label>
+              <Label htmlFor="included_km_per_day">Included KM per Day <span className="text-red-500">*</span></Label>
               <Input
                 id="included_km_per_day"
                 type="number"
@@ -233,11 +239,12 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
                 onChange={(e) => handleInputChange('included_km_per_day', e.target.value ? parseInt(e.target.value) : null)}
                 min="0"
                 required
+                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="extra_km_rate">Extra KM Rate (NOK)</Label>
+              <Label htmlFor="extra_km_rate">Extra KM Rate (NOK) <span className="text-red-500">*</span></Label>
               <Input
                 id="extra_km_rate"
                 type="number"
@@ -246,40 +253,46 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
                 min="0"
                 step="0.01"
                 required
+                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
               />
             </div>
           </div>
-          
+
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">Description <span className="text-red-500">*</span></Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               placeholder="Vehicle description and features..."
               rows={3}
+              className="bg-[#fafafa] rounded-lg border-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-gray-400"
             />
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Switch
               id="is_available"
               checked={formData.is_available ?? false}
               onCheckedChange={(checked) => handleInputChange('is_available', checked)}
+              className="h-5 w-9 hover:cursor-pointer data-[state=checked]:bg-[#e3c08d] data-[state=unchecked]:bg-gray-200"
             />
-            <Label htmlFor="is_available">Available for booking</Label>
+            <Label htmlFor="is_available" className="text-sm font-medium text-gray-700 ml-2 cursor-pointer">
+              Available for booking
+            </Label>
           </div>
-          
+
           <div className="flex justify-end gap-3 pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => setOpen(false)}
               disabled={loading}
+              className='rounded-lg border-gray-200 hover:cursor-pointer hover:bg-gray-100'
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className='bg-[#e3c08d] hover:bg-[#e3c08d]/80 hover:cursor-pointer transition-colors duration-500 rounded-lg'>
               {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {car?.id ? 'Update Vehicle' : 'Add Vehicle'}
             </Button>

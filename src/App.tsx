@@ -47,9 +47,7 @@ export default function App() {
 
         {/* Admin Routes */}
         <Route path="/admin" element={
-          <Layout>
             <Admin />
-          </Layout>
         } />
 
         {/* Other Pages */}
