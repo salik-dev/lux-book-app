@@ -21,7 +21,10 @@ CREATE POLICY "Only admin role can manage admin users"
 ON public.admin_users 
 FOR ALL 
 USING (public.is_admin_user(auth.uid()));
-
+-- Add unique constraint to user_id in admin_users
+ALTER TABLE public.admin_users 
+  ADD CONSTRAINT admin_users_user_id_key UNIQUE (user_id);
+  
 -- Make tayyab.ali@absoluit.com an admin
 INSERT INTO public.admin_users (user_id, email, role, full_name, is_active)
 VALUES (
