@@ -54,9 +54,11 @@ export default function BookingSuccess() {
       <div className="max-w-2xl w-full bg-[#1a2528] rounded-xl p-8 shadow-xl">
         <div className="text-center">
           <div className="flex justify-center mb-6">
-            <div className="bg-[#e3c08d] bg-opacity-20 p-4 rounded-full">
-              <CheckCircle className="h-12 w-12 text-[#e3c08d]" />
-            </div>
+            {/* <div className="bg-[#e3c08d] bg-opacity-20 p-4 rounded-full flex justify-center items-center"> */}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-22 w-22" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+            {/* </div> */}
           </div>
           
           <h1 className="text-3xl font-bold mb-4 text-[#e3c08d]">Booking Confirmed!</h1>
@@ -99,22 +101,22 @@ export default function BookingSuccess() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               onClick={() => navigate('/bookings')}
-              className="bg-[#e3c08d] hover:bg-[#d1b07f] text-[#0d1518] font-medium py-6 px-8 rounded-lg transition-colors"
+              className="bg-[#e3c08d] hover:cursor-pointer hover:bg-[#d1b07f] text-[#0d1518] font-medium py-6 px-8 rounded-lg transition-colors"
             >
               View My Bookings
             </Button>
             <Button
               onClick={() => navigate('/')}
               variant="outline"
-              className="border-[#e3c08d] text-[#e3c08d] hover:bg-[#e3c08d] hover:text-[#0d1518] font-medium py-6 px-8 rounded-lg transition-colors"
+              className="border-[#e3c08d] hover:cursor-pointer text-[#e3c08d] hover:bg-[#e3c08d] hover:text-[#0d1518] font-medium py-6 px-8 rounded-lg transition-colors"
             >
               Back to Home
             </Button>
           </div>
 
-          <p className="mt-6 text-sm text-gray-400">
+          {/* <p className="mt-6 text-sm text-gray-400">
             A confirmation has been sent to your email address.
-          </p>
+          </p> */}
         </div>
       </div>
     </div>

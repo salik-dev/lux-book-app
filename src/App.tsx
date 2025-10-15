@@ -15,6 +15,7 @@ import KontaktOss from "./pages/kontakt-oss";
 import NotFound from "./pages/not-found";
 import Admin from "./pages/admin/admin";
 import Bookings from "./pages/bookings/booking";
+import BookingSuccess from "./pages/booking-success";
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -80,6 +81,14 @@ export default function App() {
             <KontaktOss />
           </Layout>
         } />
+
+        {/* Booking Success Page */}
+        <Route path="/booking-success" element={
+          <Layout>
+            <BookingSuccess />
+          </Layout>
+        } />
+
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AuthProvider>
