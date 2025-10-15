@@ -32,15 +32,16 @@ export function AdminHeader() {
         { id: 4, title: 'Profile', path: '/' },
     ];
 
-    // Show welcome toast when user logs in
-    useEffect(() => {
-        if (user?.id) {
-            toast({
-                title: 'Success',
-                description: 'You are logged in',
-            });
-        }
-    }, [user?.id]);
+    // // Show welcome toast when user logs in
+    // useEffect(() => {
+    //     if (user?.id) {
+    //         toast({
+    //             title: 'Success',
+    //             description: 'You are logged in',
+    //         });
+            
+    //     }
+    // }, [user?.id]);
 
     return (
         <header

@@ -260,11 +260,14 @@ export const BookingsManagement: React.FC = () => {
                     <div className="font-medium">{booking.car?.name || 'No car data'}</div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">
-                      <div>{format(new Date(booking.start_datetime), 'MMM dd, yyyy')}</div>
+                    <div className="text-xs leading-3">
+                      <div style={{ color: 'blue' }}>{format(new Date(booking.start_datetime), 'MMM dd, yyyy, hh:mm a')}</div>
+                      <span className="mx-14">&#x2193;</span>
+                      <div style={{ color: 'red' }}>{format(new Date(booking.end_datetime), 'MMM dd, yyyy, hh:mm a')}</div>
+                      {/* <div>{format(new Date(booking.start_datetime), 'MMM dd, yyyy')}</div>
                       <div className="text-gray-500">
                         {format(new Date(booking.start_datetime), 'HH:mm')} - {format(new Date(booking.end_datetime), 'HH:mm')}
-                      </div>
+                      </div> */}
                     </div>
                   </TableCell>
                   <TableCell>

@@ -65,7 +65,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
 
   const handlePayment = async (method: "stripe" | "vipps") => {
 
-    const getUser = localStorage.getItem('sb-nagzgmnsaiyyzmpzkiey-auth-token');
+    const getUser = localStorage.getItem('sb-tcnemhaocanqvhimvuon-auth-token');
     if (!getUser) {
       toast({
         title: "User Not Logged In !",

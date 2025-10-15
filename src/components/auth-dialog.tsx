@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Loader2, Mail, Lock, Eye, EyeOff, Mountain } from 'lucide-react';
+import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
+import logo from '../assets/logo.png';
 
 interface AuthFormData {
   email: string;
@@ -40,9 +41,9 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       if (isLogin) {
-        const {user, error} = await signIn(data.email, data.password);
+        const { user, error } = await signIn(data.email, data.password);
         console.log('user login', user)
-        if(error){
+        if (error) {
           toast({
             title: 'Error',
             description: "Invalid email or password! Please try again.",
@@ -68,7 +69,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
         setOpen(false);
         toast({
           title: 'Success',
-          description: 'Account created successfully! Please sign in.',
+          description: 'Account created! Check your email to confirm.',
         });
         setIsLogin(true);
       }
@@ -90,12 +91,11 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[450px] bg-white p-0 overflow-hidden rounded-md">
         <div className="p-8">
-          <span className='flex justify-center gap-2'>
-            <Mountain className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold bg-gradient-fjord bg-clip-text">Fjord Fleet</span>
+          <span className='flex justify-center -mt-6'>
+            <img src={logo} alt="Logo" className='w-34 h-34 mx-auto' />
           </span>
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-center text-gray-900 -mb-4 mt-4">
+          <DialogHeader className='-mt-5'>
+            <DialogTitle className="text-2xl font-bold text-center text-gray-900 -mt-2">
               {isLogin ? 'Welcome Back' : 'Create an Account'}
             </DialogTitle>
           </DialogHeader>

@@ -30,6 +30,8 @@ const Form = ({ children, form, onSubmit }: {
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { BookingData, CarData } from "@/@types/data";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface BookingDetailsProps {
   car: CarData;
@@ -142,9 +144,54 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
     }).format(price);
   };
 
-  const onSubmit = (data: FormData) => {
+  const checkCarAvailability = async (carId: string, startDateTime: Date, endDateTime: Date) => {
+    try {
+      const { data: existingBookings, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('car_id', carId)
+        .not('status', 'in', '("cancelled","completed")')
+        .or(
+          `and(status.eq.confirmed,start_datetime.lte.${endDateTime.toISOString()},end_datetime.gte.${startDateTime.toISOString()}),` +
+          `and(status.eq.pending,start_datetime.lte.${endDateTime.toISOString()},end_datetime.gte.${startDateTime.toISOString()})`
+        );
+        
+        console.log('existingBookings', existingBookings)
+
+      if (error) throw error;
+      return existingBookings.length === 0;
+    } catch (error) {
+      console.error('Error checking car availability:', error);
+      return false;
+    }
+  };
+
+  const onSubmit = async (data: FormData) => {
     const startDateTime = data.startDateTime;
     const endDateTime = data.endDateTime;
+
+    // Basic validation - ensure end date is after start date
+    if (endDateTime <= startDateTime) {
+      // alert('End date must be after start date'); 
+      toast({
+        title: 'Invalid Date Range',
+        variant: 'destructive',
+        description: 'End date must be after start date.',
+      });
+      return;
+    }
+
+    // Check if the car is available for the selected dates
+    const isAvailable = await checkCarAvailability(car.id, startDateTime, endDateTime);
+    
+    if (!isAvailable) {
+      toast({
+        title: 'Car Unavailable',
+        variant: 'destructive',
+        description: 'Please choose different dates.',
+      });
+      return;
+    }
 
     const bookingData: BookingData = {
       car,
