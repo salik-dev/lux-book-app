@@ -46,7 +46,7 @@ export function Header() {
       className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md border-b border-gray-800"
       style={{ backgroundColor: "#0d1518" }}
     >
-      <div className="container mx-auto">
+      <div className={`container mx-auto px-[30px] ${user && 'px-12'}`}>
         <div className="flex items-center justify-between h-20 md:h-24 lg:h-28">
           <div className='flex items-center gap-4 md:gap-8 lg:gap-10 min-w-0'>
             <div className="flex items-center space-x-2">
@@ -57,7 +57,7 @@ export function Header() {
               </div>
             </div>
 
-            <nav className="hidden md:flex flex-wrap items-center gap-4 lg:gap-8 leading-0">
+            <nav className="hidden md:flex flex-wrap items-center gap-4 lg:gap-7 leading-4">
 
               {homeItems.map((item) => (
                 <Link key={item.id} to={item.path} className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
