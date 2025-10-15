@@ -140,7 +140,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
           base_price: bookingData.basePrice,
           total_price: bookingData.totalPrice,
           vat_amount: bookingData.vatAmount,
-          status: 'pending',
+          status: 'active',
           contract_signed_at: new Date().toISOString(),
         })
         .select()
