@@ -114,6 +114,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
               postal_code: customerData.postalCode,
               city: customerData.city,
               date_of_birth: format(customerData.dateOfBirth, 'yyyy-MM-dd'),
+              driver_license_number: customerData.driverLicenseNumber,
+              driver_license_file_path: customerData.driverLicenseFile,
             })
             .select('id')
             .single();
@@ -124,8 +126,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
       }
 
       // Create booking record
-
-      console.log('bk data', bookingData);
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert({

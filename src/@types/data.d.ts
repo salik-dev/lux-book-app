@@ -55,6 +55,7 @@ export interface CustomerData {
   postalCode: string;
   city: string;
   dateOfBirth: Date;
+  driverLicenseNumber: string;
   driverLicenseFile?: File;
 }
 

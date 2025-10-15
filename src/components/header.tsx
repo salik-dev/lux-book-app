@@ -46,7 +46,7 @@ export function Header() {
       className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md border-b border-gray-800"
       style={{ backgroundColor: "#0d1518" }}
     >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-16 2xl:px-32">
+      <div className="container mx-auto">
         <div className="flex items-center justify-between h-20 md:h-24 lg:h-28">
           <div className='flex items-center gap-4 md:gap-8 lg:gap-10 min-w-0'>
             <div className="flex items-center space-x-2">
@@ -57,28 +57,23 @@ export function Header() {
               </div>
             </div>
 
-            <nav className="hidden md:flex flex-wrap items-center gap-4 lg:gap-8">
-              {
-                !user ? (
-                  homeItems.map((item) => (
-                    <Link key={item.id} to={item.path} className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
-                      {item.title}
-                    </Link>
-                  ))
-                ) : (
-                  <>
-                    <Link to="/" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
-                      Home
-                    </Link>
-                    <Link to="/bookings" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
-                      My Booking
-                    </Link>
-                    {isAdmin && <Link to="/admin" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
-                      Dashboard
-                    </Link>}
-                  </>
-                )
-              }
+            <nav className="hidden md:flex flex-wrap items-center gap-4 lg:gap-8 leading-0">
+
+              {homeItems.map((item) => (
+                <Link key={item.id} to={item.path} className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+                  {item.title}
+                </Link>
+              ))}
+              {user && (
+                <>
+                  <Link to="/bookings" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+                    Min booking
+                  </Link>
+                  {isAdmin && <Link to="/admin" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+                    Oversikt
+                  </Link>}
+                </>
+              )}
             </nav>
           </div>
 
@@ -152,15 +147,7 @@ export function Header() {
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-800">
             <nav className="flex flex-col space-y-4">
-              {user === null ? homeItems.map((item) => (
-                <Link
-                  key={item.id}
-                  to={item.path}
-                  className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors"
-                >
-                  {item.title}
-                </Link>
-              )) : loginItems.map((item) => (
+              {homeItems.map((item) => (
                 <Link
                   key={item.id}
                   to={item.path}
@@ -169,6 +156,16 @@ export function Header() {
                   {item.title}
                 </Link>
               ))}
+              {user && (
+                <>
+                  <Link to="/bookings" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+                    Min booking
+                  </Link>
+                  {isAdmin && <Link to="/admin" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
+                    Oversikt
+                  </Link>}
+                </>
+              )}
               <div className="pt-4 flex flex-col space-y-3">
                 {
                   !user ? <>

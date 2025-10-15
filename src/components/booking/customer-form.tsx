@@ -31,6 +31,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       postalCode: initialData?.postalCode || "",
       city: initialData?.city || "",
       dateOfBirth: initialData?.dateOfBirth ? new Date(initialData.dateOfBirth) : new Date("1990-01-01"),
+      driverLicenseNumber: initialData?.driverLicenseNumber || "",
       driverLicenseFile: initialData?.driverLicenseFile,
     },
     mode: "onChange",
@@ -47,6 +48,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
         postalCode: initialData.postalCode || "",
         city: initialData.city || "",
         dateOfBirth: initialData.dateOfBirth ? new Date(initialData.dateOfBirth) : new Date("1990-01-01"),
+        driverLicenseNumber: initialData.driverLicenseNumber || "",
         driverLicenseFile: initialData.driverLicenseFile,
       });
       // Also hydrate local file preview state so dropzone shows the file name
@@ -92,6 +94,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       driverLicenseFile: licenseFile || undefined,
     };
     onComplete(customerData);
+    console.log('customer data', customerData)
   };
   // console.log('booking data', bookingData)
 
@@ -250,7 +253,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
                               field.onChange(date);
                             }}
                             onBlur={field.onBlur}
-                            className="border h-9 border-gray-200 bg-gray-50 rounded-md border-gray-300"
+                            className="border h-9 bg-gray-50 rounded-md border-gray-300"
                             max={format(new Date(), "yyyy-MM-dd")} // Allow dates up to today
                           />
                             {/* <Button
@@ -300,7 +303,27 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
                   )}
                 />
               </div>
-
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="driverLicenseNumber"
+                  rules={{ required: "Driver license number is required" }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">Driver License Number <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input 
+                            {...field} 
+                            className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
+                            placeholder="Insert your driver license number ..."
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-red-500 mt-1" />
+                    </FormItem>
+                  )}
+                />
               <FormField
                   control={form.control}
                   name="address"
@@ -321,6 +344,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
                     </FormItem>
                   )}
                 />
+              </div>
+
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField

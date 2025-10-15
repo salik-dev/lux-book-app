@@ -34,7 +34,6 @@ export const CarsManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
-  const [generatingImages, setGeneratingImages] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadCars();
@@ -47,6 +46,8 @@ export const CarsManagement: React.FC = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
+      console.log('supabase cars', data);
+
       if (error) throw error;
       setCars(data || []);
     } catch (error) {
@@ -58,45 +59,6 @@ export const CarsManagement: React.FC = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const generateCarImage = async (car: Car) => {
-    setGeneratingImages(prev => new Set(prev).add(car.id));
-
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-car-images', {
-        body: {
-          carId: car.id,
-          carName: car.name,
-          brand: car.brand,
-          model: car.model,
-          year: car.year,
-        },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Car image generated successfully',
-      });
-
-      // Reload cars to get updated image URL
-      loadCars();
-    } catch (error) {
-      console.error('Error generating image:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to generate car image',
-        variant: 'destructive',
-      });
-    } finally {
-      setGeneratingImages(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(car.id);
-        return newSet;
-      });
     }
   };
 
@@ -248,19 +210,6 @@ export const CarsManagement: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => generateCarImage(car)}
-                        disabled={generatingImages.has(car.id)}
-                        className='hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl'
-                      >
-                        {generatingImages.has(car.id) ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Image className="h-4 w-4" />
-                        )}
-                      </Button>
                       <CarFormDialog
                         car={car}
                         onCarSaved={loadCars}
