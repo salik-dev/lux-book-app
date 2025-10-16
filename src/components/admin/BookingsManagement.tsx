@@ -11,7 +11,6 @@ import { format } from 'date-fns';
 import { Search, Filter, Download, Eye, Edit, Mail, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { BookingDetailsDialog } from './BookingDetailsDialog';
-import { CalendarIcon } from 'lucide-react';
 
 interface Booking {
   id: string;
@@ -27,6 +26,10 @@ interface Booking {
     name: string;
     brand: string;
     model: string;
+    base_price_per_hour: number;
+    base_price_per_day: number;
+    included_km_per_day: number;
+    extra_km_rate: number;
   } | null;
   customer: {
     full_name: string;
@@ -37,6 +40,7 @@ interface Booking {
     status: "pending" | "paid" | "refunded" | "failed" | null;
     method: "stripe" | "vipps";
     amount: number;
+    created_at: string;
   }> | null;
 }
 
@@ -86,9 +90,9 @@ export const BookingsManagement: React.FC = () => {
         .from('bookings')
         .select(`
           *,
-          car:cars(name, brand, model),
+          car:cars(name, brand, model, base_price_per_hour, base_price_per_day, included_km_per_day, extra_km_rate),
           customer:customers(full_name, email, phone),
-          payment:payments(status, method, amount)
+          payment:payments(status, method, amount, created_at)
         `)
         .order('created_at', { ascending: false });
 
@@ -431,7 +435,12 @@ export const BookingsManagement: React.FC = () => {
             id: null,
             name: 'N/A',
             brand: 'N/A',
-            model: 'N/A'
+            model: 'N/A',
+            base_price_per_hour: null,
+            base_price_per_day: null,
+            included_km_per_day: null,
+            extra_km_rate: null,
+            image_url: null
           },
           customer: selectedBooking.customer || {
             id: null,

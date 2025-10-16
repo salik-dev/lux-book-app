@@ -27,6 +27,10 @@ interface BookingDetailsDialogProps {
       model: string;
       year?: number;
       registration_number?: string;
+      base_price_per_hour: number;
+      base_price_per_day: number;
+      included_km_per_day: number;
+      extra_km_rate: number;
     } | null;
     customer: {
       id: string;
@@ -85,12 +89,12 @@ export const BookingDetailsDialog: React.FC<BookingDetailsDialogProps> = ({
       <DialogContent className="max-w-4xl max-h-[90vh] p-8 rounded-md overflow-y-auto bg-white border-0">
         <DialogHeader>
           <DialogTitle className="flex justify-between items-center gap-2">
-           <div className='flex items-center gap-2'>
-             <p className="text-[#e3c08d]">Booking #{booking.booking_number}</p>
-            <Badge variant={getStatusBadgeVariant(booking.status)} className={`capitalize text-xs ${booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : booking.status === 'confirmed' ? 'bg-blue-100 text-blue-800' : booking.status === 'active' ? 'bg-green-100 text-green-800' : booking.status === 'completed' ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-800'}`}>
-              {booking.status}
-            </Badge>
-           </div>
+            <div className='flex items-center gap-2'>
+              <p className="text-[#e3c08d]">Booking #{booking.booking_number}</p>
+              <Badge variant={getStatusBadgeVariant(booking.status)} className={`capitalize text-xs ${booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : booking.status === 'confirmed' ? 'bg-blue-100 text-blue-800' : booking.status === 'active' ? 'bg-green-100 text-green-800' : booking.status === 'completed' ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-800'}`}>
+                {booking.status}
+              </Badge>
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Status:</span>
               <Select
@@ -185,29 +189,17 @@ export const BookingDetailsDialog: React.FC<BookingDetailsDialogProps> = ({
               <div className="space-y-4 bg-[#f9fafb] rounded-lg p-4">
                 <h3 className="font-medium text-lg mb-4 text-gray-700">{booking.car.brand} {booking.car.model}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                  <div className='text-[13px]'>
                     <p className="text-sm text-gray-600">Vehicle Name</p>
                     <p className="font-medium text-gray-900">{booking.car.name}</p>
                   </div>
-                  {booking.car.year && (
-                    <div>
-                      <p className="text-sm text-gray-600">Year</p>
-                      <p className="font-medium text-gray-900">{booking.car.year}</p>
-                    </div>
-                  )}
-                  {booking.car.registration_number && (
-                    <div>
-                      <p className="text-sm text-gray-600">Registration</p>
-                      <p className="font-mono font-medium text-gray-900">{booking.car.registration_number}</p>
-                    </div>
-                  )}
                 </div>
 
                 <div className="mt-6 border-t border-gray-200 pt-4">
                   <h4 className="font-medium mb-2 text-gray-700">Pricing Summary</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Base Rate ({totalDays} {totalDays === 1 ? 'day' : 'days'})</span>
+                      <span className="text-gray-600 text-sm">Base Rate ({totalDays} {totalDays === 1 ? 'day' : 'days'})</span>
                       <span className="font-medium text-gray-900">NOK {booking.total_price.toFixed(2)}</span>
                     </div>
                     <div className="border-t border-gray-200 my-2"></div>
@@ -228,28 +220,23 @@ export const BookingDetailsDialog: React.FC<BookingDetailsDialogProps> = ({
               <div className="space-y-4 bg-[#f9fafb] rounded-lg p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-600">Payment Status</p>
-                    <Badge
-                      variant={
-                        payment.status === 'paid' ? 'default' :
-                          payment.status === 'pending' ? 'outline' : 'destructive'
-                      }
-                      className="capitalize"
-                    >
-                      {payment.status || 'unpaid'}
+                    <p className="text-[13px] text-gray-600">Payment Status</p>
+                    <Badge variant="outline" className={`capitalize text-xs ${payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : payment.status === 'paid' ? 'bg-blue-100 text-blue-800' : payment.status === 'failed' ? 'bg-red-100 text-red-800' : payment.status === 'refunded' ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-800'}`}>
+                      {payment.status}
                     </Badge>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Payment Method</p>
-                    <p className="capitalize">{payment.method.replace('_', ' ')}</p>
+                    <p className="text-[13px] text-gray-600">Payment Method</p>
+                    <p className="capitalize text-gray-600 font-medium">{payment.method.replace('_', ' ')}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Amount</p>
-                    <p className="font-medium text-gray-900">{payment.currency} {payment.amount.toFixed(2)}</p>
+                    <p className="text-[13px] text-gray-600">Amount</p>
+                    <p className="font-medium text-gray-600">{payment.currency} {payment.amount.toFixed(2)}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Payment Date</p>
-                    <p className="font-medium text-gray-900">{"format(new Date(payment.created_at), 'PPPp')"}</p>
+                    <p className="text-[13px] text-gray-600">Payment Date</p>
+                    <p className="font-medium text-gray-600">{format(new Date(payment.created_at), 'PPPp')}</p>
+                    {/* <p className="font-medium text-gray-600">{payment.created_at}</p> */}
                   </div>
                 </div>
               </div>
