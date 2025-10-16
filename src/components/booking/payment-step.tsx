@@ -97,7 +97,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
         const { data: existingCustomer } = await supabase
           .from('customers')
           .select('id')
-          .eq('user_id', user.id)
+          .eq('email', customerData.email)
           .maybeSingle();
 
         if (existingCustomer) {
@@ -106,7 +106,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
           const { data: newCustomer, error: customerError } = await supabase
             .from('customers')
             .insert({
-              user_id: user.id,
+              user_id: user?.id,
               full_name: customerData.fullName,
               email: customerData.email,
               phone: customerData.phone,
@@ -167,23 +167,24 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
           // Redirect to Stripe Checkout
           window.open(data.url, '_blank');
         }
-      } else if (method === 'vipps') {
-        // Call Vipps payment function
-        const { data, error } = await supabase.functions.invoke('create-vipps-payment', {
-          body: {
-            bookingId: booking.id,
-            amount: Math.round(bookingData.totalPrice * 100), // Convert to øre
-            customerPhone: customerData.phone,
-          },
-        });
+      } 
+      // else if (method === 'vipps') {
+      //   // Call Vipps payment function
+      //   const { data, error } = await supabase.functions.invoke('create-vipps-payment', {
+      //     body: {
+      //       bookingId: booking.id,
+      //       amount: Math.round(bookingData.totalPrice * 100), // Convert to øre
+      //       customerPhone: customerData.phone,
+      //     },
+      //   });
 
-        if (error) throw error;
+      //   if (error) throw error;
 
-        if (data.url) {
-          // Redirect to Vipps
-          window.open(data.url, '_blank');
-        }
-      }
+      //   if (data.url) {
+      //     // Redirect to Vipps
+      //     window.open(data.url, '_blank');
+      //   }
+      // }
       toast({
         // title: t('payment.success'),
         title: "Success",
