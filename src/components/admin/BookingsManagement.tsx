@@ -10,6 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { Search, Filter, Download, Eye, Edit, Mail, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { BookingDetailsDialog } from './BookingDetailsDialog';
+import { CalendarIcon } from 'lucide-react';
 
 interface Booking {
   id: string;
@@ -47,6 +49,32 @@ export const BookingsManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleViewDetails = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setIsDialogOpen(true);
+  };
+
+  const handleStatusChange = async (bookingId: string, newStatus: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled') => {
+    try {
+      await updateBookingStatus(bookingId, newStatus);
+      // Update the local state to reflect the change immediately
+      setBookings(bookings.map(booking => 
+        booking.id === bookingId ? { ...booking, status: newStatus } : booking
+      ));
+      // If we're viewing the booking, update the selected booking as well
+      if (selectedBooking?.id === bookingId) {
+        setSelectedBooking({
+          ...selectedBooking,
+          status: newStatus
+        });
+      }
+    } catch (error) {
+      console.error('Error updating booking status:', error);
+    }
+  };
 
   useEffect(() => {
     loadBookings();
@@ -188,19 +216,20 @@ export const BookingsManagement: React.FC = () => {
   }
 
   return (
-    <Card className="card-premium bg-white">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>{t('admin.bookings')} Management</span>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className='rounded-lg border-gray-200 hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500'>
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-          </div>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <>
+      <Card className="card-premium bg-white">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>{t('admin.bookings')} Management</span>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className='rounded-lg border-gray-200 hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500'>
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
@@ -264,10 +293,6 @@ export const BookingsManagement: React.FC = () => {
                       <div style={{ color: 'blue' }}>{format(new Date(booking.start_datetime), 'MMM dd, yyyy, hh:mm a')}</div>
                       <span className="mx-14">&#x2193;</span>
                       <div style={{ color: 'red' }}>{format(new Date(booking.end_datetime), 'MMM dd, yyyy, hh:mm a')}</div>
-                      {/* <div>{format(new Date(booking.start_datetime), 'MMM dd, yyyy')}</div>
-                      <div className="text-gray-500">
-                        {format(new Date(booking.start_datetime), 'HH:mm')} - {format(new Date(booking.end_datetime), 'HH:mm')}
-                      </div> */}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -280,7 +305,12 @@ export const BookingsManagement: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" className='hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl'>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className='hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl'
+                        onClick={() => handleViewDetails(booking)}
+                      >
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button
@@ -388,5 +418,40 @@ export const BookingsManagement: React.FC = () => {
         )}
       </CardContent>
     </Card>
+    
+    {/* Booking Details Dialog */}
+    {selectedBooking && (
+      <BookingDetailsDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        booking={{
+          ...selectedBooking,
+          status: selectedBooking.status as 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled',
+          car: selectedBooking.car || {
+            id: null,
+            name: 'N/A',
+            brand: 'N/A',
+            model: 'N/A'
+          },
+          customer: selectedBooking.customer || {
+            id: null,
+            full_name: 'N/A',
+            email: 'N/A',
+            phone: 'N/A'
+          },
+          payment: selectedBooking.payment || [{
+            id: null,
+            status: 'pending',
+            method: 'stripe',
+            amount: 0,
+            currency: 'NOK',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }]
+        }}
+        onStatusChange={handleStatusChange}
+      />
+    )}
+    </>
   );
 };
