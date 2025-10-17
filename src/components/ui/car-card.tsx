@@ -58,7 +58,6 @@ export function CarCard({ id, name='Luksusbil', image_url, description, base_pri
           </div>
         </div>
 
-
         <div className="mt-6">
           <Button disabled={!is_available} onClick={handleCarSelect} className="w-full tracking-wide text-black bg-[#E3C08D] hover:bg-[#E3C08D]/90 hover:cursor-pointer transition-all duration-300 hover:text-white">
             {is_available ? 'Reserver nå' : 'Bilen er utilgjengelig'}
