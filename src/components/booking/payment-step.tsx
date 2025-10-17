@@ -64,16 +64,16 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
 
   const handlePayment = async (method: "stripe" | "vipps") => {
 
-    const getUser = localStorage.getItem('sb-tcnemhaocanqvhimvuon-auth-token');
-    if (!getUser) {
-      toast({
-        title: "User Not Logged In !",
-        description:
-          "Please Sign In first to proceed with payment.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // const getUser = localStorage.getItem('sb-tcnemhaocanqvhimvuon-auth-token');
+    // if (!getUser) {
+    //   toast({
+    //     title: "User Not Logged In !",
+    //     description:
+    //       "Please Sign In first to proceed with payment.",
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
     
     if (!contractSigned) {
       toast({
@@ -92,7 +92,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
 
       // First, create customer record if user is logged in
       let customerId = null;
-      if (user) {
+      // if (user) {
         const { data: existingCustomer } = await supabase
           .from('customers')
           .select('id')
@@ -122,7 +122,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
           if (customerError) throw customerError;
           customerId = newCustomer.id;
         }
-      }
+      // }
 
       // Create booking record
       const { data: booking, error: bookingError } = await supabase
@@ -157,14 +157,23 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
             currency: 'nok',
             customerEmail: customerData.email,
             customerName: customerData.fullName,
+            successUrl: `${window.location.origin}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
+            cancelUrl: `${window.location.origin}/booking?step=payment`,
           },
         });
 
         if (error) throw error;
 
+        console.log('supabase return data', data);
         if (data.url) {
+          // Update booking with stripe session ID before redirecting
+          await supabase
+            .from('bookings')
+            .update({ stripe_session_id: data.sessionId })
+            .eq('id', booking.id);
+            
           // Redirect to Stripe Checkout
-          window.open(data.url, '_blank');
+          window.location.href = data.url;
         }
       } 
       // else if (method === 'vipps') {

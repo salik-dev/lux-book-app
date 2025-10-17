@@ -15,11 +15,14 @@ export default function BookingSuccess() {
 
   useEffect(() => {
     const fetchBookingDetails = async () => {
-      if (!sessionId || !user) return;
+      if (!sessionId) {
+        setIsLoading(false);
+        return;
+      }
 
       try {
-        // Fetch the booking details using the session ID
-        const { data, error } = await supabase
+        // First try to get booking by session ID (for non-logged in users)
+        let { data: booking, error } = await supabase
           .from('bookings')
           .select(`
             *,
@@ -28,9 +31,27 @@ export default function BookingSuccess() {
           .eq('stripe_session_id', sessionId)
           .single();
 
-        if (error) throw error;
+        // If no booking found by session ID and user is logged in, try to get their latest booking
+        if ((!booking || error) && user) {
+          const { data: userBooking } = await supabase
+            .from('bookings')
+            .select(`
+              *,
+              car:cars(*)
+            `)
+            .eq('customer_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          
+          booking = userBooking;
+        }
+
+        if (!booking) {
+          throw new Error('Booking not found');
+        }
         
-        setBookingDetails(data);
+        setBookingDetails(booking);
       } catch (error) {
         console.error('Error fetching booking details:', error);
       } finally {
