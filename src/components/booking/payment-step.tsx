@@ -20,6 +20,7 @@ import {
 import { PaymentStepProps } from "@/@types/data";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/auth-context";
+import { notifyAdminAboutNewBooking } from "@/utils/send-booking-email";
 
 export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerData, onComplete }) => {
   const { t } = useTranslation();
@@ -149,6 +150,11 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
       if (bookingError) throw bookingError;
 
       if (method === 'stripe') {
+        
+        console.log('booking id', booking.id);
+        const notifyAdmin = await notifyAdminAboutNewBooking(booking.id);
+        console.log('notifyAdmin', notifyAdmin);
+
         // Call Stripe payment function
         const { data, error } = await supabase.functions.invoke('create-payment', {
           body: {
@@ -164,16 +170,16 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
 
         if (error) throw error;
 
-        console.log('supabase return data', data);
         if (data.url) {
+          
           // Update booking with stripe session ID before redirecting
-          await supabase
-            .from('bookings')
-            .update({ stripe_session_id: data.sessionId })
-            .eq('id', booking.id);
+          // await supabase
+          //   .from('payments')
+          //   .update({ stripe_session_id: data.sessionId })
+          //   .eq('id', booking.id);
             
           // Redirect to Stripe Checkout
-          window.location.href = data.url;
+          // window.location.href = data.url;
         }
       } 
       // else if (method === 'vipps') {

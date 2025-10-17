@@ -13,27 +13,44 @@ export default function BookingSuccess() {
   const navigate = useNavigate();
   const sessionId = searchParams.get('session_id');
 
-  useEffect(() => {
-    const fetchBookingDetails = async () => {
-      if (!sessionId) {
-        setIsLoading(false);
-        return;
-      }
+useEffect(() => {
+  const fetchBookingDetails = async () => {
+    if (!sessionId) {
+      setIsLoading(false);
+      return;
+    }
 
-      try {
-        // First try to get booking by session ID (for non-logged in users)
-        let { data: booking, error } = await supabase
-          .from('bookings')
-          .select(`
-            *,
-            car:cars(*)
-          `)
-          .eq('stripe_session_id', sessionId)
-          .single();
+    try {
+      // First, get the payment record with the matching stripe_session_id
+      const { data: payment, error: paymentError } = await supabase
+        .from('payments')
+        .select('booking_id')
+        .eq('stripe_session_id', sessionId)
+        .single();
 
-        // If no booking found by session ID and user is logged in, try to get their latest booking
-        if ((!booking || error) && user) {
-          const { data: userBooking } = await supabase
+      if (paymentError) throw paymentError;
+      if (!payment) throw new Error('Payment not found');
+
+      // Then get the booking details with the car information
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          car:cars(*)
+        `)
+        .eq('id', payment.booking_id)
+        .single();
+
+      if (bookingError) throw bookingError;
+      if (!booking) throw new Error('Booking not found');
+      
+      setBookingDetails(booking);
+    } catch (error) {
+      console.error('Error fetching booking details:', error);
+      // If there's an error, try to get the latest booking for the user as fallback
+      if (user) {
+        try {
+          const { data: latestBooking } = await supabase
             .from('bookings')
             .select(`
               *,
@@ -44,23 +61,21 @@ export default function BookingSuccess() {
             .limit(1)
             .single();
           
-          booking = userBooking;
+          if (latestBooking) {
+            setBookingDetails(latestBooking);
+            return;
+          }
+        } catch (fallbackError) {
+          console.error('Error fetching fallback booking:', fallbackError);
         }
-
-        if (!booking) {
-          throw new Error('Booking not found');
-        }
-        
-        setBookingDetails(booking);
-      } catch (error) {
-        console.error('Error fetching booking details:', error);
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    fetchBookingDetails();
-  }, [sessionId, user]);
+  fetchBookingDetails();
+}, [sessionId, user]);
 
   if (isLoading) {
     return (
@@ -71,12 +86,12 @@ export default function BookingSuccess() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d1518] text-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#0d1518] text-white flex items-center justify-center p-4 mt-10">
       <div className="max-w-2xl w-full bg-[#1a2528] rounded-xl p-8 shadow-xl">
         <div className="text-center">
           <div className="flex justify-center mb-6">
             {/* <div className="bg-[#e3c08d] bg-opacity-20 p-4 rounded-full flex justify-center items-center"> */}
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-22 w-22" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
               </svg>
             {/* </div> */}
