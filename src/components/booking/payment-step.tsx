@@ -64,17 +64,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
   };
 
   const handlePayment = async (method: "stripe" | "vipps") => {
-
-    // const getUser = localStorage.getItem('sb-tcnemhaocanqvhimvuon-auth-token');
-    // if (!getUser) {
-    //   toast({
-    //     title: "User Not Logged In !",
-    //     description:
-    //       "Please Sign In first to proceed with payment.",
-    //     variant: "destructive",
-    //   });
-    //   return;
-    // }
     
     if (!contractSigned) {
       toast({
@@ -173,13 +162,13 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
         if (data.url) {
           
           // Update booking with stripe session ID before redirecting
-          // await supabase
-          //   .from('payments')
-          //   .update({ stripe_session_id: data.sessionId })
-          //   .eq('id', booking.id);
+          await supabase
+            .from('payments')
+            .update({ stripe_session_id: data.sessionId })
+            .eq('id', booking.id);
             
           // Redirect to Stripe Checkout
-          // window.location.href = data.url;
+          window.location.href = data.url;
         }
       } 
       // else if (method === 'vipps') {
@@ -402,7 +391,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
 
             <Button
               onClick={() => handlePayment("vipps")}
-              disabled={!contractSigned || isProcessing}
+              disabled={true}
               variant="outline"
               size="lg"
               className="h-20 py-12 flex flex-col items-center gap-2 border-gray-200 hover:bg-[#E3C08D] hover:border-[#E3C08D] hover:cursor-pointer transition-premium rounded-md bg-gray-50"
@@ -413,7 +402,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
                 <Smartphone className="h-6 w-6" />
               )}
               {/* <span>{t('payment.payWithVipps')}</span> */}
-              <span>Pay with Vipps</span>
+              <span>For now Vipps is unavailable</span>
               <span className="text-xs text-muted-foreground">
                 Norwegian mobile payment
               </span>
