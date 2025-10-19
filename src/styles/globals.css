@@ -62,4 +62,24 @@
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   }
 
+  /* Smooth hover effect for calendar dates */
+.rdp-day:hover {
+  background-color: #f3f4f6; /* light gray hover */
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+/* Selected day */
+.rdp-day_selected,
+.rdp-day_selected:focus-visible {
+  background-color: #0f766e !important; /* teal */
+  color: white !important;
+}
+
+/* Better layout spacing */
+.rdp {
+  padding: 8px;
+}
+
+
 }

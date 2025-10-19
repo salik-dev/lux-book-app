@@ -7,10 +7,11 @@ export async function useCarFetch( setCars: (cars: CarCardProps[]) => void, setL
           const { data, error } = await supabase
             .from('cars')
             .select('*')
-            .eq('is_available', true)
+            // .eq('is_available', true)
             .order('base_price_per_day', { ascending: true });
     
           if (error) throw error;
+          console.log('booking list', data);
           setCars(data || []);
         } catch (error) {
           console.error('Error loading cars:', error);

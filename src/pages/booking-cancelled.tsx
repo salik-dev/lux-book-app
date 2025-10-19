@@ -1,81 +1,62 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle } from 'lucide-react';
+import { XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/auth-context';
 
-export default function BookingSuccess() {
+export default function BookingCancelled() {
   const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [bookingDetails, setBookingDetails] = useState<any>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
-  const sessionId = searchParams.get('session_id');
+  const bookingId = searchParams.get('booking_id');
 
-useEffect(() => {
-  const fetchBookingDetails = async () => {
-    if (!sessionId) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      // First, get the payment record with the matching stripe_session_id
-      const { data: payment, error: paymentError } = await supabase
-        .from('payments')
-        .select('booking_id')
-        .eq('stripe_session_id', sessionId)
-        .single();
-
-      if (paymentError) throw paymentError;
-      if (!payment) throw new Error('Payment not found');
-
-      // Then get the booking details with the car information
-      const { data: booking, error: bookingError } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          car:cars(*)
-        `)
-        .eq('id', payment.booking_id)
-        .single();
-
-      if (bookingError) throw bookingError;
-      if (!booking) throw new Error('Booking not found');
-      
-      setBookingDetails(booking);
-    } catch (error) {
-      console.error('Error fetching booking details:', error);
-      // If there's an error, try to get the latest booking for the user as fallback
-      if (user) {
-        try {
-          const { data: latestBooking } = await supabase
-            .from('bookings')
-            .select(`
-              *,
-              car:cars(*)
-            `)
-            .eq('customer_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-          
-          if (latestBooking) {
-            setBookingDetails(latestBooking);
-            return;
-          }
-        } catch (fallbackError) {
-          console.error('Error fetching fallback booking:', fallbackError);
-        }
+  useEffect(() => {
+    const handleCancelledBooking = async () => {
+      if (!bookingId) {
+        setIsLoading(false);
+        return;
       }
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  fetchBookingDetails();
-}, [sessionId, user]);
+      setIsCancelling(true);
+      try {
+        // Update booking status to cancelled
+        const { error: updateError } = await supabase
+          .from('bookings')
+          .update({
+            status: 'cancelled',
+            cancelled_at: new Date().toISOString()
+          })
+          .eq('id', bookingId);
+
+        if (updateError) throw updateError;
+
+        // Get the booking details
+        const { data: booking, error: bookingError } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            car:cars(*)
+          `)
+          .eq('id', bookingId)
+          .single();
+
+        if (bookingError) throw bookingError;
+
+        setBookingDetails(booking);
+      } catch (error) {
+        console.error('Error handling cancelled booking:', error);
+      } finally {
+        setIsCancelling(false);
+        setIsLoading(false);
+      }
+    };
+
+    handleCancelledBooking();
+  }, [bookingId]);
 
   if (isLoading) {
     return (
@@ -90,17 +71,15 @@ useEffect(() => {
       <div className="max-w-2xl w-full bg-[#1a2528] rounded-xl p-8 shadow-xl">
         <div className="text-center">
           <div className="flex justify-center mb-6">
-            {/* <div className="bg-[#e3c08d] bg-opacity-20 p-4 rounded-full flex justify-center items-center"> */}
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-              </svg>
-            {/* </div> */}
+            <div className="bg-red-500 bg-opacity-20 p-4 rounded-full flex justify-center items-center">
+              <XCircle className="h-16 w-16 text-red-500" />
+            </div>
           </div>
-          
-          <h1 className="text-3xl font-bold mb-4 text-[#e3c08d]">Booking Confirmed!</h1>
-          
+
+          <h1 className="text-3xl font-bold mb-4 text-red-400">Booking Cancelled</h1>
+
           <p className="text-gray-300 mb-8">
-            Thank you for your booking. Your payment was successful and your booking is now confirmed.
+            Your booking has been cancelled. The payment was not completed and no charges have been made to your account.
           </p>
 
           {bookingDetails && (
@@ -136,23 +115,23 @@ useEffect(() => {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
-              onClick={() => navigate('/bookings')}
-              className="bg-[#e3c08d] hover:cursor-pointer hover:bg-[#d1b07f] text-[#0d1518] font-medium py-6 px-8 rounded-lg transition-colors"
-            >
-              View My Bookings
-            </Button>
-            <Button
               onClick={() => navigate('/')}
-              variant="outline"
-              className="border-[#e3c08d] hover:cursor-pointer text-[#e3c08d] hover:bg-[#e3c08d] hover:text-[#0d1518] font-medium py-6 px-8 rounded-lg transition-colors"
+              className="bg-[#e3c08d] hover:cursor-pointer hover:bg-[#d1b07f] text-[#0d1518] font-medium py-6 px-8 rounded-lg transition-colors"
             >
               Back to Home
             </Button>
+            <Button
+              onClick={() => navigate('/cars')}
+              variant="outline"
+              className="border-[#e3c08d] hover:cursor-pointer text-[#e3c08d] hover:bg-[#e3c08d] hover:text-[#0d1518] font-medium py-6 px-8 rounded-lg transition-colors"
+            >
+              Browse Cars Again
+            </Button>
           </div>
 
-          {/* <p className="mt-6 text-sm text-gray-400">
-            A confirmation has been sent to your email address.
-          </p> */}
+          <p className="mt-6 text-sm text-gray-400">
+            If you have any questions about your cancelled booking, please contact our support team.
+          </p>
         </div>
       </div>
     </div>

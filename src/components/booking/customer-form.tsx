@@ -6,9 +6,11 @@ import { Button } from "../ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { Input } from "../ui/input";
 import { format } from "date-fns";
-import { Upload, User, FileText, MapPin, Truck } from "lucide-react";
+import { Upload, User, FileText, MapPin, Truck, CalendarIcon } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { BookingData, CustomerData } from "@/@types/data";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Calendar } from "../ui/calendar";
 
 interface CustomerFormProps {
   bookingData: BookingData;
@@ -101,18 +103,18 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
   return (
     <div className="space-y-6">
       {/* Booking Summary */}
-      <div className="bg-gray-50 rounded-xl p-6 border border-gray-100 bg-white">
+      <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Booking Summary</h3>
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-1 space-y-3">
             <div>
               <h4 className="font-medium text-gray-900">{bookingData.car.name}</h4>
               <p className="text-sm text-gray-600">
-                 {format(new Date(bookingData.startDateTime), "PPP p")} -{" "}
+                {format(new Date(bookingData.startDateTime), "PPP p")} -{" "}
                 {format(new Date(bookingData.endDateTime), "PPP p")}
               </p>
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
                 <MapPin className="h-4 w-4 text-gray-400" />
@@ -126,7 +128,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
               )}
             </div>
           </div>
-          
+
           <div className="text-right">
             <div className="text-2xl font-bold text-gray-900">
               {formatPrice(bookingData.totalPrice)}
@@ -135,7 +137,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
               Total incl. VAT
             </div>
             <div className="mt-1 text-xs text-gray-500">
-            {Math.ceil((new Date(bookingData.endDateTime).getTime() - new Date(bookingData.startDateTime).getTime()) / (1000 * 60 * 60 * 24))} days
+              {Math.ceil((new Date(bookingData.endDateTime).getTime() - new Date(bookingData.startDateTime).getTime()) / (1000 * 60 * 60 * 24))} days
             </div>
           </div>
         </div>
@@ -167,8 +169,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
                       <FormLabel className="text-sm font-medium text-gray-700">Full Name <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input 
-                            {...field} 
+                          <Input
+                            {...field}
                             className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
                             placeholder="John Doe"
                           />
@@ -195,9 +197,9 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
                       <FormLabel className="text-sm font-medium text-gray-700">Email <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input 
-                            type="email" 
-                            {...field} 
+                          <Input
+                            type="email"
+                            {...field}
                             className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
                             placeholder="john.doe@example.com"
                           />
@@ -221,8 +223,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
                       <FormLabel className="text-sm font-medium text-gray-700">Phone <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input 
-                            {...field} 
+                          <Input
+                            {...field}
                             className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
                             placeholder="+47 123 45 678"
                           />
@@ -237,68 +239,74 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
                   control={form.control}
                   name="dateOfBirth"
                   rules={{
-                    required: "Date of birth is required",
+                    required: "Return date is required",
+                    validate: (value) => {
+                      const start = form.getValues("dateOfBirth");
+                      return !start || !value || value >= start || "Return date-time must be after pickup";
+                    },
                   }}
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel className="text-sm font-medium text-gray-700">Date of Birth <span className="text-red-500">*</span></FormLabel>
-                      {/* <Popover>
-                        <PopoverTrigger asChild> */}
-                          <FormControl>
-                          <Input
-                            type="date"
-                            value={field.value ? format(new Date(field.value), "yyyy-MM-dd") : ""}
-                            onChange={(e) => {
-                              const date = e.target.value ? new Date(e.target.value) : null;
-                              field.onChange(date);
-                            }}
-                            onBlur={field.onBlur}
-                            className="border h-9 bg-gray-50 rounded-md border-gray-300"
-                            max={format(new Date(), "yyyy-MM-dd")} // Allow dates up to today
-                          />
-                            {/* <Button
+                      <FormLabel>Pickup Date-Time <span className="text-red-500">*</span></FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <div>
+                            <Button
                               variant="outline"
                               type="button"
                               className={cn(
                                 "w-full h-9 pl-3 text-left font-normal border border-gray-300 hover:bg-[#E3C08D] rounded-md hover:cursor-pointer",
-                                !field.value &&
-                                  "text-muted-foreground",
+                                !field.value && "text-muted-foreground"
                               )}
                             >
-                              {field.value ? (
-                                format(field.value, "PPP")
+                              {field.value instanceof Date ? (
+                                <>
+                                  {format(field.value, "PPP")}
+                                  <span className="ml-2 text-sm text-muted-foreground">
+                                    {field.value.toLocaleTimeString('en-GB', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      hour12: false
+                                    })}
+                                  </span>
+                                </>
                               ) : (
                                 <span>Pick a date</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button> */}
-                          </FormControl>
-                        {/* </PopoverTrigger> */}
-                        {/* <PopoverContent
-                          className="w-auto p-0"
-                          align="start"
-                        >
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) =>
-                              date > new Date() ||
-                              date <
-                                new Date(
-                                  new Date().getFullYear() - 100,
-                                  0,
-                                  1,
-                                )
-                            }
-                            initialFocus
-                            captionLayout="dropdown-buttons"
-                            fromYear={1900}
-                            toYear={new Date().getFullYear()}
-                          />
-                        </PopoverContent> */}
-                      {/* </Popover> */}
-                      <FormMessage className="text-red-500 mt-1" />
+                            </Button>
+                          </div>
+                        </PopoverTrigger>
+
+                        <PopoverContent className="w-auto p-0 bg-white border-0" align="start">
+                          <div className="relative">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={(date: Date) => {
+                                // If we have an existing time, preserve it when selecting a new date
+                                if (field.value instanceof Date) {
+                                  const currentTime = field.value;
+                                  const newDate = new Date(date.getTime());
+                                  newDate.setHours(currentTime.getHours() || 0);
+                                  newDate.setMinutes(currentTime.getMinutes() || 0);
+                                  field.onChange(newDate);
+                                } else {
+                                  field.onChange(date);
+                                }
+                                // Close popover after selection
+                                const popover = document.querySelector('[data-state="open"]');
+                                if (popover) {
+                                  popover.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+                                }
+                              }}
+                              captionLayout="dropdown"
+                              required
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -313,8 +321,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
                       <FormLabel className="text-sm font-medium text-gray-700">Driver License Number <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input 
-                            {...field} 
+                          <Input
+                            {...field}
                             className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
                             placeholder="Insert your driver license number ..."
                           />
@@ -324,7 +332,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
                     </FormItem>
                   )}
                 />
-              <FormField
+                <FormField
                   control={form.control}
                   name="address"
                   rules={{ required: "Address is required" }}
@@ -333,8 +341,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
                       <FormLabel className="text-sm font-medium text-gray-700">Address <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input 
-                            {...field} 
+                          <Input
+                            {...field}
                             className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
                             placeholder="Insert your address ..."
                           />
@@ -359,8 +367,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
                       <FormLabel className="text-sm font-medium text-gray-700">Postal Code <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input 
-                            {...field} 
+                          <Input
+                            {...field}
                             className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
                             placeholder="1234"
                           />
@@ -380,8 +388,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
                       <FormLabel className="text-sm font-medium text-gray-700">City <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input 
-                            {...field} 
+                          <Input
+                            {...field}
                             className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
                             placeholder="Oslo"
                           />

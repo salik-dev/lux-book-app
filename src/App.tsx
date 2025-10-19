@@ -16,6 +16,7 @@ import NotFound from "./pages/not-found";
 import Admin from "./pages/admin/admin";
 import Bookings from "./pages/bookings/booking";
 import BookingSuccess from "./pages/booking-success";
+import BookingCancelled from "./pages/booking-cancelled";
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -82,10 +83,14 @@ export default function App() {
           </Layout>
         } />
 
-        {/* Booking Success Page */}
         <Route path="/booking-success" element={
           <Layout>
             <BookingSuccess />
+          </Layout>
+        } />
+        <Route path="/booking-cancelled" element={
+          <Layout>
+            <BookingCancelled />
           </Layout>
         } />
 

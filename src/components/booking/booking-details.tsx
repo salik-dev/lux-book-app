@@ -9,11 +9,19 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Form as UIForm, FormItem, FormLabel, FormControl, FormMessage, FormField } from "../ui/form";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { BookingData, CarData } from "@/@types/data";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import defaultImg from "../../assets/luxury-car-collection-garage-premium.jpg";
+import { Calendar } from "../ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { cn } from "@/lib/utils";
 
 // Create a wrapper component that properly uses FormProvider
-const Form = ({ children, form, onSubmit }: { 
-  children: React.ReactNode; 
+const Form = ({ children, form, onSubmit }: {
+  children: React.ReactNode;
   form: any;
   onSubmit: (data: any) => void;
 }) => (
@@ -24,14 +32,6 @@ const Form = ({ children, form, onSubmit }: {
   </FormProvider>
 );
 
-// import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-// import { Calendar } from "../ui/calendar";
-// import { cn } from "../../lib/utils";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { BookingData, CarData } from "@/@types/data";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
 
 interface BookingDetailsProps {
   car: CarData;
@@ -55,6 +55,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 }) => {
   // const { t } = useTranslation();
   const [deliveryFee, setDeliveryFee] = useState(0);
+  const [date, setDate] = React.useState<Date | undefined>(new Date())
 
   const form = useForm<FormData>({
     defaultValues: {
@@ -155,8 +156,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           `and(status.eq.confirmed,start_datetime.lte.${endDateTime.toISOString()},end_datetime.gte.${startDateTime.toISOString()}),` +
           `and(status.eq.pending,start_datetime.lte.${endDateTime.toISOString()},end_datetime.gte.${startDateTime.toISOString()})`
         );
-        
-        console.log('existingBookings', existingBookings)
+
+      console.log('existingBookings', existingBookings)
 
       if (error) throw error;
       return existingBookings.length === 0;
@@ -183,10 +184,10 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
     // Check if the car is available for the selected dates
     const isAvailable = await checkCarAvailability(car.id, startDateTime, endDateTime);
-    
+
     if (!isAvailable) {
       toast({
-        title: 'Car Unavailable',
+        title: 'Car is Already Booked',
         variant: 'destructive',
         description: 'Please choose different dates.',
       });
@@ -223,22 +224,22 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
             </CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row gap-4">
-                  <img
-                    src={car.image_url || defaultImg}
-                    alt={car.name}
-                    className="w-[132px] h-[132px] rounded-md object-cover"
-                    style={{ width: "280px", height: "170px" }}
-                  />
+                <img
+                  src={car.image_url || defaultImg}
+                  alt={car.name}
+                  className="w-[132px] h-[132px] rounded-md object-cover"
+                  style={{ width: "280px", height: "170px" }}
+                />
                 <div className="flex-1 tracking-wide">
-                 <div className="flex flex-col gap-2">
-                 <h3 className="text-xl font-semibold text-[#E3C08D]">{car.name}</h3>
-                  <p className="text-sm text-gray-600 tracking-wide ">{car.description.length > 250 ? `${car.description.slice(0, 300)}...` : car.description}</p>
-                  <div className="flex gap-4 flex-wrap">
-                  <p className="text-sm"><span className="font-semibold">Per Hour: </span>{car.base_price_per_hour}</p>
-                  <p className="text-sm"><span className="font-semibold">Per Day: </span>{car.base_price_per_day}</p>
-                  <p className="text-sm"><span className="font-semibold">Included KM: </span>{car.included_km_per_day}/day</p>
+                  <div className="flex flex-col gap-2">
+                    <h3 className="text-xl font-semibold text-[#E3C08D]">{car.name}</h3>
+                    <p className="text-sm text-gray-600 tracking-wide ">{car.description.length > 250 ? `${car.description.slice(0, 300)}...` : car.description}</p>
+                    <div className="flex gap-4 flex-wrap">
+                      <p className="text-sm"><span className="font-semibold">Per Hour: </span>{car.base_price_per_hour}</p>
+                      <p className="text-sm"><span className="font-semibold">Per Day: </span>{car.base_price_per_day}</p>
+                      <p className="text-sm"><span className="font-semibold">Included KM: </span>{car.included_km_per_day}/day</p>
+                    </div>
                   </div>
-                </div>
                 </div>
               </div>
             </CardContent>
@@ -257,60 +258,99 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 <FormField
                   control={form.control}
                   name="startDateTime"
-                  rules={{ required: "Pickup date is required" }}
+                  rules={{
+                    required: "Return date is required",
+                    validate: (value) => {
+                      const start = form.getValues("startDateTime");
+                      return !start || !value || value >= start || "Return date-time must be after pickup";
+                    },
+                  }}
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Pickup Date-Time <span className="text-red-500">*</span></FormLabel>
-                      {/* <Popover>
-                        <PopoverTrigger asChild> */}
-                          <FormControl>
-                          <Input
-                            type="datetime-local"
-                            value={field.value ? format(field.value, "yyyy-MM-dd'T'HH:mm") : ""}
-                            onChange={(e) => {
-                              const newStart = new Date(e.target.value);
-                              field.onChange(newStart);
-                              const currentEnd = form.getValues("endDateTime");
-                              if (currentEnd && currentEnd < newStart) {
-                                form.setValue("endDateTime", newStart, { shouldValidate: true, shouldDirty: true });
-                              }
-                            }}
-                            onBlur={field.onBlur}
-                            className="border h-9 border-gray-200 bg-gray-50 rounded-md"
-                            min={format(new Date(), "yyyy-MM-dd'T'HH:mm")} // Optional: prevents selecting past dates
-                          />
-                            {/* <Button
-                              type="button"
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <div>
+                            <Button
                               variant="outline"
+                              type="button"
                               className={cn(
                                 "w-full h-9 pl-3 text-left font-normal border border-gray-300 hover:bg-[#E3C08D] rounded-md hover:cursor-pointer",
                                 !field.value && "text-muted-foreground"
                               )}
                             >
-                              {field.value ? (
-                                format(field.value, "PPP")
+                              {field.value instanceof Date ? (
+                                <>
+                                  {format(field.value, "PPP")}
+                                  <span className="ml-2 text-sm text-muted-foreground">
+                                    {field.value.toLocaleTimeString('en-GB', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      hour12: false
+                                    })}
+                                  </span>
+                                </>
                               ) : (
                                 <span>Pick a date</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button> */}
-                          </FormControl>
-                        {/* </PopoverTrigger> */}
-                        {/* <PopoverContent
-                          className="w-auto p-0"
-                          align="start"
-                        >
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) =>
-                              date < new Date(new Date().setHours(0, 0, 0, 0))
-                            }
-                            initialFocus
-                          />
-                        </PopoverContent> */}
-                      {/* </Popover> */}
+                            </Button>
+                          </div>
+                        </PopoverTrigger>
+
+                        <PopoverContent className="w-auto p-0 bg-white border-0" align="start">
+                          <div className="relative">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={(date: Date) => {
+                                // If we have an existing time, preserve it when selecting a new date
+                                if (field.value instanceof Date) {
+                                  const currentTime = field.value;
+                                  const newDate = new Date(date.getTime());
+                                  newDate.setHours(currentTime.getHours() || 0);
+                                  newDate.setMinutes(currentTime.getMinutes() || 0);
+                                  field.onChange(newDate);
+                                } else {
+                                  field.onChange(date);
+                                }
+                                // Close popover after selection
+                                const popover = document.querySelector('[data-state="open"]');
+                                if (popover) {
+                                  popover.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+                                }
+                              }}
+                              disabled={(date) => {
+                                const startDateTime = form.getValues("startDateTime");
+                                if (!startDateTime) return date < new Date(new Date().setHours(0, 0, 0, 0));
+                                return date <= startDateTime;
+                              }}
+                              captionLayout="dropdown"
+                              initialFocus
+                              required
+                            />
+                            {/* Hour selector positioned to look like it's part of the caption */}
+                            <div className="absolute top-3 left-[169.4px]">
+                              <select
+                                value={field.value instanceof Date ? field.value.getHours() : 0}
+                                onChange={(e) => {
+                                  const newDate = field.value instanceof Date ? new Date(field.value) : new Date();
+                                  newDate.setHours(parseInt(e.target.value));
+                                  field.onChange(newDate);
+                                }}
+                                name="booking_hrs"
+                                className="py-[6px] text-sm font-semibold rounded-md bg-[#f9fafb] focus:outline-none"
+                              >
+                                <span>
+                                  {Array.from({ length: 24 }, (_, i) => (
+                                  <option key={i} value={i}>{i}</option>
+                                ))}
+                                </span>
+                              </select>
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -329,101 +369,94 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Return Date-Time <span className="text-red-500">*</span></FormLabel>
-                      {/* <Popover>
-                        <PopoverTrigger asChild> */}
-                          <FormControl>
-                          <Input
-                            type="datetime-local"
-                            value={field.value ? format(field.value, "yyyy-MM-dd'T'HH:mm") : ""}
-                            onChange={(e) => field.onChange(new Date(e.target.value))}
-                            onBlur={field.onBlur}
-                            min={
-                              watchedValues.startDateTime
-                              ? format(watchedValues.startDateTime, "yyyy-MM-dd'T'HH:mm")
-                              : format(new Date(), "yyyy-MM-dd'T'HH:mm")
-                            }
-                            className="border h-9 border-gray-200 bg-gray-50 rounded-md"
-                          />
-                            {/* <Button
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <div>
+                            <Button
                               variant="outline"
                               type="button"
                               className={cn(
                                 "w-full h-9 pl-3 text-left font-normal border border-gray-300 hover:bg-[#E3C08D] rounded-md hover:cursor-pointer",
-                                !field.value &&
-                                  "text-muted-foreground",
+                                !field.value && "text-muted-foreground"
                               )}
                             >
-                              {field.value ? (
-                                format(field.value, "PPP")
+                              {field.value instanceof Date ? (
+                                <>
+                                  {format(field.value, "PPP")}
+                                  <span className="ml-2 text-sm text-muted-foreground">
+                                    {field.value.toLocaleTimeString('en-GB', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      hour12: false
+                                    })}
+                                  </span>
+                                </>
                               ) : (
                                 <span>Pick a date</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button> */}
-                          </FormControl>
-                        {/* </PopoverTrigger>
-                        <PopoverContent
-                          className="w-auto p-0"
-                          align="start"
-                        >
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) => {
-                              const startDateTime = watchedValues.startDateTime;
-                              if (!startDateTime) return date < new Date(new Date().setHours(0, 0, 0, 0));
-                              return date <= startDateTime;
-                            }}
-                            initialFocus
-                          />
+                            </Button>
+                          </div>
+                        </PopoverTrigger>
+
+                        <PopoverContent className="w-auto p-0 bg-white border-0" align="start">
+                          <div className="relative">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={(date: Date) => {
+                                // If we have an existing time, preserve it when selecting a new date
+                                if (field.value instanceof Date) {
+                                  const currentTime = field.value;
+                                  const newDate = new Date(date.getTime());
+                                  newDate.setHours(currentTime.getHours() || 0);
+                                  newDate.setMinutes(currentTime.getMinutes() || 0);
+                                  field.onChange(newDate);
+                                } else {
+                                  field.onChange(date);
+                                }
+                                // Close popover after selection
+                                const popover = document.querySelector('[data-state="open"]');
+                                if (popover) {
+                                  popover.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+                                }
+                              }}
+                              disabled={(date) => {
+                                const startDateTime = form.getValues("startDateTime");
+                                if (!startDateTime) return date < new Date(new Date().setHours(0, 0, 0, 0));
+                                return date <= startDateTime;
+                              }}
+                              captionLayout="dropdown"
+                              initialFocus
+                              required
+                            />
+                            {/* Hour selector positioned to look like it's part of the caption */}
+                            <div className="absolute top-3 left-[169.4px]">
+                              <select
+                                value={field.value instanceof Date ? field.value.getHours() : 0}
+                                onChange={(e) => {
+                                  const newDate = field.value instanceof Date ? new Date(field.value) : new Date();
+                                  newDate.setHours(parseInt(e.target.value));
+                                  field.onChange(newDate);
+                                }}
+                                name="booking_hrs"
+                                className="py-[6px] text-sm font-semibold rounded-md bg-[#f9fafb] focus:outline-none"
+                              >
+                                <span>
+                                  {Array.from({ length: 24 }, (_, i) => (
+                                  <option key={i} value={i}>{i}</option>
+                                ))}
+                                </span>
+                              </select>
+                            </div>
+                          </div>
                         </PopoverContent>
-                      </Popover> */}
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
-
-              {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="startTime"
-                  rules={{ required: "Pickup time is required" }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Pickup Time <span className="text-red-500">*</span></FormLabel>
-                      <FormControl>
-                        <Input
-                          type="time"
-                          {...field}
-                          className="border h-9 border-gray-200"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="endTime"
-                  rules={{ required: "Return time is required" }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Return Time <span className="text-red-500">*</span></FormLabel>
-                      <FormControl>
-                        <Input
-                          type="time"
-                          {...field}
-                          className="border h-9 border-gray-200"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div> */}
             </CardContent>
           </Card>
 
@@ -448,7 +481,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                         placeholder="Enter pickup location"
                         {...field}
                         className="border h-9 border-gray-200 bg-gray-50 rounded-md"
-                        />
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -458,15 +491,16 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               <FormField
                 control={form.control}
                 name="deliveryLocation"
+                rules={{ required: "Delivery location is required" }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Delivery Location</FormLabel>
+                    <FormLabel>Delivery Location <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Optional delivery location"
+                        placeholder="Enter delivery location"
                         {...field}
                         className="border h-9 border-gray-200 bg-gray-50 rounded-md"
-                        />
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
