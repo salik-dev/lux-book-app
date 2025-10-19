@@ -20,7 +20,6 @@ import {
 import { PaymentStepProps } from "@/@types/data";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/auth-context";
-import { notifyAdminAboutNewBooking } from "@/utils/send-booking-email";
 
 export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerData, onComplete }) => {
   const { t } = useTranslation();
@@ -134,15 +133,10 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
         })
         .select()
         .single();
-        console.log('supabase booking', booking);
 
       if (bookingError) throw bookingError;
 
       if (method === 'stripe') {
-        
-        console.log('booking id', booking.id);
-        const notifyAdmin = await notifyAdminAboutNewBooking(booking.id);
-        console.log('notifyAdmin', notifyAdmin);
 
         // Call Stripe payment function
         const { data, error } = await supabase.functions.invoke('create-payment', {
@@ -153,7 +147,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
             customerEmail: customerData.email,
             customerName: customerData.fullName,
             successUrl: `${window.location.origin}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
-            cancelUrl: `${window.location.origin}/booking?step=payment`,
+            cancelUrl: `${window.location.origin}/booking-cancelled?booking_id=${booking.id}`,
           },
         });
 

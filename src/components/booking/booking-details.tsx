@@ -491,12 +491,13 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               <FormField
                 control={form.control}
                 name="deliveryLocation"
+                rules={{ required: "Delivery location is required" }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Delivery Location</FormLabel>
+                    <FormLabel>Delivery Location <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Optional delivery location"
+                        placeholder="Enter delivery location"
                         {...field}
                         className="border h-9 border-gray-200 bg-gray-50 rounded-md"
                       />

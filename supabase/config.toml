@@ -3,6 +3,9 @@ project_id = "nagzgmnsaiyyzmpzkiey"
 [functions.create-payment]
 verify_jwt = true
 
+[functions.luxury-webhooks]
+verify_jwt = false
+
 [functions.generate-car-images]
 verify_jwt = false
 
