@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Textarea } from "./ui/textarea"
@@ -7,6 +7,58 @@ import { contactInfo } from "../constants/data"
 import { benefitsData } from "../constants/data"
 
 export function ContactSection() {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    message: ''
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    setSubmitStatus('idle')
+
+    try {
+      const response = await fetch('https://tcnemhaocanqvhimvuon.supabase.co/functions/v1/contact-us', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log('Contact form submitted successfully:', result)
+      setSubmitStatus('success')
+
+      // Reset form after successful submission
+      setFormData({
+        name: '',
+        email: '',
+        message: ''
+      })
+    } catch (error) {
+      console.error('Error submitting contact form:', error)
+      setSubmitStatus('error')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <section id="contact" className="bg-white">
       <div className="bg-[#0d1518] py-20">
@@ -16,28 +68,50 @@ export function ContactSection() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
-            <form className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
+                  name="name"
                   placeholder="Name"
+                  value={formData.name}
+                  onChange={handleInputChange}
                   required
                   className="bg-gray-200 border-gray-300 text-black placeholder:text-gray-500 h-12"
                 />
                 <Input
+                  name="email"
                   placeholder="Email address"
                   type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
                   required
                   className="bg-gray-200 border-gray-300 text-black placeholder:text-gray-500 h-12"
                 />
               </div>
               <Textarea
+                name="message"
                 placeholder="Message"
                 rows={6}
+                value={formData.message}
+                onChange={handleInputChange}
                 required
                 className="bg-gray-200 border-gray-300 text-black placeholder:text-gray-500 resize-none"
               />
-              <Button size="lg" className="bg-[#E3C08D] text-black hover:bg-[#d4b382] font-semibold px-8 py-3 hover:cursor-pointer">
-                SUBMIT
+
+              {submitStatus === 'success' && (
+                <p className="text-green-400 text-sm">Message sent successfully!</p>
+              )}
+              {submitStatus === 'error' && (
+                <p className="text-red-400 text-sm">Failed to send message. Please try again.</p>
+              )}
+
+              <Button
+                type="submit"
+                size="lg"
+                disabled={isSubmitting}
+                className="bg-[#E3C08D] text-black hover:bg-[#d4b382] font-semibold px-8 py-3 hover:cursor-pointer disabled:opacity-50"
+              >
+                {isSubmitting ? 'SENDING...' : 'SUBMIT'}
               </Button>
             </form>
 
