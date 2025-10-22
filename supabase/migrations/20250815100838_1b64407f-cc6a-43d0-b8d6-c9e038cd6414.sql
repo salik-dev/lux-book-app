@@ -416,14 +416,14 @@ CREATE POLICY "Users can view their own driver license" ON storage.objects
     auth.uid()::text = (storage.foldername(name))[1]
   );
 
-CREATE POLICY "Admins can view all driver licenses" ON storage.objects
-  FOR SELECT USING (
-    bucket_id = 'driver-licenses' AND
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = auth.uid() AND is_active = true
-    )
-  );
+-- Allow unauthenticated (anon) users to upload to driver-licenses bucket
+DROP POLICY IF EXISTS "Allow public uploads to driver-licenses" ON storage.objects;
+
+CREATE POLICY "Allow public uploads to driver-licenses"
+ON storage.objects
+FOR INSERT
+TO anon
+WITH CHECK (bucket_id = 'driver-licenses');
 
 -- Storage policies for contracts (private)
 CREATE POLICY "Admins can manage contracts" ON storage.objects

@@ -56,7 +56,7 @@ export interface CustomerData {
   city: string;
   dateOfBirth: Date;
   driverLicenseNumber: string;
-  driverLicenseFile?: File;
+  driverLicenseFile?: File | string; // Can be either File object or URL string
 }
 
 export interface PaymentStepProps {
@@ -65,16 +65,6 @@ export interface PaymentStepProps {
   onComplete: () => void;
 }
 
-export interface CustomerData {
-  fullName: string;
-  email: string;
-  phone: string;
-  address: string;
-  postalCode: string;
-  city: string;
-  dateOfBirth: Date;
-  driverLicenseFile?: File;
-}
 
 export interface BookingFlowProps {
   isOpen: boolean;

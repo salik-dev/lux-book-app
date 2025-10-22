@@ -24,3 +24,8 @@ export const getCarPlaceholder = (brand: string, model: string, name: string): s
   // Default to sedan for luxury cars like A8, S-Class
   return placeholderSedan;
 };
+
+export function generateUniqueId() {
+  return Math.random().toString(36).substring(2, 15) + 
+         Math.random().toString(36).substring(2, 15);
+}
