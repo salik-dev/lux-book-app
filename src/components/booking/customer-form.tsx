@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useForm, FormProvider } from "react-hook-form";
 import { useDropzone } from "react-dropzone";
@@ -6,11 +6,14 @@ import { Button } from "../ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { Input } from "../ui/input";
 import { format } from "date-fns";
-import { Upload, User, FileText, MapPin, Truck, CalendarIcon } from "lucide-react";
+import { Upload, User, FileText, MapPin, Truck, CalendarIcon, Loader2, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { BookingData, CustomerData } from "@/@types/data";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
+import { useToast } from "@/hooks/use-toast";
+import { generateUniqueId } from "@/utils/carPlaceholder";
+import { supabase } from '@/integrations/supabase/client';
 
 interface CustomerFormProps {
   bookingData: BookingData;
@@ -19,10 +22,12 @@ interface CustomerFormProps {
 }
 
 export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onComplete, initialData }) => {
+  // Inside your CustomerForm component
+const [isUploading, setIsUploading] = useState(false);
+const [licenseFile, setLicenseFile] = useState<File | null>(null);
+const [licensePreview, setLicensePreview] = useState<string | null>(null);
+const { toast } = useToast();
   const { t } = useTranslation();
-  const [licenseFile, setLicenseFile] = useState<File | null>(
-    null,
-  );
 
   const form = useForm<CustomerData>({
     defaultValues: {
@@ -60,28 +65,6 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
     }
   }, [initialData, form]);
 
-  const onDrop = (acceptedFiles: File[]) => {
-    if (acceptedFiles.length > 0) {
-      setLicenseFile(acceptedFiles[0]);
-    }
-  };
-
-  const dropzoneOptions = {
-    onDrop,
-    accept: {
-      "image/*": [".png", ".jpg", ".jpeg"],
-    },
-    maxFiles: 1,
-    maxSize: 5 * 1024 * 1024,
-    multiple: false,
-    onDragEnter: undefined,
-    onDragOver: undefined,
-    onDragLeave: undefined,
-  };
-
-  const { getRootProps, getInputProps, isDragActive } =
-    useDropzone(dropzoneOptions);
-
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("no-NO", {
       style: "currency",
@@ -90,16 +73,145 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
     }).format(price);
   };
 
-  const onSubmit = (data: CustomerData) => {
-    const customerData: CustomerData = {
-      ...data,
-      driverLicenseFile: licenseFile || undefined,
-    };
-    onComplete(customerData);
-    console.log('customer data', customerData)
-  };
-  // console.log('booking data', bookingData)
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const file = acceptedFiles[0];
+  if (!file) return;
 
+  // Validate file type
+  const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+  if (!validTypes.includes(file.type)) {
+    toast({
+      title: 'Invalid file type',
+      description: 'Please upload a valid file (JPEG, PNG, or PDF)',
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  // Validate file size (max 5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    toast({
+      title: 'File too large',
+      description: 'Please upload a file smaller than 5MB',
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  setLicenseFile(file);
+  
+  // Create preview for images
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      setLicensePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  }
+}, [toast]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  onDrop,
+  accept: {
+    'image/jpeg': ['.jpeg', '.jpg'],
+    'image/png': ['.png'],
+    'application/pdf': ['.pdf']
+  },
+  maxFiles: 1,
+});
+
+const handleRemoveLicense = () => {
+  setLicenseFile(null);
+  setLicensePreview(null);
+  // Clear the file input
+  const fileInput = document.getElementById('driver-license-upload') as HTMLInputElement;
+  if (fileInput) fileInput.value = '';
+};
+
+const uploadLicense = async (): Promise<string | null> => {
+  if (!licenseFile) return null;
+
+  try {
+    setIsUploading(true);
+    const fileExt = licenseFile.name.split('.').pop();
+    const fileName = `${generateUniqueId()}.${fileExt}`;
+    const filePath = `licenses/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('driver-licenses')
+      .upload(filePath, licenseFile, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (uploadError) throw uploadError;
+
+    // Get the public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('driver-licenses')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+
+  } catch (error) {
+    console.error('Error uploading license:', error);
+    toast({
+      title: 'Error uploading license',
+      description: 'Failed to upload driver license. Please try again.',
+      variant: 'destructive',
+    });
+    return null;
+  } finally {
+    setIsUploading(false);
+  }
+};
+
+  // const onSubmit = (data: CustomerData) => {
+  //   const customerData: CustomerData = {
+  //     ...data,
+  //     driverLicenseFile: licenseFile || undefined,
+  const handleSubmit = async (e: React.FormEvent, data: CustomerData) => {
+    e.preventDefault();
+
+    try {
+      if (!licenseFile) {
+        toast({
+          title: "Error",
+          description: "Please upload a valid driver's license",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Upload license first
+      const licenseUrl = await uploadLicense();
+      if (!licenseUrl) {
+        toast({
+          title: "Error",
+          description: "Failed to upload driver's license. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const customerData: CustomerData = {
+        ...data,
+        driverLicenseFile: licenseUrl, // This will be a string URL
+      };
+      
+      onComplete(customerData);
+      console.log('customer data', customerData);
+
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit form. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
   return (
     <div className="space-y-6">
       {/* Booking Summary */}
@@ -146,7 +258,10 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       <FormProvider {...form}>
         <form
           id="customer-form"
-          onSubmit={form.handleSubmit(onSubmit)}
+          onSubmit={(e) => {
+            e.preventDefault();
+            form.handleSubmit((data) => handleSubmit(e, data))();
+          }}
           className="space-y-6"
         >
           {/* Personal Information */}
@@ -403,61 +518,88 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
             </div>
           </div>
 
-          {/* Driver's License Upload */}
-          <div className="bg-white rounded-xl p-6 border border-gray-100">
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                Driver's License
-              </h3>
-              <p className="text-sm text-gray-500 mt-1">Please upload a valid driver's license</p>
-            </div>
-            <div className="space-y-4">
-              <div
-                {...getRootProps()}
-                className={cn(
-                  "border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors",
-                  isDragActive
-                    ? "border-primary bg-primary/10"
-                    : "border-muted-foreground/25 hover:border-primary/50",
-                )}
-              >
-                <input {...getInputProps()} />
-                <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                {licenseFile ? (
-                  <div>
-                    <p className="font-medium text-primary">
-                      {licenseFile.name}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Size:{" "}
-                      {(
-                        licenseFile.size /
-                        1024 /
-                        1024
-                      ).toFixed(2)}{" "}
-                      MB
-                    </p>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-muted-foreground mb-2">
-                      {isDragActive
-                        ? "Drop the file here..."
-                        : "Drag & drop your driver's license image, or click to select"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Supports: PNG, JPG, JPEG (max 5MB)
-                    </p>
-                  </div>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                * Required for all rentals. Your license will
-                be verified before pickup.
+       {/* Driver's License Upload */}
+<div className="bg-white rounded-xl p-6 border border-gray-100">
+  <div className="mb-6">
+    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+      <FileText className="h-5 w-5 text-primary" />
+      Driver's License
+    </h3>
+    <p className="text-sm text-gray-500 mt-1">
+      Please upload a valid driver's license (JPEG, PNG, or PDF, max 5MB)
+    </p>
+  </div>
+  
+  <div className="space-y-4">
+    <div
+      {...getRootProps()}
+      className={cn(
+        "border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors",
+        isDragActive
+          ? "border-primary bg-primary/10"
+          : "border-muted-foreground/25 hover:border-primary/50",
+      )}
+    >
+      <input 
+        {...getInputProps()} 
+        id="driver-license-upload"
+        className="hidden"
+      />
+      
+      {isUploading ? (
+        <div className="flex flex-col items-center justify-center py-4">
+          <Loader2 className="h-10 w-10 animate-spin text-primary mb-2" />
+          <p className="text-muted-foreground">Uploading...</p>
+        </div>
+      ) : licensePreview ? (
+        <div className="relative">
+          {licenseFile?.type.startsWith('image/') ? (
+            <img
+              src={licensePreview}
+              alt="Driver's license preview"
+              className="max-h-48 mx-auto mb-2 rounded-md"
+            />
+          ) : (
+            <div className="bg-muted p-4 rounded-md mb-2">
+              <FileText className="h-12 w-12 mx-auto text-primary mb-2" />
+              <p className="text-sm font-medium">{licenseFile?.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {(licenseFile?.size || 0) / 1024 > 1024
+                  ? `${((licenseFile?.size || 0) / (1024 * 1024)).toFixed(1)} MB`
+                  : `${Math.ceil((licenseFile?.size || 0) / 1024)} KB`}
               </p>
             </div>
-          </div>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="absolute -top-2 -right-2 rounded-full h-6 w-6 p-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRemoveLicense();
+            }}
+          >
+            <X className="h-3 w-3" />
+            <span className="sr-only">Remove file</span>
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <Upload className="h-10 w-10 mx-auto text-muted-foreground" />
+          <p className="text-muted-foreground">
+            {isDragActive
+              ? "Drop the file here..."
+              : "Drag & drop your driver's license, or click to select"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Supports: JPEG, PNG, PDF (max 5MB)
+          </p>
+        </div>
+      )}
+    </div>
+  </div>
+</div>
 
           <Button
             type="submit"
