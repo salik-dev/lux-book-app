@@ -1,19 +1,25 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { useForm, FormProvider } from "react-hook-form";
 import { useDropzone } from "react-dropzone";
 import { Button } from "../ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { Input } from "../ui/input";
 import { format } from "date-fns";
-import { Upload, User, FileText, MapPin, Truck, CalendarIcon, Loader2, X } from "lucide-react";
+import { nb } from "date-fns/locale";
+import { Upload, User, FileText, MapPin, Truck, Loader2, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { BookingData, CustomerData } from "@/@types/data";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Calendar } from "../ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { generateUniqueId } from "@/utils/carPlaceholder";
 import { supabase } from '@/integrations/supabase/client';
+
+/** Values not shown in the form; still sent to complete the booking. */
+const HIDDEN_CUSTOMER_DEFAULTS = {
+  fullName: "Demo Kunde",
+  phone: "+47 22 00 00 00",
+  city: "Oslo",
+  dateOfBirth: new Date("1990-01-15"),
+} as const;
 
 interface CustomerFormProps {
   bookingData: BookingData;
@@ -27,17 +33,18 @@ const [isUploading, setIsUploading] = useState(false);
 const [licenseFile, setLicenseFile] = useState<File | null>(null);
 const [licensePreview, setLicensePreview] = useState<string | null>(null);
 const { toast } = useToast();
-  const { t } = useTranslation();
 
   const form = useForm<CustomerData>({
     defaultValues: {
-      fullName: initialData?.fullName || "",
+      fullName: initialData?.fullName || HIDDEN_CUSTOMER_DEFAULTS.fullName,
       email: initialData?.email || "",
-      phone: initialData?.phone || "",
+      phone: initialData?.phone || HIDDEN_CUSTOMER_DEFAULTS.phone,
       address: initialData?.address || "",
       postalCode: initialData?.postalCode || "",
-      city: initialData?.city || "",
-      dateOfBirth: initialData?.dateOfBirth ? new Date(initialData.dateOfBirth) : new Date("1990-01-01"),
+      city: initialData?.city || HIDDEN_CUSTOMER_DEFAULTS.city,
+      dateOfBirth: initialData?.dateOfBirth
+        ? new Date(initialData.dateOfBirth)
+        : new Date(HIDDEN_CUSTOMER_DEFAULTS.dateOfBirth),
       driverLicenseNumber: initialData?.driverLicenseNumber || "",
       driverLicenseFile: initialData?.driverLicenseFile,
     },
@@ -48,13 +55,15 @@ const { toast } = useToast();
   useEffect(() => {
     if (initialData) {
       form.reset({
-        fullName: initialData.fullName || "",
+        fullName: initialData.fullName || HIDDEN_CUSTOMER_DEFAULTS.fullName,
         email: initialData.email || "",
-        phone: initialData.phone || "",
+        phone: initialData.phone || HIDDEN_CUSTOMER_DEFAULTS.phone,
         address: initialData.address || "",
         postalCode: initialData.postalCode || "",
-        city: initialData.city || "",
-        dateOfBirth: initialData.dateOfBirth ? new Date(initialData.dateOfBirth) : new Date("1990-01-01"),
+        city: initialData.city || HIDDEN_CUSTOMER_DEFAULTS.city,
+        dateOfBirth: initialData.dateOfBirth
+          ? new Date(initialData.dateOfBirth)
+          : new Date(HIDDEN_CUSTOMER_DEFAULTS.dateOfBirth),
         driverLicenseNumber: initialData.driverLicenseNumber || "",
         driverLicenseFile: initialData.driverLicenseFile,
       });
@@ -81,9 +90,9 @@ const { toast } = useToast();
   const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
   if (!validTypes.includes(file.type)) {
     toast({
-      title: 'Invalid file type',
-      description: 'Please upload a valid file (JPEG, PNG, or PDF)',
-      variant: 'destructive',
+      title: "Ugyldig filtype",
+      description: "Last opp en gyldig fil (JPEG, PNG eller PDF)",
+      variant: "destructive",
     });
     return;
   }
@@ -91,9 +100,9 @@ const { toast } = useToast();
   // Validate file size (max 5MB)
   if (file.size > 5 * 1024 * 1024) {
     toast({
-      title: 'File too large',
-      description: 'Please upload a file smaller than 5MB',
-      variant: 'destructive',
+      title: "Filen er for stor",
+      description: "Last opp en fil mindre enn 5 MB",
+      variant: "destructive",
     });
     return;
   }
@@ -156,9 +165,9 @@ const uploadLicense = async (): Promise<string | null> => {
   } catch (error) {
     console.error('Error uploading license:', error);
     toast({
-      title: 'Error uploading license',
-      description: 'Failed to upload driver license. Please try again.',
-      variant: 'destructive',
+      title: "Opplasting feilet",
+      description: "Kunne ikke laste opp førerkort. Prøv igjen.",
+      variant: "destructive",
     });
     return null;
   } finally {
@@ -176,8 +185,8 @@ const uploadLicense = async (): Promise<string | null> => {
     try {
       if (!licenseFile) {
         toast({
-          title: "Error",
-          description: "Please upload a valid driver's license",
+          title: "Feil",
+          description: "Last opp et gyldig førerkort",
           variant: "destructive",
         });
         return;
@@ -187,8 +196,8 @@ const uploadLicense = async (): Promise<string | null> => {
       const licenseUrl = await uploadLicense();
       if (!licenseUrl) {
         toast({
-          title: "Error",
-          description: "Failed to upload driver's license. Please try again.",
+          title: "Feil",
+          description: "Kunne ikke laste opp førerkort. Prøv igjen.",
           variant: "destructive",
         });
         return;
@@ -196,7 +205,13 @@ const uploadLicense = async (): Promise<string | null> => {
 
       const customerData: CustomerData = {
         ...data,
-        driverLicenseFile: licenseUrl, // This will be a string URL
+        fullName: initialData?.fullName || HIDDEN_CUSTOMER_DEFAULTS.fullName,
+        phone: initialData?.phone || HIDDEN_CUSTOMER_DEFAULTS.phone,
+        city: initialData?.city || HIDDEN_CUSTOMER_DEFAULTS.city,
+        dateOfBirth: initialData?.dateOfBirth
+          ? new Date(initialData.dateOfBirth)
+          : new Date(HIDDEN_CUSTOMER_DEFAULTS.dateOfBirth),
+        driverLicenseFile: licenseUrl,
       };
       
       onComplete(customerData);
@@ -205,51 +220,73 @@ const uploadLicense = async (): Promise<string | null> => {
     } catch (error) {
       console.error('Error submitting form:', error);
       toast({
-        title: "Error",
-        description: "Failed to submit form. Please try again.",
+        title: "Feil",
+        description: "Kunne ikke sende skjemaet. Prøv igjen.",
         variant: "destructive",
       });
     }
   };
+
+  const decorationSummary = (
+    [
+      bookingData.decorationFlowers && "Blomster",
+      bookingData.decorationRibbon && "Bånd",
+      bookingData.decorationRedCarpets && "Røde løpere",
+      bookingData.decorationDriverNeed && "Sjåfør ønskes",
+    ].filter(Boolean) as string[]
+  );
   
   return (
     <div className="space-y-6">
       {/* Booking Summary */}
-      <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Booking Summary</h3>
+      <div className="rounded-xl border border-[#334047] bg-[#232e33] p-6 text-[#b1bdc3]">
+        <h3 className="mb-4 text-lg font-semibold text-[#E3C08D]">Oppsummering</h3>
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-1 space-y-3">
             <div>
-              <h4 className="font-medium text-gray-900">{bookingData.car.name}</h4>
-              <p className="text-sm text-gray-600">
-                {format(new Date(bookingData.startDateTime), "PPP p")} -{" "}
-                {format(new Date(bookingData.endDateTime), "PPP p")}
+              <h4 className="font-medium text-[#b1bdc3]">{bookingData.car.name}</h4>
+              <p className="text-sm text-[#9eabb1]">
+                {format(new Date(bookingData.startDateTime), "PPP p", { locale: nb })} –{" "}
+                {format(new Date(bookingData.endDateTime), "PPP p", { locale: nb })}
               </p>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
-                <MapPin className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-700">{bookingData.pickupLocation}</span>
+                <MapPin className="h-4 w-4 text-[#9eabb1]" />
+                <span className="text-[#b1bdc3]">{bookingData.pickupLocation}</span>
               </div>
               {bookingData.deliveryLocation && (
                 <div className="flex items-center gap-2 text-sm">
-                  <Truck className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-700">Delivery: {bookingData.deliveryLocation}</span>
+                  <Truck className="h-4 w-4 text-[#9eabb1]" />
+                  <span className="text-[#b1bdc3]">Levering: {bookingData.deliveryLocation}</span>
                 </div>
               )}
+              <div className="border-t border-[#46555d] pt-3 text-xs leading-relaxed text-[#9eabb1]">
+                <span className="font-medium text-[#b1bdc3]">Seter: </span>
+                {bookingData.seatPricingMode === "daily-basis"
+                  ? "Dagsbasis"
+                  : "Fast pris"}
+                {decorationSummary.length > 0 && (
+                  <>
+                    {" · "}
+                    <span className="font-medium text-[#b1bdc3]">Dekorasjon: </span>
+                    {decorationSummary.join(", ")}
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="text-right">
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-[#E3C08D]">
               {formatPrice(bookingData.totalPrice)}
             </div>
-            <div className="text-sm text-gray-500">
-              Total incl. VAT
+            <div className="text-sm text-[#9eabb1]">
+              Estimert total
             </div>
-            <div className="mt-1 text-xs text-gray-500">
-              {Math.ceil((new Date(bookingData.endDateTime).getTime() - new Date(bookingData.startDateTime).getTime()) / (1000 * 60 * 60 * 24))} days
+            <div className="mt-1 text-xs text-[#9eabb1]">
+              {Math.ceil((new Date(bookingData.endDateTime).getTime() - new Date(bookingData.startDateTime).getTime()) / (1000 * 60 * 60 * 24))} dager
             </div>
           </div>
         </div>
@@ -265,181 +302,37 @@ const uploadLicense = async (): Promise<string | null> => {
           className="space-y-6"
         >
           {/* Personal Information */}
-          <div className="bg-white rounded-xl p-6 border border-gray-100">
+          <div className="rounded-xl border border-[#334047] bg-[#232e33] p-6 text-[#b1bdc3]">
             <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-[#E3C08D]">
                 <User className="h-5 w-5 text-primary" />
-                Personal Information
+                Personopplysninger
               </h3>
-              <p className="text-sm text-gray-500 mt-1">Please fill in your details to complete the booking</p>
+              <p className="mt-1 text-sm text-[#9eabb1]">Fyll inn opplysningene dine for å fullføre bestillingen</p>
             </div>
             <div className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="fullName"
-                  rules={{ required: "Full name is required" }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium text-gray-700">Full Name <span className="text-red-500">*</span></FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            {...field}
-                            className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
-                            placeholder="John Doe"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-red-500 mt-1" />
-                    </FormItem>
-                  )}
-                />
-
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
                 <FormField
                   control={form.control}
                   name="email"
                   rules={{
-                    required: "Email is required",
+                    required: "E-post er påkrevd",
                     pattern: {
                       value:
                         /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: "Invalid email address",
+                      message: "Ugyldig e-postadresse",
                     },
                   }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-gray-700">Email <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">E-post <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             type="email"
                             {...field}
-                            className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
-                            placeholder="john.doe@example.com"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-red-500 mt-1" />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  rules={{
-                    required: "Phone number is required",
-                  }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium text-gray-700">Phone <span className="text-red-500">*</span></FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            {...field}
-                            className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
-                            placeholder="+47 123 45 678"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-red-500 mt-1" />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="dateOfBirth"
-                  rules={{
-                    required: "Return date is required",
-                    validate: (value) => {
-                      const start = form.getValues("dateOfBirth");
-                      return !start || !value || value >= start || "Return date-time must be after pickup";
-                    },
-                  }}
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Pickup Date-Time <span className="text-red-500">*</span></FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <div>
-                            <Button
-                              variant="outline"
-                              type="button"
-                              className={cn(
-                                "w-full h-9 pl-3 text-left font-normal border border-gray-300 hover:bg-[#E3C08D] rounded-md hover:cursor-pointer",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value instanceof Date ? (
-                                <>
-                                  {format(field.value, "PPP")}
-                                  <span className="ml-2 text-sm text-muted-foreground">
-                                    {field.value.toLocaleTimeString('en-GB', {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                      hour12: false
-                                    })}
-                                  </span>
-                                </>
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </div>
-                        </PopoverTrigger>
-
-                        <PopoverContent className="w-auto p-0 bg-white border-0" align="start">
-                          <div className="relative">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={(date: Date) => {
-                                // If we have an existing time, preserve it when selecting a new date
-                                if (field.value instanceof Date) {
-                                  const currentTime = field.value;
-                                  const newDate = new Date(date.getTime());
-                                  newDate.setHours(currentTime.getHours() || 0);
-                                  newDate.setMinutes(currentTime.getMinutes() || 0);
-                                  field.onChange(newDate);
-                                } else {
-                                  field.onChange(date);
-                                }
-                                // Close popover after selection
-                                const popover = document.querySelector('[data-state="open"]');
-                                if (popover) {
-                                  popover.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-                                }
-                              }}
-                              captionLayout="dropdown"
-                              required
-                            />
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="driverLicenseNumber"
-                  rules={{ required: "Driver license number is required" }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium text-gray-700">Driver License Number <span className="text-red-500">*</span></FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            {...field}
-                            className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
-                            placeholder="Insert your driver license number ..."
+                            className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
+                            placeholder="navn@eksempel.no"
                           />
                         </div>
                       </FormControl>
@@ -450,16 +343,16 @@ const uploadLicense = async (): Promise<string | null> => {
                 <FormField
                   control={form.control}
                   name="address"
-                  rules={{ required: "Address is required" }}
+                  rules={{ required: "Adresse er påkrevd" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-gray-700">Address <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Adresse <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             {...field}
-                            className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
-                            placeholder="Insert your address ..."
+                            className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
+                            placeholder="Gateadresse ..."
                           />
                         </div>
                       </FormControl>
@@ -469,22 +362,21 @@ const uploadLicense = async (): Promise<string | null> => {
                 />
               </div>
 
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
                 <FormField
                   control={form.control}
                   name="postalCode"
                   rules={{
-                    required: "Postal code is required",
+                    required: "Postnummer er påkrevd",
                   }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-gray-700">Postal Code <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Postnummer <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             {...field}
-                            className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
+                            className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
                             placeholder="1234"
                           />
                         </div>
@@ -493,20 +385,19 @@ const uploadLicense = async (): Promise<string | null> => {
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
-                  name="city"
-                  rules={{ required: "City is required" }}
+                  name="driverLicenseNumber"
+                  rules={{ required: "Førerkortnummer er påkrevd" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-gray-700">City <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Førerkortnummer <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             {...field}
-                            className="mt-1 h-9 block w-full rounded-md border-gray-300 bg-gray-50"
-                            placeholder="Oslo"
+                            className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
+                            placeholder="Ditt førerkortnummer ..."
                           />
                         </div>
                       </FormControl>
@@ -519,14 +410,14 @@ const uploadLicense = async (): Promise<string | null> => {
           </div>
 
        {/* Driver's License Upload */}
-<div className="bg-white rounded-xl p-6 border border-gray-100">
+<div className="rounded-xl border border-[#334047] bg-[#232e33] p-6 text-[#b1bdc3]">
   <div className="mb-6">
-    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+    <h3 className="flex items-center gap-2 text-lg font-semibold text-[#E3C08D]">
       <FileText className="h-5 w-5 text-primary" />
-      Driver's License
+      Førerkort
     </h3>
-    <p className="text-sm text-gray-500 mt-1">
-      Please upload a valid driver's license (JPEG, PNG, or PDF, max 5MB)
+    <p className="mt-1 text-sm text-[#9eabb1]">
+      Last opp gyldig førerkort (JPEG, PNG eller PDF, maks 5 MB)
     </p>
   </div>
   
@@ -534,10 +425,10 @@ const uploadLicense = async (): Promise<string | null> => {
     <div
       {...getRootProps()}
       className={cn(
-        "border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors",
+        "cursor-pointer rounded-md border-2 border-dashed p-6 text-center transition-colors",
         isDragActive
-          ? "border-primary bg-primary/10"
-          : "border-muted-foreground/25 hover:border-primary/50",
+          ? "border-[#E3C08D] bg-[#1b2529]"
+          : "border-[#46555d] bg-[#1b2529] hover:border-[#E3C08D]",
       )}
     >
       <input 
@@ -549,21 +440,21 @@ const uploadLicense = async (): Promise<string | null> => {
       {isUploading ? (
         <div className="flex flex-col items-center justify-center py-4">
           <Loader2 className="h-10 w-10 animate-spin text-primary mb-2" />
-          <p className="text-muted-foreground">Uploading...</p>
+          <p className="text-[#9eabb1]">Laster opp …</p>
         </div>
       ) : licensePreview ? (
         <div className="relative">
           {licenseFile?.type.startsWith('image/') ? (
             <img
               src={licensePreview}
-              alt="Driver's license preview"
+              alt="Forhåndsvisning av førerkort"
               className="max-h-48 mx-auto mb-2 rounded-md"
             />
           ) : (
-            <div className="bg-muted p-4 rounded-md mb-2">
+            <div className="mb-2 rounded-md bg-[#2a353a] p-4">
               <FileText className="h-12 w-12 mx-auto text-primary mb-2" />
               <p className="text-sm font-medium">{licenseFile?.name}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[#9eabb1]">
                 {(licenseFile?.size || 0) / 1024 > 1024
                   ? `${((licenseFile?.size || 0) / (1024 * 1024)).toFixed(1)} MB`
                   : `${Math.ceil((licenseFile?.size || 0) / 1024)} KB`}
@@ -581,19 +472,19 @@ const uploadLicense = async (): Promise<string | null> => {
             }}
           >
             <X className="h-3 w-3" />
-            <span className="sr-only">Remove file</span>
+            <span className="sr-only">Fjern fil</span>
           </Button>
         </div>
       ) : (
         <div className="space-y-2">
-          <Upload className="h-10 w-10 mx-auto text-muted-foreground" />
-          <p className="text-muted-foreground">
+          <Upload className="mx-auto h-10 w-10 text-[#9eabb1]" />
+          <p className="text-[#9eabb1]">
             {isDragActive
-              ? "Drop the file here..."
-              : "Drag & drop your driver's license, or click to select"}
+              ? "Slipp filen her …"
+              : "Dra og slipp førerkortet her, eller klikk for å velge"}
           </p>
-          <p className="text-sm text-muted-foreground">
-            Supports: JPEG, PNG, PDF (max 5MB)
+          <p className="text-sm text-[#9eabb1]">
+            Støttet: JPEG, PNG, PDF (maks 5 MB)
           </p>
         </div>
       )}
@@ -606,7 +497,7 @@ const uploadLicense = async (): Promise<string | null> => {
             className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-5 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 hover:cursor-pointer"
             size="lg"
           >
-            Continue
+            Fortsett
           </Button>
         </form>
       </FormProvider>

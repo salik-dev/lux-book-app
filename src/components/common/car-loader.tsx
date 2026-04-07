@@ -2,7 +2,7 @@ export function CarLoader() {
   return (
     <div className="flex mx-20 flex-wrap gap-4">
       {[...Array(3)].map((_, i) => (
-        <div key={i} className="bg-white w-[340px] mx-auto h-[500px] items-center overflow-hidden shadow-md hover:shadow-xl transition-all duration-300">
+        <div key={i} className="bg-[#232e33] w-[340px] mx-auto h-[500px] items-center overflow-hidden shadow-md hover:shadow-xl transition-all duration-300">
           <div className="relative">
             <div className="w-full h-60 bg-gray-200 animate-pulse" />
           </div>

@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14.21.0";
+import Stripe from "https://esm.sh/stripe@18.1.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -43,7 +43,8 @@ serve(async (req) => {
     const { bookingId, amount, currency, customerEmail, customerName } = await req.json();
     logStep("Request body parsed", { bookingId, amount, currency });
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+    // Card keeps Apple Pay / Google Pay; `wallet_options` hides Stripe Link only (needs API 2025-04-30.basil).
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-04-30.basil" });
 
     // Check if customer exists in Stripe
     const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
@@ -91,6 +92,13 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
+      // Apple/Google Pay are card wallets; only `card` belongs here (not apple_pay/google_pay).
+      payment_method_types: ["card"],
+      wallet_options: {
+        link: {
+          display: "never",
+        },
+      },
       success_url: `${req.headers.get("origin")}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get("origin")}/booking-cancelled?booking_id=${bookingId}`,
       metadata: {

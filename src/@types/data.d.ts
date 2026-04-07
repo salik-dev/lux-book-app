@@ -35,6 +35,8 @@ export interface CarData {
   is_available: boolean;
 }
 
+export type SeatPricingMode = "flat-rate" | "daily-basis";
+
 export interface BookingData {
   car: CarData;
   startDateTime: Date;
@@ -45,6 +47,13 @@ export interface BookingData {
   basePrice: number;
   deliveryFee: number;
   vatAmount: number;
+  /** Seat / pricing preference */
+  seatPricingMode?: SeatPricingMode;
+  /** Optional decoration / service add-ons */
+  decorationFlowers?: boolean;
+  decorationRibbon?: boolean;
+  decorationRedCarpets?: boolean;
+  decorationDriverNeed?: boolean;
 }
 
 export interface CustomerData {

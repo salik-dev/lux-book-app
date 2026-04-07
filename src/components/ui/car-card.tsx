@@ -25,7 +25,7 @@ export function CarCard({ id, name='Luksusbil', image_url, description, base_pri
 
   return (
     <div
-      className={`bg-white overflow-hidden shadow-md hover:shadow-xl transition-all duration-300`}
+      className="overflow-hidden border border-[#2a2f31] bg-[#232e33] text-[#F5F5F4] shadow-md transition-all duration-300 hover:shadow-xl"
     >
       <div className="relative">
         <img
@@ -37,22 +37,22 @@ export function CarCard({ id, name='Luksusbil', image_url, description, base_pri
 
       <div className="p-6">
         <h3 className="text-xl font-semibold text-[#E3C08D] mb-2">{name}</h3>
-        <hr className="border-t border-gray-200 mb-4" />
+        <hr className="mb-4 border-t border-[#2a2f31]" />
 
         <div className="space-y-2 mb-6">
-          <div className="flex items-center space-x-3 text-sm text-gray-700">
+          <div className="flex items-center space-x-3 text-sm text-[#D6D3D1]">
             <HourglassIcon className="h-3 w-3 text-[#E3C08D] flex-shrink-0" />
             <span>per hour: {base_price_per_hour} pkr</span>
           </div>
-          <div className="flex items-center space-x-3 text-sm text-gray-700">
+          <div className="flex items-center space-x-3 text-sm text-[#D6D3D1]">
             <CalendarDays className="h-3 w-3 text-[#E3C08D] flex-shrink-0" />
             <span>per day: {base_price_per_day} pkr</span>
           </div>
-          <div className="flex items-center space-x-3 text-sm text-gray-700">
+          <div className="flex items-center space-x-3 text-sm text-[#D6D3D1]">
             <LocateFixed className="h-3 w-3 text-[#E3C08D] flex-shrink-0" />
             <span>{included_km_per_day} km included per day</span>
           </div>
-          <div className="flex items-center space-x-3 text-sm text-gray-700">
+          <div className="flex items-center space-x-3 text-sm text-[#D6D3D1]">
             <LocateFixed className="h-3 w-3 text-[#E3C08D] flex-shrink-0" />
             <span>Extra km: {extra_km_rate} / km</span>
           </div>
@@ -73,7 +73,7 @@ export function CarCard({ id, name='Luksusbil', image_url, description, base_pri
           >
             <span className="font-semibold text-lg text-[#E3C08D]">Mer informasjon</span>
             {isInfoOpen ? (
-              <span className="rounded-full bg-gray-400 p-1">
+              <span className="rounded-full bg-[#2a2f31] p-1">
               <Minus className="h-3 w-3 text-white" />
             </span>
             ) : (
@@ -87,7 +87,7 @@ export function CarCard({ id, name='Luksusbil', image_url, description, base_pri
               isInfoOpen ? 'max-h-40' : 'max-h-0'
             }`}
           >
-            <div className="pt-2 text-sm tracking-wide text-gray-700">
+            <div className="pt-2 text-sm tracking-wide text-[#D6D3D1]">
               {description}
             </div>
           </div>

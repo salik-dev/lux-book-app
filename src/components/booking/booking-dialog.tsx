@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +18,6 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
   onClose,
   selectedCar,
 }) => {
-  const { t } = useTranslation();
   const [currentStep, setCurrentStep] = useState(1);
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
@@ -27,18 +25,15 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
   const steps = [
     {
       number: 1,
-      // title: t('booking.step1'),
-      title: "Select Dates & Location",
+      title: "Velg dato og sted",
     },
     {
       number: 2,
-      // title: t('booking.step2'),
-      title: "Your Details",
+      title: "Dine opplysninger",
     },
     {
       number: 3,
-      // title: t('booking.step3')
-      title: "Contract & Payment",
+      title: "Kontrakt og betaling",
     },
   ];
 
@@ -69,9 +64,9 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl p-0 border-0 bg-gray-50">
+      <DialogContent className="max-w-4xl border border-[#334047] bg-[#232e33] p-0 text-[#b1bdc3]">
         {/* Progress Bar - New Design */}
-        <div className="bg-gray-200 h-2 sticky top-0 z-10">
+        <div className="sticky top-0 z-10 h-2 bg-[#334047]">
           <div 
             className="bg-[#E3C08D] h-full transition-all duration-300"
             style={{ width: `${progress}%` }}
@@ -83,22 +78,23 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
               <Button
                 variant="ghost"
                 onClick={handleBack}
-                className="flex items-center gap-2 ml-4 hover:bg-transparent text-gray-700 hover:cursor-pointer"
+                className="ml-4 flex items-center gap-2 text-[#b1bdc3] hover:cursor-pointer hover:bg-transparent hover:text-[#E3C08D]"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back
+                Tilbake
               </Button>
             )}
 
-          <div className="flex items-center gap-8">
+          <div className="mx-8 mb-2 flex items-center">
             {steps.map((step, index) => (
-              <div key={step.number} className="flex flex-col mx-auto items-center gap-3">
+              <React.Fragment key={step.number}>
+              <div className="flex min-w-[180px] flex-1 flex-col items-center gap-3 py-4">
                 <div className={`w-8 h-8 flex items-center justify-center transition-all rounded-full ${
                   step.number < currentStep 
                     ? 'bg-[#E3C08D] text-white' 
                     : step.number === currentStep 
                       ? 'bg-[#E3C08D] text-white' 
-                      : 'bg-transparent text-gray-400 border border-gray-300'
+                      : 'bg-transparent text-[#7e8c93] border border-[#46555d]'
                 }`}>
                   {step.number < currentStep ? (
                     <Check className="h-4 w-4" />
@@ -107,16 +103,20 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
                   )}
                 </div>
                 <span className={`text-sm font-medium ${
-                  step.number === currentStep ? 'text-gray-900' : 'text-gray-400'
+                  step.number === currentStep ? 'text-[#E3C08D]' : 'text-[#8f8f8f]'
                 }`}>
                   {step.title}
                 </span>
               </div>
+              {index < steps.length - 1 && (
+                <div className="mt-[-8px] h-px flex-1 bg-[#46555d]" />
+              )}
+              </React.Fragment>
             ))}
           </div>
         </div>
 
-        <div className="px-8 pb-8 max-h-[calc(90vh-120px)] overflow-y-auto">
+        <div className="max-h-[calc(90vh-120px)] overflow-y-auto px-8 pb-8 [scrollbar-color:#6b7280_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-500 [&::-webkit-scrollbar-track]:bg-transparent">
           {/* <div className="bg-white shadow-sm p-6"> */}
             {currentStep === 1 && selectedCar && (
               <BookingDetails

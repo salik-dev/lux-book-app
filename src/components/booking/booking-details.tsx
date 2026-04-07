@@ -6,18 +6,134 @@ import {
   Clock,
   Car,
   MapPin,
+  Check,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Form as UIForm, FormItem, FormLabel, FormControl, FormMessage, FormField } from "../ui/form";
+import { FormItem, FormLabel, FormMessage, FormField, FormControl } from "../ui/form";
 import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { BookingData, CarData } from "@/@types/data";
+import { BookingData, CarData, SeatPricingMode } from "@/@types/data";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import defaultImg from "../../assets/luxury-car-collection-garage-premium.jpg";
 import { Calendar } from "../ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { cn } from "@/lib/utils";
+
+/** Fixed demo locations (Norway) — always applied to the booking. */
+const DEFAULT_PICKUP_LOCATION = "Karl Johans gate 1, 0154 Oslo";
+const DEFAULT_DELIVERY_LOCATION = "Oslo lufthavn Gardermoen, 2060 Gardermoen";
+
+const bookingTimeSelectContentClass =
+  "border-[#46555d] bg-[#232e33] text-[#b1bdc3] max-h-[min(240px,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)] overflow-y-auto p-1 shadow-xl " +
+  "[scrollbar-color:#6b7280_transparent] [scrollbar-width:thin] " +
+  "[&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#6b7280] [&::-webkit-scrollbar-track]:bg-transparent";
+
+const bookingTimeSelectTriggerClass =
+  "h-9 w-[88px] shrink-0 justify-between gap-1 border-[#46555d] bg-[#1b2529] px-2 text-[#b1bdc3] shadow-none hover:bg-[#27343a] " +
+  "focus-visible:border-[#E3C08D] focus-visible:ring-1 focus-visible:ring-[#E3C08D]/60 data-[size=default]:h-9 [&_svg]:text-[#9aa8ae]";
+
+/** Keep calendar popover open when using portaled Select lists (hour/minute). */
+function bookingDatePopoverOnInteractOutside(e: { preventDefault: () => void; target: EventTarget | null }) {
+  const el = e.target as HTMLElement | null;
+  if (
+    el?.closest?.('[data-slot="select-content"]') ||
+    el?.closest?.("[data-radix-select-content]")
+  ) {
+    e.preventDefault();
+  }
+}
+
+function BookingDateTimeTimeRow({
+  dateValue,
+  onTimeChange,
+}: {
+  dateValue: Date | undefined;
+  onTimeChange: (next: Date) => void;
+}) {
+  const base = dateValue instanceof Date ? new Date(dateValue) : new Date();
+  const hours = dateValue instanceof Date ? base.getHours() : 0;
+  const minutes = dateValue instanceof Date ? base.getMinutes() : 0;
+
+  const apply = (h: number, m: number) => {
+    const next = dateValue instanceof Date ? new Date(dateValue) : new Date();
+    next.setHours(h);
+    next.setMinutes(m);
+    onTimeChange(next);
+  };
+
+  return (
+    <div className="border-t border-[#3f4d54] bg-[#232e33] px-3 py-3">
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[#9aa8ae]">
+        Klokkeslett
+      </p>
+      <div className="flex items-center gap-2">
+        <Select
+          value={String(hours)}
+          onValueChange={(v) => apply(parseInt(v, 10), minutes)}
+        >
+          <SelectTrigger className={bookingTimeSelectTriggerClass} size="default">
+            <SelectValue placeholder="HH" />
+          </SelectTrigger>
+          <SelectContent
+            className={bookingTimeSelectContentClass}
+            position="popper"
+            side="bottom"
+            align="start"
+            sideOffset={6}
+            avoidCollisions={false}
+          >
+            {Array.from({ length: 24 }, (_, i) => (
+              <SelectItem
+                key={i}
+                value={String(i)}
+                className="text-[#b1bdc3] focus:text-[#1b2529] data-[state=checked]:text-[#1b2529]"
+              >
+                {String(i).padStart(2, "0")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-sm text-[#7f8d93]" aria-hidden>
+          :
+        </span>
+        <Select
+          value={String(minutes)}
+          onValueChange={(v) => apply(hours, parseInt(v, 10))}
+        >
+          <SelectTrigger className={bookingTimeSelectTriggerClass} size="default">
+            <SelectValue placeholder="mm" />
+          </SelectTrigger>
+          <SelectContent
+            className={bookingTimeSelectContentClass}
+            position="popper"
+            side="bottom"
+            align="start"
+            sideOffset={6}
+            avoidCollisions={false}
+          >
+            {Array.from({ length: 60 }, (_, i) => (
+              <SelectItem
+                key={i}
+                value={String(i)}
+                className="text-[#b1bdc3] focus:text-[#1b2529] data-[state=checked]:text-[#1b2529]"
+              >
+                {String(i).padStart(2, "0")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
 
 // Create a wrapper component that properly uses FormProvider
 const Form = ({ children, form, onSubmit }: {
@@ -44,8 +160,11 @@ interface FormData {
   endDateTime: Date;
   startTime: string;
   endTime: string;
-  pickupLocation: string;
-  deliveryLocation: string;
+  seatPricingMode: SeatPricingMode;
+  decorationFlowers: boolean;
+  decorationRibbon: boolean;
+  decorationRedCarpets: boolean;
+  decorationDriverNeed: boolean;
 }
 
 export const BookingDetails: React.FC<BookingDetailsProps> = ({
@@ -63,8 +182,11 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
       endDateTime: initialData ? new Date(initialData.endDateTime) : addDays(new Date(), 1),
       startTime: "10:00",
       endTime: "10:00",
-      pickupLocation: initialData?.pickupLocation || "Oslo Sentrum",
-      deliveryLocation: initialData?.deliveryLocation || "",
+      seatPricingMode: initialData?.seatPricingMode ?? "flat-rate",
+      decorationFlowers: initialData?.decorationFlowers ?? false,
+      decorationRibbon: initialData?.decorationRibbon ?? false,
+      decorationRedCarpets: initialData?.decorationRedCarpets ?? false,
+      decorationDriverNeed: initialData?.decorationDriverNeed ?? false,
     },
     mode: "onChange",
   });
@@ -79,8 +201,11 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
         endDateTime: new Date(initialData.endDateTime),
         startTime: "10:00",
         endTime: "10:00",
-        pickupLocation: initialData.pickupLocation,
-        deliveryLocation: initialData.deliveryLocation || "",
+        seatPricingMode: initialData.seatPricingMode ?? "flat-rate",
+        decorationFlowers: initialData.decorationFlowers ?? false,
+        decorationRibbon: initialData.decorationRibbon ?? false,
+        decorationRedCarpets: initialData.decorationRedCarpets ?? false,
+        decorationDriverNeed: initialData.decorationDriverNeed ?? false,
       });
     }
   }, [initialData, form]);
@@ -96,7 +221,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
         deliveryFee: 0,
         vatAmount: 0,
         totalPrice: 0,
-        duration: "0 days (0 hours)",
+        duration: "0 dager (0 timer)",
       };
     }
 
@@ -107,7 +232,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
         deliveryFee: 0,
         vatAmount: 0,
         totalPrice: 0,
-        duration: "0 days (0 hours)",
+        duration: "0 dager (0 timer)",
       };
     }
 
@@ -122,16 +247,15 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
       basePrice = car.base_price_per_day ? car.base_price_per_day * totalDays : 0;
     }
 
-    const vatRate = 0.25;
-    const vatAmount = basePrice * vatRate;
-    const totalPrice = basePrice + deliveryFee + vatAmount;
+    const vatAmount = 0;
+    const totalPrice = basePrice + deliveryFee;
 
     return {
       basePrice,
       deliveryFee,
       vatAmount,
       totalPrice,
-      duration: `${totalDays} ${totalDays === 1 ? "day" : "days"} (${totalHours} hours)`,
+      duration: `${totalDays} ${totalDays === 1 ? "dag" : "dager"} (${totalHours} timer)`,
     };
   };
 
@@ -175,21 +299,21 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
     if (endDateTime <= startDateTime) {
       // alert('End date must be after start date'); 
       toast({
-        title: 'Invalid Date Range',
-        variant: 'destructive',
-        description: 'End date must be after start date.',
+        title: "Ugyldig datoperiode",
+        variant: "destructive",
+        description: "Sluttdato må være etter startdato.",
       });
       return;
     }
 
     // Check if the car is available for the selected dates
-    const isAvailable = await checkCarAvailability(car.id, startDateTime, endDateTime);
+    const isAvailable = await checkCarAvailability(String(car.id), startDateTime, endDateTime);
 
     if (!isAvailable) {
       toast({
-        title: 'Car is Already Booked',
-        variant: 'destructive',
-        description: 'Please choose different dates.',
+        title: "Bilen er allerede booket",
+        variant: "destructive",
+        description: "Velg andre datoer.",
       });
       return;
     }
@@ -198,12 +322,17 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
       car,
       startDateTime: startDateTime,
       endDateTime: endDateTime,
-      pickupLocation: data.pickupLocation,
-      deliveryLocation: data.deliveryLocation || undefined,
+      pickupLocation: DEFAULT_PICKUP_LOCATION,
+      deliveryLocation: DEFAULT_DELIVERY_LOCATION,
       totalPrice: pricing.totalPrice,
       basePrice: pricing.basePrice,
       deliveryFee: pricing.deliveryFee,
       vatAmount: pricing.vatAmount,
+      seatPricingMode: data.seatPricingMode,
+      decorationFlowers: data.decorationFlowers,
+      decorationRibbon: data.decorationRibbon,
+      decorationRedCarpets: data.decorationRedCarpets,
+      decorationDriverNeed: data.decorationDriverNeed,
     };
 
     onComplete(bookingData);
@@ -215,11 +344,11 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
         <>
 
           {/* Selected Car Display */}
-          <Card className="bg-white">
+          <Card className="border-[#334047] bg-[#232e33] text-[#b1bdc3] shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Car className="h-5 w-5" />
-                Selected Vehicle
+                Valgt kjøretøy
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -233,11 +362,11 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 <div className="flex-1 tracking-wide">
                   <div className="flex flex-col gap-2">
                     <h3 className="text-xl font-semibold text-[#E3C08D]">{car.name}</h3>
-                    <p className="text-sm text-gray-600 tracking-wide ">{car.description.length > 250 ? `${car.description.slice(0, 300)}...` : car.description}</p>
+                    <p className="text-sm tracking-wide text-[#b1bdc3]">{car.description.length > 250 ? `${car.description.slice(0, 300)}...` : car.description}</p>
                     <div className="flex gap-4 flex-wrap">
-                      <p className="text-sm"><span className="font-semibold">Per Hour: </span>{car.base_price_per_hour}</p>
-                      <p className="text-sm"><span className="font-semibold">Per Day: </span>{car.base_price_per_day}</p>
-                      <p className="text-sm"><span className="font-semibold">Included KM: </span>{car.included_km_per_day}/day</p>
+                      <p className="text-sm"><span className="font-semibold">Per time: </span>{car.base_price_per_hour}</p>
+                      <p className="text-sm"><span className="font-semibold">Per dag: </span>{car.base_price_per_day}</p>
+                      <p className="text-sm"><span className="font-semibold">Inkl. km: </span>{car.included_km_per_day}/dag</p>
                     </div>
                   </div>
                 </div>
@@ -245,12 +374,90 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
             </CardContent>
           </Card>
 
+          {/* Demands: seats pricing + decorations (before dates) */}
+          <Card className="card-premium border-[#334047] bg-[#232e33] text-[#b1bdc3] shadow-sm">
+            <CardHeader className="space-y-1 pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Sparkles className="h-4 w-4 shrink-0 text-[#E3C08D]" />
+                Dine ønsker
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex max-w-full flex-nowrap items-center gap-x-2 gap-y-0 overflow-x-auto pb-0.5 text-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <span className="text-[#9aa8ae]">
+                  Seter <span className="text-red-500">*</span>
+                </span>
+                <FormField
+                  control={form.control}
+                  name="seatPricingMode"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row flex-nowrap items-center gap-x-2 space-y-0">
+                      {(
+                        [
+                          { value: "flat-rate" as const, label: "Fast pris" },
+                          { value: "daily-basis" as const, label: "Dagsbasis" },
+                        ] as const
+                      ).map((opt) => (
+                        <label
+                          key={opt.value}
+                          className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap"
+                        >
+                          <input
+                            type="radio"
+                            name="seatPricingMode"
+                            className="h-3.5 w-3.5 shrink-0 accent-[#E3C08D]"
+                            checked={field.value === opt.value}
+                            onChange={() => field.onChange(opt.value)}
+                          />
+                          <span className="text-[#b1bdc3]">{opt.label}</span>
+                        </label>
+                      ))}
+                      <FormMessage className="w-full" />
+                    </FormItem>
+                  )}
+                />
+                <div className="ml-3 flex shrink-0 flex-nowrap items-center gap-x-2 border-l border-[#46555d] pl-4 sm:ml-5 sm:pl-5">
+                <span className="text-[#9aa8ae]">Dekorasjon</span>
+                {(
+                  [
+                    { name: "decorationFlowers" as const, label: "Blomster" },
+                    { name: "decorationRibbon" as const, label: "Bånd" },
+                    { name: "decorationRedCarpets" as const, label: "Røde løpere" },
+                    { name: "decorationDriverNeed" as const, label: "Sjåfør ønskes" },
+                  ] as const
+                ).map((item) => (
+                  <FormField
+                    key={item.name}
+                    control={form.control}
+                    name={item.name}
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center gap-1.5 space-y-0">
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            checked={field.value}
+                            onChange={field.onChange}
+                            className="h-3.5 w-3.5 shrink-0 rounded border-[#46555d] accent-[#E3C08D]"
+                          />
+                        </FormControl>
+                        <FormLabel className="!mt-0 cursor-pointer whitespace-nowrap font-normal text-[#b1bdc3]">
+                          {item.label}
+                        </FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Date and Time Selection */}
-          <Card className="bg-white card-premium">
+          <Card className="card-premium border-[#334047] bg-[#232e33] text-[#b1bdc3] shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5" />
-                Select Dates & Location
+                Velg dato og sted
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -259,15 +466,15 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                   control={form.control}
                   name="startDateTime"
                   rules={{
-                    required: "Return date is required",
+                    required: "Hentedato er påkrevd",
                     validate: (value) => {
                       const start = form.getValues("startDateTime");
-                      return !start || !value || value >= start || "Return date-time must be after pickup";
+                      return !start || !value || value >= start || "Retur må være etter henting";
                     },
                   }}
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Pickup Date-Time <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel>Henting (dato og klokkeslett) <span className="text-red-500">*</span></FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <div>
@@ -275,31 +482,26 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                               variant="outline"
                               type="button"
                               className={cn(
-                                "w-full h-9 pl-3 text-left font-normal border border-gray-300 hover:bg-[#E3C08D] rounded-md hover:cursor-pointer",
+                                "h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] pl-3 text-left font-normal text-[#b1bdc3] hover:cursor-pointer hover:bg-[#27343a]",
                                 !field.value && "text-muted-foreground"
                               )}
                             >
                               {field.value instanceof Date ? (
-                                <>
-                                  {format(field.value, "PPP")}
-                                  <span className="ml-2 text-sm text-muted-foreground">
-                                    {field.value.toLocaleTimeString('en-GB', {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                      hour12: false
-                                    })}
-                                  </span>
-                                </>
+                                <span>{format(field.value, "yyyy-MM-dd HH:mm")}</span>
                               ) : (
-                                <span>Pick a date</span>
+                                <span>Velg dato</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
                           </div>
                         </PopoverTrigger>
 
-                        <PopoverContent className="w-auto p-0 bg-white border-0" align="start">
-                          <div className="relative">
+                        <PopoverContent
+                          className="w-auto border-[#46555d] bg-[#1b2529] p-0 text-[#b1bdc3]"
+                          align="start"
+                          onInteractOutside={bookingDatePopoverOnInteractOutside}
+                        >
+                          <div>
                             <Calendar
                               mode="single"
                               selected={field.value}
@@ -314,40 +516,22 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                                 } else {
                                   field.onChange(date);
                                 }
-                                // Close popover after selection
-                                const popover = document.querySelector('[data-state="open"]');
-                                if (popover) {
-                                  popover.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-                                }
                               }}
                               disabled={(date) => {
                                 const startDateTime = form.getValues("startDateTime");
                                 if (!startDateTime) return date < new Date(new Date().setHours(0, 0, 0, 0));
                                 return date <= startDateTime;
                               }}
-                              captionLayout="dropdown"
+                              captionLayout="label"
                               initialFocus
                               required
                             />
-                            {/* Hour selector positioned to look like it's part of the caption */}
-                            <div className="absolute top-3 left-[169.4px]">
-                              <select
-                                value={field.value instanceof Date ? field.value.getHours() : 0}
-                                onChange={(e) => {
-                                  const newDate = field.value instanceof Date ? new Date(field.value) : new Date();
-                                  newDate.setHours(parseInt(e.target.value));
-                                  field.onChange(newDate);
-                                }}
-                                name="booking_hrs"
-                                className="py-[6px] text-sm font-semibold rounded-md bg-[#f9fafb] focus:outline-none"
-                              >
-                                <span>
-                                  {Array.from({ length: 24 }, (_, i) => (
-                                  <option key={i} value={i}>{i}</option>
-                                ))}
-                                </span>
-                              </select>
-                            </div>
+                            <BookingDateTimeTimeRow
+                              dateValue={
+                                field.value instanceof Date ? field.value : undefined
+                              }
+                              onTimeChange={field.onChange}
+                            />
                           </div>
                         </PopoverContent>
                       </Popover>
@@ -360,15 +544,15 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                   control={form.control}
                   name="endDateTime"
                   rules={{
-                    required: "Return date is required",
+                    required: "Returdato er påkrevd",
                     validate: (value) => {
                       const start = form.getValues("startDateTime");
-                      return !start || !value || value >= start || "Return date-time must be after pickup";
+                      return !start || !value || value >= start || "Retur må være etter henting";
                     },
                   }}
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Return Date-Time <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel>Retur (dato og klokkeslett) <span className="text-red-500">*</span></FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <div>
@@ -376,31 +560,26 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                               variant="outline"
                               type="button"
                               className={cn(
-                                "w-full h-9 pl-3 text-left font-normal border border-gray-300 hover:bg-[#E3C08D] rounded-md hover:cursor-pointer",
+                                "h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] pl-3 text-left font-normal text-[#b1bdc3] hover:cursor-pointer hover:bg-[#27343a]",
                                 !field.value && "text-muted-foreground"
                               )}
                             >
                               {field.value instanceof Date ? (
-                                <>
-                                  {format(field.value, "PPP")}
-                                  <span className="ml-2 text-sm text-muted-foreground">
-                                    {field.value.toLocaleTimeString('en-GB', {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                      hour12: false
-                                    })}
-                                  </span>
-                                </>
+                                <span>{format(field.value, "yyyy-MM-dd HH:mm")}</span>
                               ) : (
-                                <span>Pick a date</span>
+                                <span>Velg dato</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
                           </div>
                         </PopoverTrigger>
 
-                        <PopoverContent className="w-auto p-0 bg-white border-0" align="start">
-                          <div className="relative">
+                        <PopoverContent
+                          className="w-auto border-[#46555d] bg-[#1b2529] p-0 text-[#b1bdc3]"
+                          align="start"
+                          onInteractOutside={bookingDatePopoverOnInteractOutside}
+                        >
+                          <div>
                             <Calendar
                               mode="single"
                               selected={field.value}
@@ -415,40 +594,22 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                                 } else {
                                   field.onChange(date);
                                 }
-                                // Close popover after selection
-                                const popover = document.querySelector('[data-state="open"]');
-                                if (popover) {
-                                  popover.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-                                }
                               }}
                               disabled={(date) => {
                                 const startDateTime = form.getValues("startDateTime");
                                 if (!startDateTime) return date < new Date(new Date().setHours(0, 0, 0, 0));
                                 return date <= startDateTime;
                               }}
-                              captionLayout="dropdown"
+                              captionLayout="label"
                               initialFocus
                               required
                             />
-                            {/* Hour selector positioned to look like it's part of the caption */}
-                            <div className="absolute top-3 left-[169.4px]">
-                              <select
-                                value={field.value instanceof Date ? field.value.getHours() : 0}
-                                onChange={(e) => {
-                                  const newDate = field.value instanceof Date ? new Date(field.value) : new Date();
-                                  newDate.setHours(parseInt(e.target.value));
-                                  field.onChange(newDate);
-                                }}
-                                name="booking_hrs"
-                                className="py-[6px] text-sm font-semibold rounded-md bg-[#f9fafb] focus:outline-none"
-                              >
-                                <span>
-                                  {Array.from({ length: 24 }, (_, i) => (
-                                  <option key={i} value={i}>{i}</option>
-                                ))}
-                                </span>
-                              </select>
-                            </div>
+                            <BookingDateTimeTimeRow
+                              dateValue={
+                                field.value instanceof Date ? field.value : undefined
+                              }
+                              onTimeChange={field.onChange}
+                            />
                           </div>
                         </PopoverContent>
                       </Popover>
@@ -461,99 +622,61 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           </Card>
 
           {/* Location Selection */}
-          <Card className="card-premium bg-white">
+          <Card className="card-premium border-[#334047] bg-[#232e33] text-[#b1bdc3] shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="h-5 w-5" />
-                Pickup & Delivery
+                Henting og levering
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="pickupLocation"
-                rules={{ required: "Pickup location is required" }}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Pickup Location <span className="text-red-500">*</span></FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter pickup location"
-                        {...field}
-                        className="border h-9 border-gray-200 bg-gray-50 rounded-md"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="deliveryLocation"
-                rules={{ required: "Delivery location is required" }}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Delivery Location <span className="text-red-500">*</span></FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter delivery location"
-                        {...field}
-                        className="border h-9 border-gray-200 bg-gray-50 rounded-md"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Pricing Summary */}
-          <Card className="card-premium bg-white">
-            <CardHeader>
-              <CardTitle>Pricing Summary</CardTitle>
-            </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span>Duration: </span>
-                <span className="font-medium">
-                  {pricing.duration}
+              <p className="text-xs text-[#9aa8ae]">Standard henting og levering.</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+              <div
+                className="flex min-w-0 flex-1 cursor-default items-start gap-3 rounded-md border border-[#46555d] bg-[#1b2529] p-3"
+                role="group"
+                aria-label={`Hentested: ${DEFAULT_PICKUP_LOCATION}`}
+              >
+                <span
+                  className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-[#46555d] bg-[#232e33]"
+                  aria-hidden
+                >
+                  <Check className="h-3 w-3 text-[#E3C08D]" />
                 </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Base price: </span>
-                <span>{formatPrice(pricing.basePrice)}</span>
-              </div>
-              {pricing.deliveryFee > 0 && (
-                <div className="flex justify-between">
-                  <span>Delivery fee: </span>
-                  <span>
-                    {formatPrice(pricing.deliveryFee)}
-                  </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium uppercase tracking-wide text-[#9aa8ae]">
+                    Hentested
+                  </p>
+                  <p className="text-sm leading-snug text-[#b1bdc3]">{DEFAULT_PICKUP_LOCATION}</p>
                 </div>
-              )}
-              <div className="flex justify-between">
-                <span>Vat (25%): </span>
-                <span>{formatPrice(pricing.vatAmount)}</span>
               </div>
-              <div className="border-t pt-3">
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Total price: </span>
-                  <span className="text-primary">
-                    {formatPrice(pricing.totalPrice)}
-                  </span>
+              <div
+                className="flex min-w-0 flex-1 cursor-default items-start gap-3 rounded-md border border-[#46555d] bg-[#1b2529] p-3"
+                role="group"
+                aria-label={`Leveringssted: ${DEFAULT_DELIVERY_LOCATION}`}
+              >
+                <span
+                  className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-[#46555d] bg-[#232e33]"
+                  aria-hidden
+                >
+                  <Check className="h-3 w-3 text-[#E3C08D]" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium uppercase tracking-wide text-[#9aa8ae]">
+                    Leveringssted
+                  </p>
+                  <p className="text-sm leading-snug text-[#b1bdc3]">{DEFAULT_DELIVERY_LOCATION}</p>
                 </div>
+              </div>
               </div>
             </CardContent>
           </Card>
-
           <Button
             type="submit"
             className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-black py-5 text-base font-medium shadow-lg hover:shadow-xl hover:text-white transition-all duration-300 hover:cursor-pointer"
             size="lg"
           >
-            Continue
+            Fortsett
           </Button>
         </>
       </Form>
