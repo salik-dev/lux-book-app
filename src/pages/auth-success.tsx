@@ -35,9 +35,19 @@ export default function AuthSuccessPage() {
 
   const { data, isLoading, error } = useSession(sessionId);
   const normalizedStatus = data?.status?.toLowerCase();
+  const isSuccessfulSession = Boolean(
+    data &&
+      (
+        ["success", "succeeded", "completed", "complete", "finished", "approved"].includes(
+          normalizedStatus ?? ""
+        ) ||
+        // Fallback: session contains verified subject attributes from Signicat
+        Boolean(data.subject?.attributes)
+      )
+  );
 
   useEffect(() => {
-    if (!data || normalizedStatus !== "success") return;
+    if (!data || !isSuccessfulSession) return;
 
     try {
       localStorage.setItem(STORAGE_KEYS.verified, "true");
@@ -57,9 +67,9 @@ export default function AuthSuccessPage() {
     } catch (storageError) {
       console.error("Failed to persist BankID session data:", storageError);
     }
-  }, [data, normalizedStatus]);
+  }, [data, isSuccessfulSession]);
 
-  const isSuccess = normalizedStatus === "success";
+  const isSuccess = isSuccessfulSession;
   const hasError = Boolean(finalError || error || normalizedStatus === "error");
 
   useEffect(() => {
