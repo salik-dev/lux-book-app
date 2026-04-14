@@ -79,6 +79,9 @@ export interface BookingFlowProps {
   isOpen: boolean;
   onClose: () => void;
   selectedCar: CarData | null;
+  initialStep?: number;
+  initialBookingData?: BookingData | null;
+  initialCustomerData?: CustomerData | null;
 }
 
 export interface BookingProps {

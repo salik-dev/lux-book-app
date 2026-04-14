@@ -1,11 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "../ui/card";
-import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import { useToast } from "../../hooks/use-toast";
 import { format, differenceInHours } from "date-fns";
@@ -20,15 +19,42 @@ import {
 import { PaymentStepProps } from "@/@types/data";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/auth-context";
+import { useInitiateLogin } from "@/hooks/use-signicat-auth";
 
 export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerData, onComplete }) => {
+  const BANK_ID_VERIFIED_KEY = "bankid_verified";
+  const BANK_ID_STATUS_KEY = "bankid_auth_status";
+  const BANK_ID_ERROR_KEY = "bankid_auth_error";
+  const BOOKING_RESTORE_KEY = "booking_restore_state";
   const { toast } = useToast();
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [contractSigned, setContractSigned] = useState(false);
+  const [bankIdVerified, setBankIdVerified] = useState(false);
+  const [bankIdStatus, setBankIdStatus] = useState<"idle" | "pending" | "success" | "failed" | "aborted">("idle");
+  const [bankIdMessage, setBankIdMessage] = useState<string>("");
+  const { mutate: initiateLogin, isPending: isBankIDPending } = useInitiateLogin();
   const [paymentMethod, setPaymentMethod] = useState<
     "stripe" | "vipps" | null
   >(null);
+
+  useEffect(() => {
+    try {
+      const verified = localStorage.getItem(BANK_ID_VERIFIED_KEY) === "true";
+      const status = localStorage.getItem(BANK_ID_STATUS_KEY) as
+        | "idle"
+        | "pending"
+        | "success"
+        | "failed"
+        | "aborted"
+        | null;
+      const message = localStorage.getItem(BANK_ID_ERROR_KEY);
+      setBankIdVerified(verified);
+      setBankIdStatus(status ?? (verified ? "success" : "idle"));
+      setBankIdMessage(message ?? "");
+    } catch (error) {
+      console.error("Failed to read BankID verification state:", error);
+    }
+  }, []);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("no-NO", {
@@ -53,36 +79,52 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
     ].filter(Boolean) as string[]
   );
 
-  const handleSignContract = async () => {
-    setIsProcessing(true);
+  const handleBankIDLogin = async () => {
     try {
-      // Simulate BankID signing process
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      setContractSigned(true);
-      toast({
-        title: "Kontrakt signert",
-        description:
-          "Leiekontrakten er signert med BankID.",
-      });
+      localStorage.setItem(BANK_ID_STATUS_KEY, "pending");
+      localStorage.removeItem(BANK_ID_ERROR_KEY);
+      localStorage.setItem(
+        BOOKING_RESTORE_KEY,
+        JSON.stringify({
+          step: 3,
+          bookingData: {
+            ...bookingData,
+            startDateTime: bookingData.startDateTime.toISOString(),
+            endDateTime: bookingData.endDateTime.toISOString(),
+          },
+          customerData: {
+            ...customerData,
+            dateOfBirth: customerData.dateOfBirth.toISOString(),
+          },
+        })
+      );
+      setBankIdStatus("pending");
+      setBankIdMessage("");
+      await initiateLogin();
     } catch (error) {
+      localStorage.setItem(BANK_ID_STATUS_KEY, "failed");
+      localStorage.setItem(
+        BANK_ID_ERROR_KEY,
+        "Kunne ikke starte BankID-innlogging. Prøv igjen."
+      );
+      setBankIdStatus("failed");
+      setBankIdMessage("Kunne ikke starte BankID-innlogging. Prøv igjen.");
       toast({
         title: "Feil",
         description:
-          "Kunne ikke signere kontrakten. Prøv igjen.",
+          "Kunne ikke starte BankID-innlogging. Prøv igjen.",
         variant: "destructive",
       });
-    } finally {
-      setIsProcessing(false);
     }
   };
 
   const handlePayment = async (method: "stripe" | "vipps") => {
     
-    if (!contractSigned) {
+    if (!bankIdVerified) {
       toast({
-        title: "Kontrakt påkrevd",
+        title: "BankID påkrevd",
         description:
-          "Signer kontrakten før du går videre til betaling.",
+          "Bekreft identiteten med BankID før du går videre til betaling.",
         variant: "destructive",
       });
       return;
@@ -322,58 +364,57 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
         </CardContent>
       </Card>
 
-      {/* Contract Signing */}
+      {/* BankID Authentication */}
       <Card className="card-premium border-[#334047] bg-[#232e33] text-[#b1bdc3] shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
             <FileText className="h-5 w-5" />
-            Vilkår og betingelser
+            BankID-verifisering
           </CardTitle>
         </CardHeader>
-          <CardContent>
+        <CardContent>
           <div className="rounded-md bg-[#1b2529] p-4">
-            <h4 className="text-[14px] font-semibold mb-2">
-              Leievilkår
-            </h4>
+            <h4 className="mb-2 text-[14px] font-semibold">Identifiser deg med BankID</h4>
             <p className="text-xs tracking-wide text-[#9eabb1]">
-              Ved å gå videre med denne bestillingen godtar du våre
-              vilkår, herunder forsikring, ansvar ved skade,
-              alderskrav og betalingsbetingelser. Fullstendige vilkår
-              sendes på e-post ved bekreftelse.
+              Før betaling må du fullføre BankID-innlogging. Etter vellykket
+              innlogging kan du gå tilbake og betale bestillingen.
             </p>
           </div>
 
-          <Button
-            onClick={handleSignContract}
-            disabled={contractSigned || isProcessing}
-            className="w-full rounded-md h-9 text-white mt-3 bg-[#E3C08D] hover:bg-[#E3C08D]/90 hover:cursor-pointer"
-            size="lg"
+          <button
+            onClick={handleBankIDLogin}
+            disabled={bankIdVerified || isBankIDPending}
+            className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-lg border border-[#4e1f67] bg-gradient-to-r from-[#39134C] to-[#4A1A60] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(57,19,76,0.35)] transition-all hover:from-[#470D70] hover:to-[#5a1d7a] focus:outline-none focus:ring-2 focus:ring-[#6d2b8f]/60 focus:ring-offset-2 focus:ring-offset-[#232e33] disabled:cursor-not-allowed disabled:opacity-60 active:translate-y-[1px]"
           >
-            {isProcessing ? (
+            {isBankIDPending || bankIdStatus === "pending" ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Behandler
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Starter BankID ...
               </>
-            ) : contractSigned ? (
+            ) : bankIdVerified ? (
               <>
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Kontrakt signert ✓
+                <CheckCircle className="h-4 w-4" />
+                BankID bekreftet
               </>
             ) : (
-              <>
-                <FileText className="mr-2 h-4 w-4" />
-                Signer kontrakt med BankID
-              </>
+              "Login with BankID"
             )}
-          </Button>
+          </button>
 
-          {contractSigned && (
-            <Badge
-              variant="default"
-              className="w-full py-1 mt-2 tracking-wide justify-center bg-green-100 text-green-800"
-            >
-              Kontrakten er signert med BankID
-            </Badge>
+          {bankIdVerified && (
+            <div className="mt-2 rounded-md border border-emerald-300/30 bg-emerald-100/95 px-3 py-1.5 text-center text-sm font-semibold text-emerald-800">
+              BankID er verifisert
+            </div>
+          )}
+          {!bankIdVerified && bankIdStatus === "failed" && (
+            <div className="mt-2 rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-center text-xs text-red-200">
+              {bankIdMessage || "BankID-verifisering feilet. Prøv igjen."}
+            </div>
+          )}
+          {!bankIdVerified && bankIdStatus === "aborted" && (
+            <div className="mt-2 rounded-md border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-200">
+              BankID ble avbrutt. Start verifisering på nytt.
+            </div>
           )}
         </CardContent>
       </Card>
@@ -388,7 +429,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Button
               onClick={() => handlePayment("stripe")}
-              disabled={!contractSigned || isProcessing}
+              disabled={!bankIdVerified || isProcessing}
               variant="outline"
               size="lg"
               className="h-20 rounded-md border border-[#46555d] bg-[#1b2529] py-12 transition-premium hover:cursor-pointer hover:border-[#E3C08D] hover:bg-[#2c3b40]"
@@ -425,17 +466,17 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
             </Button>
           </div>
 
-          {!contractSigned && (
+          {!bankIdVerified && (
             <p className="text-sm text-red-300 text-center ">
-              Signer kontrakten før du velger betalingsmetode
+              Verifiser med BankID før du velger betalingsmetode
             </p>
           )}
         </CardContent>
       </Card>
 
       {/* <Button
-        onClick={() => contractSigned && handlePayment("stripe")}
-        disabled={!contractSigned}
+        onClick={() => bankIdVerified && handlePayment("stripe")}
+        disabled={!bankIdVerified}
         className="w-full rounded-md h-9 bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-5 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
         size="lg"
       >

@@ -17,6 +17,9 @@ import Admin from "./pages/admin/admin";
 import Bookings from "./pages/bookings/booking";
 import BookingSuccess from "./pages/booking-success";
 import BookingCancelled from "./pages/booking-cancelled";
+import AuthSuccessPage from "./pages/auth-success";
+import AuthAbortPage from "./pages/auth-abort";
+import AuthErrorPage from "./pages/auth-error";
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -91,6 +94,21 @@ export default function App() {
         <Route path="/booking-cancelled" element={
           <Layout>
             <BookingCancelled />
+          </Layout>
+        } />
+        <Route path="/auth/success" element={
+          <Layout>
+            <AuthSuccessPage />
+          </Layout>
+        } />
+        <Route path="/auth/abort" element={
+          <Layout>
+            <AuthAbortPage />
+          </Layout>
+        } />
+        <Route path="/auth/error" element={
+          <Layout>
+            <AuthErrorPage />
           </Layout>
         } />
 

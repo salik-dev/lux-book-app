@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,10 +17,22 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
   isOpen,
   onClose,
   selectedCar,
+  initialStep,
+  initialBookingData,
+  initialCustomerData,
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!initialBookingData || !initialCustomerData) return;
+
+    setBookingData(initialBookingData);
+    setCustomerData(initialCustomerData);
+    setCurrentStep(initialStep ?? 3);
+  }, [isOpen, initialBookingData, initialCustomerData, initialStep]);
 
   const steps = [
     {
