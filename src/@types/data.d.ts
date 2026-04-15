@@ -66,6 +66,10 @@ export interface CustomerData {
   dateOfBirth: Date;
   driverLicenseNumber: string;
   driverLicenseFile?: File | string; // Can be either File object or URL string
+  bankIdVerifiedAt?: string;
+  contractSignedAt?: string;
+  contractFilePath?: string;
+  contractDocumentId?: string;
 }
 
 export interface PaymentStepProps {

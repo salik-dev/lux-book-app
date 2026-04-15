@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Button } from "../ui/button";
 import { Card,
   CardContent,
@@ -12,49 +12,19 @@ import { nb } from "date-fns/locale";
 import {
   CreditCard,
   Smartphone,
-  FileText,
-  CheckCircle,
   Loader2,
 } from "lucide-react";
 import { PaymentStepProps } from "@/@types/data";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/auth-context";
-import { useInitiateLogin } from "@/hooks/use-signicat-auth";
 
 export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerData, onComplete }) => {
-  const BANK_ID_VERIFIED_KEY = "bankid_verified";
-  const BANK_ID_STATUS_KEY = "bankid_auth_status";
-  const BANK_ID_ERROR_KEY = "bankid_auth_error";
-  const BOOKING_RESTORE_KEY = "booking_restore_state";
   const { toast } = useToast();
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [bankIdVerified, setBankIdVerified] = useState(false);
-  const [bankIdStatus, setBankIdStatus] = useState<"idle" | "pending" | "success" | "failed" | "aborted">("idle");
-  const [bankIdMessage, setBankIdMessage] = useState<string>("");
-  const { mutate: initiateLogin, isPending: isBankIDPending } = useInitiateLogin();
   const [paymentMethod, setPaymentMethod] = useState<
     "stripe" | "vipps" | null
   >(null);
-
-  useEffect(() => {
-    try {
-      const verified = localStorage.getItem(BANK_ID_VERIFIED_KEY) === "true";
-      const status = localStorage.getItem(BANK_ID_STATUS_KEY) as
-        | "idle"
-        | "pending"
-        | "success"
-        | "failed"
-        | "aborted"
-        | null;
-      const message = localStorage.getItem(BANK_ID_ERROR_KEY);
-      setBankIdVerified(verified);
-      setBankIdStatus(status ?? (verified ? "success" : "idle"));
-      setBankIdMessage(message ?? "");
-    } catch (error) {
-      console.error("Failed to read BankID verification state:", error);
-    }
-  }, []);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("no-NO", {
@@ -78,58 +48,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
       bookingData.decorationDriverNeed && "Sjåfør ønskes",
     ].filter(Boolean) as string[]
   );
-
-  const handleBankIDLogin = async () => {
-    try {
-      localStorage.setItem(BANK_ID_STATUS_KEY, "pending");
-      localStorage.removeItem(BANK_ID_ERROR_KEY);
-      localStorage.setItem(
-        BOOKING_RESTORE_KEY,
-        JSON.stringify({
-          step: 3,
-          bookingData: {
-            ...bookingData,
-            startDateTime: bookingData.startDateTime.toISOString(),
-            endDateTime: bookingData.endDateTime.toISOString(),
-          },
-          customerData: {
-            ...customerData,
-            dateOfBirth: customerData.dateOfBirth.toISOString(),
-          },
-        })
-      );
-      setBankIdStatus("pending");
-      setBankIdMessage("");
-      await initiateLogin();
-    } catch (error) {
-      localStorage.setItem(BANK_ID_STATUS_KEY, "failed");
-      localStorage.setItem(
-        BANK_ID_ERROR_KEY,
-        "Kunne ikke starte BankID-innlogging. Prøv igjen."
-      );
-      setBankIdStatus("failed");
-      setBankIdMessage("Kunne ikke starte BankID-innlogging. Prøv igjen.");
-      toast({
-        title: "Feil",
-        description:
-          "Kunne ikke starte BankID-innlogging. Prøv igjen.",
-        variant: "destructive",
-      });
-    }
-  };
+  const contractReady = localStorage.getItem('signicat_access_token') !== null && localStorage.getItem('bankid_contract_document_id') !== null;
 
   const handlePayment = async (method: "stripe" | "vipps") => {
-    
-    if (!bankIdVerified) {
-      toast({
-        title: "BankID påkrevd",
-        description:
-          "Bekreft identiteten med BankID før du går videre til betaling.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsProcessing(true);
     setPaymentMethod(method);
 
@@ -185,7 +106,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
           total_price: bookingData.totalPrice,
           vat_amount: bookingData.vatAmount,
           status: 'active',
-          contract_signed_at: new Date().toISOString(),
         })
         .select()
         .single();
@@ -364,61 +284,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
         </CardContent>
       </Card>
 
-      {/* BankID Authentication */}
-      <Card className="card-premium border-[#334047] bg-[#232e33] text-[#b1bdc3] shadow-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl">
-            <FileText className="h-5 w-5" />
-            BankID-verifisering
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md bg-[#1b2529] p-4">
-            <h4 className="mb-2 text-[14px] font-semibold">Identifiser deg med BankID</h4>
-            <p className="text-xs tracking-wide text-[#9eabb1]">
-              Før betaling må du fullføre BankID-innlogging. Etter vellykket
-              innlogging kan du gå tilbake og betale bestillingen.
-            </p>
-          </div>
-
-          <button
-            onClick={handleBankIDLogin}
-            disabled={bankIdVerified || isBankIDPending}
-            className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-lg border border-[#4e1f67] bg-gradient-to-r from-[#39134C] to-[#4A1A60] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(57,19,76,0.35)] transition-all hover:from-[#470D70] hover:to-[#5a1d7a] focus:outline-none focus:ring-2 focus:ring-[#6d2b8f]/60 focus:ring-offset-2 focus:ring-offset-[#232e33] disabled:cursor-not-allowed disabled:opacity-60 active:translate-y-[1px]"
-          >
-            {isBankIDPending || bankIdStatus === "pending" ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Starter BankID ...
-              </>
-            ) : bankIdVerified ? (
-              <>
-                <CheckCircle className="h-4 w-4" />
-                BankID bekreftet
-              </>
-            ) : (
-              "Login with BankID"
-            )}
-          </button>
-
-          {bankIdVerified && (
-            <div className="mt-2 rounded-md border border-emerald-300/30 bg-emerald-100/95 px-3 py-1.5 text-center text-sm font-semibold text-emerald-800">
-              BankID er verifisert
-            </div>
-          )}
-          {!bankIdVerified && bankIdStatus === "failed" && (
-            <div className="mt-2 rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-center text-xs text-red-200">
-              {bankIdMessage || "BankID-verifisering feilet. Prøv igjen."}
-            </div>
-          )}
-          {!bankIdVerified && bankIdStatus === "aborted" && (
-            <div className="mt-2 rounded-md border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-200">
-              BankID ble avbrutt. Start verifisering på nytt.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Payment Methods */}
       <Card className="border-[#334047] bg-[#232e33] text-[#b1bdc3] shadow-sm">
         <CardHeader>
@@ -429,7 +294,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Button
               onClick={() => handlePayment("stripe")}
-              disabled={!bankIdVerified || isProcessing}
+              disabled={!contractReady || isProcessing}
               variant="outline"
               size="lg"
               className="h-20 rounded-md border border-[#46555d] bg-[#1b2529] py-12 transition-premium hover:cursor-pointer hover:border-[#E3C08D] hover:bg-[#2c3b40]"
@@ -466,17 +331,17 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
             </Button>
           </div>
 
-          {!bankIdVerified && (
+          {!contractReady && (
             <p className="text-sm text-red-300 text-center ">
-              Verifiser med BankID før du velger betalingsmetode
+              Fullfør BankID og kontrakt i forrige steg før betaling
             </p>
           )}
         </CardContent>
       </Card>
 
       {/* <Button
-        onClick={() => bankIdVerified && handlePayment("stripe")}
-        disabled={!bankIdVerified}
+        onClick={() => contractReady && handlePayment("stripe")}
+        disabled={!contractReady}
         className="w-full rounded-md h-9 bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-5 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
         size="lg"
       >

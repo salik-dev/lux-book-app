@@ -35,6 +35,7 @@ export default function AuthSuccessPage() {
 
   const { data, isLoading, error } = useSession(sessionId);
   const normalizedStatus = data?.status?.toLowerCase();
+  const extractedUser = useMemo(() => (data ? extractUserData(data) : null), [data]);
   const isSuccessfulSession = Boolean(
     data &&
       (
@@ -42,7 +43,7 @@ export default function AuthSuccessPage() {
           normalizedStatus ?? ""
         ) ||
         // Fallback: session contains verified subject attributes from Signicat
-        Boolean(data.subject?.attributes)
+        Boolean(extractedUser)
       )
   );
 
@@ -60,14 +61,13 @@ export default function AuthSuccessPage() {
         localStorage.setItem(STORAGE_KEYS.accessToken, data.access_token);
       }
 
-      const user = extractUserData(data);
-      if (user) {
-        localStorage.setItem(STORAGE_KEYS.userData, JSON.stringify(user));
+      if (extractedUser) {
+        localStorage.setItem(STORAGE_KEYS.userData, JSON.stringify(extractedUser));
       }
     } catch (storageError) {
       console.error("Failed to persist BankID session data:", storageError);
     }
-  }, [data, isSuccessfulSession]);
+  }, [data, extractedUser, isSuccessfulSession]);
 
   const isSuccess = isSuccessfulSession;
   const hasError = Boolean(finalError || error || normalizedStatus === "error");
