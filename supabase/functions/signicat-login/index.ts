@@ -30,10 +30,17 @@ async function getAccessToken() {
     }),
   });
 
-  const payload = await response.json();
+  const payload = await response
+    .json()
+    .catch(async () => ({ raw: await response.text() }));
   if (!response.ok) {
     logStep("Token request failed", payload);
-    throw new Error(payload?.error_description ?? "Failed to fetch Signicat token.");
+    throw new Error(
+      payload?.error_description ??
+        payload?.error?.message ??
+        payload?.raw ??
+        "Failed to fetch Signicat token."
+    );
   }
 
   if (!payload?.access_token) {
@@ -57,10 +64,11 @@ serve(async (req) => {
       throw new Error("SIGNICAT_SESSION_URL is not set.");
     }
 
-    const callbackBaseUrl =
+    const callbackBaseUrlRaw =
       Deno.env.get("SIGNICAT_CALLBACK_BASE_URL") ??
       req.headers.get("origin") ??
       "http://localhost:5173";
+    const callbackBaseUrl = callbackBaseUrlRaw.replace(/\/$/, "");
 
     const sessionResponse = await fetch(sessionUrl, {
       method: "POST",
@@ -91,7 +99,9 @@ serve(async (req) => {
       }),
     });
 
-    const sessionData = await sessionResponse.json();
+    const sessionData = await sessionResponse
+      .json()
+      .catch(async () => ({ raw: await sessionResponse.text() }));
     if (!sessionResponse.ok) {
       logStep("Session creation failed", sessionData);
       return new Response(JSON.stringify(sessionData), {

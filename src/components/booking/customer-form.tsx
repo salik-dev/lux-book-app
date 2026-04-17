@@ -20,7 +20,6 @@ const HIDDEN_CUSTOMER_DEFAULTS = {
   fullName: "",
   phone: "",
   city: "Oslo",
-  dateOfBirth: new Date("1990-01-15"),
 } as const;
 
 const STORAGE_KEYS = {
@@ -41,9 +40,43 @@ const STORAGE_KEYS = {
   signicatSessionId: "signicat_session_id",
   signicatExternalReference: "signicat_external_reference",
   signicatSessionMapping: "signicat_session_mapping",
+  verificationRowId: "bankid_verification_row_id",
+  jwtToken: "bankid_jwt_access_token",
+  jwtExpiresAt: "bankid_jwt_expires_at",
+  bankContractStatus: "bank_contract_status",
 } as const;
 
 const SIGNED_STATUS_VALUES = ["signed", "completed", "complete", "success", "approved"];
+
+/** Parse documentId/sessionId from a stored signicat-document function URL. */
+const parseSignicatDocumentUrl = (
+  raw: string | null | undefined
+): { documentId?: string; sessionId?: string } => {
+  if (!raw || typeof raw !== "string") return {};
+  const trimmed = raw.trim();
+  if (!trimmed.includes("signicat-document")) return {};
+  try {
+    const u = new URL(trimmed);
+    return {
+      documentId: u.searchParams.get("documentId") || undefined,
+      sessionId: u.searchParams.get("sessionId") || undefined,
+    };
+  } catch {
+    return {};
+  }
+};
+
+const isJwtMissingOrExpired = (): boolean => {
+  const token = localStorage.getItem(STORAGE_KEYS.jwtToken);
+  const exp = localStorage.getItem(STORAGE_KEYS.jwtExpiresAt);
+  if (!token || !exp) return true;
+  return new Date(exp).getTime() <= Date.now();
+};
+
+const toSafeISOString = (value: unknown, fallback: Date): string => {
+  const asDate = value instanceof Date ? value : new Date(String(value ?? ""));
+  return Number.isNaN(asDate.getTime()) ? fallback.toISOString() : asDate.toISOString();
+};
 
 interface CustomerFormProps {
   bookingData: BookingData;
@@ -69,8 +102,34 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
   const [isCheckingContract, setIsCheckingContract] = useState(false);
   const [isStartingContract, setIsStartingContract] = useState(false);
   const [hasHandledContractReturn, setHasHandledContractReturn] = useState(false);
+  /** Mirrors `bankid_verifications.contract_status` from the server (null = not loaded yet). */
+  const [serverContractSigned, setServerContractSigned] = useState<boolean | null>(null);
+  const [jwtUiTick, setJwtUiTick] = useState(0);
   const { toast } = useToast();
   const { mutate: initiateLogin, isPending: isBankIDPending } = useInitiateLogin();
+
+  /** Only clear app JWT; keep BankID + contract state so signicat-document still works after JWT expiry. */
+  const clearExpiredJwtLocalState = () => {
+    localStorage.removeItem(STORAGE_KEYS.jwtToken);
+    localStorage.removeItem(STORAGE_KEYS.jwtExpiresAt);
+  };
+
+  const clearExpiredJwtOnServer = async () => {
+    try {
+      const verificationId = localStorage.getItem(STORAGE_KEYS.verificationRowId);
+      const sessionId = localStorage.getItem(STORAGE_KEYS.bankIdSessionId);
+      const verificationClient = supabase as any;
+      await verificationClient.functions.invoke("bankid-verification-token", {
+        body: {
+          action: "cleanup_expired_jwt",
+          verificationId: verificationId || null,
+          sessionId: sessionId || null,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to clear expired JWT in bankid_verifications:", error);
+    }
+  };
 
   const form = useForm<CustomerData>({
     defaultValues: {
@@ -80,9 +139,6 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       address: initialData?.address || "",
       postalCode: initialData?.postalCode || "",
       city: initialData?.city || HIDDEN_CUSTOMER_DEFAULTS.city,
-      dateOfBirth: initialData?.dateOfBirth
-        ? new Date(initialData.dateOfBirth)
-        : new Date(HIDDEN_CUSTOMER_DEFAULTS.dateOfBirth),
       driverLicenseNumber: initialData?.driverLicenseNumber || "",
       driverLicenseFile: initialData?.driverLicenseFile,
     },
@@ -99,9 +155,6 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
         address: initialData.address || "",
         postalCode: initialData.postalCode || "",
         city: initialData.city || HIDDEN_CUSTOMER_DEFAULTS.city,
-        dateOfBirth: initialData.dateOfBirth
-          ? new Date(initialData.dateOfBirth)
-          : new Date(HIDDEN_CUSTOMER_DEFAULTS.dateOfBirth),
         driverLicenseNumber: initialData.driverLicenseNumber || "",
         driverLicenseFile: initialData.driverLicenseFile,
       });
@@ -111,47 +164,6 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       }
     }
   }, [initialData, form]);
-
-  useEffect(() => {
-    try {
-      const verified = localStorage.getItem(STORAGE_KEYS.bankIdVerified) === "true";
-      const status = (localStorage.getItem(STORAGE_KEYS.bankIdStatus) ??
-        (verified ? "success" : "idle")) as
-        | "idle"
-        | "pending"
-        | "success"
-        | "failed"
-        | "aborted";
-      const error = localStorage.getItem(STORAGE_KEYS.bankIdError) ?? "";
-      const userRaw = localStorage.getItem(STORAGE_KEYS.bankIdUserData);
-      const user = userRaw ? (JSON.parse(userRaw) as UserData) : null;
-
-      setBankIdVerified(verified);
-      setBankIdStatus(status);
-      setBankIdError(error);
-      setBankIdUser(user);
-
-      const savedContractStatus = localStorage.getItem(STORAGE_KEYS.contractStatus);
-      const savedDocumentId = localStorage.getItem(STORAGE_KEYS.contractDocumentId);
-      const savedSessionId = localStorage.getItem(STORAGE_KEYS.contractSessionId);
-      const savedSigningUrl = localStorage.getItem(STORAGE_KEYS.contractSigningUrl);
-      const savedFileUrl = localStorage.getItem(STORAGE_KEYS.contractFileUrl);
-      const savedSignedAt = localStorage.getItem(STORAGE_KEYS.contractSignedAt);
-      const savedContractError = localStorage.getItem(STORAGE_KEYS.contractError) ?? "";
-
-      if (savedContractStatus === "signed" || savedContractStatus === "existing") {
-        setContractStatus(savedContractStatus);
-      }
-      if (savedDocumentId) setContractDocumentId(savedDocumentId);
-      if (savedSessionId) setContractSessionId(savedSessionId);
-      if (savedSigningUrl) setContractSigningUrl(savedSigningUrl);
-      if (savedFileUrl) setContractFileUrl(savedFileUrl);
-      if (savedSignedAt) setContractSignedAt(savedSignedAt);
-      if (savedContractError) setContractError(savedContractError);
-    } catch (error) {
-      console.error("Failed to restore BankID/contract state:", error);
-    }
-  }, []);
 
   useEffect(() => {
     if (!bankIdVerified || !bankIdUser) return;
@@ -170,6 +182,195 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
     }
   }, [bankIdVerified, bankIdUser, form]);
 
+  const applyVerificationContractFromServer = (data: {
+    verificationId?: string | null;
+    contractStatus?: boolean;
+    contractSignedAt?: string | null;
+    contractFilePath?: string | null;
+  }) => {
+    const signed = Boolean(data?.contractStatus);
+    setServerContractSigned(signed);
+    localStorage.setItem(STORAGE_KEYS.bankContractStatus, signed ? "true" : "false");
+
+    if (data?.verificationId) {
+      localStorage.setItem(STORAGE_KEYS.verificationRowId, String(data.verificationId));
+    }
+
+    if (signed) {
+      if (data?.contractFilePath) {
+        const path = String(data.contractFilePath);
+        setContractFileUrl(path);
+        localStorage.setItem(STORAGE_KEYS.contractFileUrl, path);
+        const parsed = parseSignicatDocumentUrl(path);
+        if (parsed.documentId) {
+          setContractDocumentId(parsed.documentId);
+          localStorage.setItem(STORAGE_KEYS.contractDocumentId, parsed.documentId);
+        }
+        if (parsed.sessionId) {
+          setContractSessionId(parsed.sessionId);
+          localStorage.setItem(STORAGE_KEYS.contractSessionId, parsed.sessionId);
+        }
+      }
+      if (data?.contractSignedAt) {
+        const at = String(data.contractSignedAt);
+        setContractSignedAt(at);
+        localStorage.setItem(STORAGE_KEYS.contractSignedAt, at);
+      }
+      setContractStatus("existing");
+      localStorage.setItem(STORAGE_KEYS.contractStatus, "existing");
+    } else {
+      setContractStatus((prev) => {
+        if (prev === "pending") return prev;
+        localStorage.removeItem(STORAGE_KEYS.contractStatus);
+        localStorage.removeItem(STORAGE_KEYS.contractSignedAt);
+        localStorage.removeItem(STORAGE_KEYS.contractFileUrl);
+        window.setTimeout(() => {
+          setContractSignedAt(null);
+          setContractFileUrl(null);
+        }, 0);
+        return "idle";
+      });
+    }
+  };
+
+  const syncVerificationFromServer = useCallback(async (): Promise<boolean | null> => {
+    const verified = localStorage.getItem(STORAGE_KEYS.bankIdVerified) === "true";
+    if (!verified) {
+      setServerContractSigned(null);
+      return null;
+    }
+
+    let nin: string | null = bankIdUser?.nin ?? null;
+    if (!nin) {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.bankIdUserData);
+        if (raw) nin = (JSON.parse(raw) as UserData)?.nin ?? null;
+      } catch {
+        nin = null;
+      }
+    }
+
+    const verificationId = localStorage.getItem(STORAGE_KEYS.verificationRowId);
+    const sessionId = localStorage.getItem(STORAGE_KEYS.bankIdSessionId);
+
+    if (!nin && !verificationId && !sessionId) {
+      setServerContractSigned(false);
+      localStorage.setItem(STORAGE_KEYS.bankContractStatus, "false");
+      return false;
+    }
+
+    try {
+      const client = supabase as any;
+      const { data, error } = await client.functions.invoke("bankid-verification-token", {
+        body: {
+          action: "sync_verification_state",
+          nin,
+          verificationId,
+          sessionId,
+        },
+      });
+      if (error) {
+        console.error("sync_verification_state failed:", error);
+        setServerContractSigned(false);
+        localStorage.setItem(STORAGE_KEYS.bankContractStatus, "false");
+        return false;
+      }
+      applyVerificationContractFromServer(data ?? {});
+      return Boolean(data?.contractStatus);
+    } catch (e) {
+      console.error("sync_verification_state:", e);
+      setServerContractSigned(false);
+      localStorage.setItem(STORAGE_KEYS.bankContractStatus, "false");
+      return false;
+    }
+  }, [bankIdUser?.nin]);
+
+  useEffect(() => {
+    try {
+      const hasJwtExpired = () => {
+        const jwtExpiryRaw = localStorage.getItem(STORAGE_KEYS.jwtExpiresAt);
+        return Boolean(jwtExpiryRaw && new Date(jwtExpiryRaw).getTime() <= Date.now());
+      };
+
+      if (hasJwtExpired()) {
+        void clearExpiredJwtOnServer();
+        clearExpiredJwtLocalState();
+      }
+
+      const verified = localStorage.getItem(STORAGE_KEYS.bankIdVerified) === "true";
+      const status = (localStorage.getItem(STORAGE_KEYS.bankIdStatus) ??
+        (verified ? "success" : "idle")) as
+        | "idle"
+        | "pending"
+        | "success"
+        | "failed"
+        | "aborted";
+      const error = localStorage.getItem(STORAGE_KEYS.bankIdError) ?? "";
+      const userRaw = localStorage.getItem(STORAGE_KEYS.bankIdUserData);
+      const user = userRaw ? (JSON.parse(userRaw) as UserData) : null;
+
+      setBankIdVerified(verified);
+      setBankIdStatus(status);
+      setBankIdError(error);
+      setBankIdUser(user);
+
+      const savedContractStatus = localStorage.getItem(STORAGE_KEYS.contractStatus);
+      let savedDocumentId = localStorage.getItem(STORAGE_KEYS.contractDocumentId);
+      let savedSessionId = localStorage.getItem(STORAGE_KEYS.contractSessionId);
+      const savedSigningUrl = localStorage.getItem(STORAGE_KEYS.contractSigningUrl);
+      const savedFileUrl = localStorage.getItem(STORAGE_KEYS.contractFileUrl);
+      const savedSignedAt = localStorage.getItem(STORAGE_KEYS.contractSignedAt);
+      const savedContractError = localStorage.getItem(STORAGE_KEYS.contractError) ?? "";
+
+      if ((!savedDocumentId || !savedSessionId) && savedFileUrl) {
+        const parsed = parseSignicatDocumentUrl(savedFileUrl);
+        if (!savedDocumentId && parsed.documentId) {
+          savedDocumentId = parsed.documentId;
+          localStorage.setItem(STORAGE_KEYS.contractDocumentId, parsed.documentId);
+        }
+        if (!savedSessionId && parsed.sessionId) {
+          savedSessionId = parsed.sessionId;
+          localStorage.setItem(STORAGE_KEYS.contractSessionId, parsed.sessionId);
+        }
+      }
+
+      if (
+        savedContractStatus === "signed" ||
+        savedContractStatus === "existing" ||
+        savedContractStatus === "failed" ||
+        savedContractStatus === "pending"
+      ) {
+        setContractStatus(savedContractStatus);
+      }
+      if (savedDocumentId) setContractDocumentId(savedDocumentId);
+      if (savedSessionId) setContractSessionId(savedSessionId);
+      if (savedSigningUrl) setContractSigningUrl(savedSigningUrl);
+      if (savedFileUrl) setContractFileUrl(savedFileUrl);
+      if (savedSignedAt) setContractSignedAt(savedSignedAt);
+      if (savedContractError) setContractError(savedContractError);
+
+      const expiryWatcher = window.setInterval(() => {
+        setJwtUiTick((t) => t + 1);
+        if (hasJwtExpired()) {
+          void clearExpiredJwtOnServer();
+          clearExpiredJwtLocalState();
+          void syncVerificationFromServer();
+        }
+      }, 30000);
+      return () => window.clearInterval(expiryWatcher);
+    } catch (error) {
+      console.error("Failed to restore BankID/contract state:", error);
+    }
+  }, [syncVerificationFromServer]);
+
+  useEffect(() => {
+    if (!bankIdVerified) {
+      setServerContractSigned(null);
+      return;
+    }
+    void syncVerificationFromServer();
+  }, [bankIdVerified, bankIdUser?.nin, syncVerificationFromServer]);
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("no-NO", {
       style: "currency",
@@ -179,62 +380,74 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
   };
 
   const watchedEmail = form.watch("email");
-  const hasSignedContractLocally =
-    ["signed", "existing"].includes(contractStatus) ||
-    Boolean(
-      contractSignedAt ||
-      localStorage.getItem(STORAGE_KEYS.contractSignedAt) ||
-      contractFileUrl ||
-      localStorage.getItem(STORAGE_KEYS.contractFileUrl)
-    );
+  void jwtUiTick;
+  const bankIdReauthNeeded = bankIdVerified && isJwtMissingOrExpired();
+  const pdfActionsAllowed =
+    serverContractSigned === true && Boolean(contractDocumentId || contractFileUrl);
 
   const updateBankIdVerificationContractState = async (payload: {
     contract_status: boolean;
     contract_signed_at?: string | null;
     contract_file_path?: string | null;
   }) => {
+    const userRaw = localStorage.getItem(STORAGE_KEYS.bankIdUserData);
+    const user = userRaw ? (JSON.parse(userRaw) as UserData) : null;
+    const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim();
     const verificationClient = supabase as any;
-    const candidates: Array<{ column: string; value: string | null }> = [
-      { column: "session_id", value: localStorage.getItem(STORAGE_KEYS.bankIdSessionId) },
-      { column: "signicat_session_id", value: localStorage.getItem(STORAGE_KEYS.signicatSessionId) },
-      { column: "external_reference", value: localStorage.getItem(STORAGE_KEYS.signicatExternalReference) },
-      { column: "email", value: form.getValues("email") || null },
-    ];
-
-    for (const candidate of candidates) {
-      if (!candidate.value) continue;
-      try {
-        const { error } = await verificationClient
-          .from("bankid_verification")
-          .update(payload)
-          .eq(candidate.column, candidate.value);
-        if (!error) return;
-      } catch {
-        // Try next candidate mapping.
+    const { data, error } = await verificationClient.functions.invoke(
+      "bankid-verification-contract",
+      {
+        body: {
+          verificationId: localStorage.getItem(STORAGE_KEYS.verificationRowId),
+          sessionId: localStorage.getItem(STORAGE_KEYS.bankIdSessionId),
+          nbidSid: localStorage.getItem(STORAGE_KEYS.signicatSessionId),
+          nin: user?.nin || null,
+          provider: "nbid",
+          name: fullName || null,
+          contractStatus: payload.contract_status,
+          contractSignedAt: payload.contract_signed_at ?? null,
+          contractFilePath: payload.contract_file_path ?? null,
+        },
       }
+    );
+
+    if (error) {
+      console.error("Failed to persist contract state in bankid_verifications:", error);
+      return;
+    }
+
+    if (data?.verificationId) {
+      localStorage.setItem(STORAGE_KEYS.verificationRowId, data.verificationId);
+    }
+    if (payload.contract_status) {
+      void syncVerificationFromServer();
     }
   };
 
   useEffect(() => {
-    if (!watchedEmail || contractStatus === "signed" || contractStatus === "existing") return;
+    if (!watchedEmail || serverContractSigned === true) return;
 
     const timer = setTimeout(async () => {
       try {
         setIsCheckingContract(true);
         const verificationClient = supabase as any;
+        const lookupSessionId =
+          localStorage.getItem(STORAGE_KEYS.bankIdSessionId) ||
+          localStorage.getItem(STORAGE_KEYS.signicatSessionId);
         const { data: verificationData } = await verificationClient
-          .from("bankid_verification")
+          .from("bankid_verifications")
           .select("contract_status, contract_signed_at, contract_file_path")
-          .eq("email", watchedEmail)
+          .eq(lookupSessionId ? "session_id" : "nin", lookupSessionId || bankIdUser?.nin || "")
           .eq("contract_status", true)
-          .not("contract_signed_at", "is", null)
-          .order("contract_signed_at", { ascending: false })
+          .order("verified_at", { ascending: false })
           .limit(1);
 
         if (verificationData && verificationData.length > 0) {
           const row = verificationData[0] as { contract_signed_at: string | null; contract_file_path: string | null };
           const signedAt = row.contract_signed_at ?? new Date().toISOString();
           setContractStatus("existing");
+          setServerContractSigned(true);
+          localStorage.setItem(STORAGE_KEYS.bankContractStatus, "true");
           setContractSignedAt(signedAt);
           setContractFileUrl(row.contract_file_path);
           localStorage.setItem(STORAGE_KEYS.contractStatus, "existing");
@@ -258,6 +471,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
           const row = data[0] as { contract_signed_at: string | null; contract_file_path: string | null };
           const signedAt = row.contract_signed_at ?? new Date().toISOString();
           setContractStatus("existing");
+          setServerContractSigned(true);
+          localStorage.setItem(STORAGE_KEYS.bankContractStatus, "true");
           setContractSignedAt(signedAt);
           setContractFileUrl(row.contract_file_path);
           localStorage.setItem(STORAGE_KEYS.contractStatus, "existing");
@@ -274,7 +489,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [watchedEmail, contractStatus]);
+  }, [watchedEmail, serverContractSigned, bankIdUser?.nin]);
 
   const handleBankIDLogin = async () => {
     try {
@@ -286,13 +501,15 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
           step: 2,
           bookingData: {
             ...bookingData,
-            startDateTime: bookingData.startDateTime.toISOString(),
-            endDateTime: bookingData.endDateTime.toISOString(),
+            startDateTime: toSafeISOString(bookingData.startDateTime, new Date()),
+            endDateTime: toSafeISOString(
+              bookingData.endDateTime,
+              new Date(Date.now() + 60 * 60 * 1000)
+            ),
           },
           customerData: {
             ...form.getValues(),
             driverLicenseFile: undefined,
-            dateOfBirth: form.getValues("dateOfBirth").toISOString(),
           },
         })
       );
@@ -301,13 +518,16 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       setBankIdError("");
       await initiateLogin();
     } catch (error) {
-      const message = "Kunne ikke starte BankID-innlogging. Prøv igjen.";
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Could not start BankID login. Please try again.";
       setBankIdStatus("failed");
       setBankIdError(message);
       localStorage.setItem(STORAGE_KEYS.bankIdStatus, "failed");
       localStorage.setItem(STORAGE_KEYS.bankIdError, message);
       toast({
-        title: "Feil",
+        title: "BankID error",
         description: message,
         variant: "destructive",
       });
@@ -316,6 +536,15 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
 
   const handleCreateContract = async () => {
     try {
+      const preSync = await syncVerificationFromServer();
+      if (preSync === true) {
+        toast({
+          title: "Kontrakt allerede signert",
+          description: "Bruk «Vis PDF» / «Last ned PDF» nedenfor.",
+        });
+        return;
+      }
+
       setIsStartingContract(true);
       setContractStatus("pending");
       setContractError("");
@@ -335,14 +564,16 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
           step: 2,
           bookingData: {
             ...bookingData,
-            startDateTime: bookingData.startDateTime.toISOString(),
-            endDateTime: bookingData.endDateTime.toISOString(),
+            startDateTime: toSafeISOString(bookingData.startDateTime, new Date()),
+            endDateTime: toSafeISOString(
+              bookingData.endDateTime,
+              new Date(Date.now() + 60 * 60 * 1000)
+            ),
           },
           customerData: {
             ...form.getValues(),
-            driverLicenseFile: undefined,
-            dateOfBirth: form.getValues("dateOfBirth").toISOString(),
-          },
+            driverLicenseFile: undefined
+                    },
         })
       );
 
@@ -425,7 +656,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       if (isSigned) {
         const signedAt = status.signedAt ?? new Date().toISOString();
         const previewUrl = contractDocumentId
-          ? getContractDocumentPreviewUrl(contractDocumentId, "pdf")
+          ? getContractDocumentPreviewUrl(contractDocumentId, "pdf", contractSessionId)
           : null;
         setContractStatus("signed");
         setContractSignedAt(signedAt);
@@ -473,17 +704,25 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
     }
   };
 
-  const fetchSignedDocumentBlob = async (type: "pdf" | "xml" = "pdf"): Promise<Blob> => {
-    if (!contractDocumentId) {
+  const fetchSignedDocumentBlob = async (
+    type: "pdf" | "xml" = "pdf",
+    overrides?: { documentId?: string | null; sessionId?: string | null }
+  ): Promise<Blob> => {
+    const parsed = parseSignicatDocumentUrl(contractFileUrl);
+    const documentId =
+      overrides?.documentId ?? contractDocumentId ?? parsed.documentId ?? null;
+    const sessionId = overrides?.sessionId ?? contractSessionId ?? parsed.sessionId ?? null;
+
+    if (!documentId) {
       throw new Error("Mangler dokument-ID for kontrakt.");
     }
 
     const params = new URLSearchParams({
-      documentId: contractDocumentId,
+      documentId,
       type,
     });
-    if (contractSessionId) {
-      params.set("sessionId", contractSessionId);
+    if (sessionId) {
+      params.set("sessionId", sessionId);
     }
 
     const response = await fetch(
@@ -513,10 +752,38 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
 
   const handlePreviewSignedDocument = async () => {
     try {
-      const blob = await fetchSignedDocumentBlob("pdf");
-      const objectUrl = URL.createObjectURL(blob);
-      window.open(objectUrl, "_blank", "noopener,noreferrer");
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      let allowed = serverContractSigned === true;
+      if (!allowed) {
+        const synced = await syncVerificationFromServer();
+        allowed = synced === true;
+      }
+      if (!allowed) {
+        toast({
+          title: "Kontrakt ikke signert",
+          description: "Kontrakten er ikke registrert som signert i systemet.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const parsed = parseSignicatDocumentUrl(contractFileUrl);
+      const documentId = contractDocumentId || parsed.documentId;
+      const sessionId = contractSessionId || parsed.sessionId;
+
+      if (documentId) {
+        const blob = await fetchSignedDocumentBlob("pdf", { documentId, sessionId });
+        const objectUrl = URL.createObjectURL(blob);
+        window.open(objectUrl, "_blank", "noopener,noreferrer");
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+        return;
+      }
+
+      if (contractFileUrl && !contractFileUrl.includes("blob:")) {
+        window.open(contractFileUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      throw new Error("Mangler dokument-ID for kontrakt.");
     } catch (error) {
       toast({
         title: "Kunne ikke vise PDF",
@@ -528,15 +795,48 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
 
   const handleDownloadSignedDocument = async () => {
     try {
-      const blob = await fetchSignedDocumentBlob("pdf");
-      const objectUrl = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = objectUrl;
-      anchor.download = "signed-contract.pdf";
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      let allowed = serverContractSigned === true;
+      if (!allowed) {
+        const synced = await syncVerificationFromServer();
+        allowed = synced === true;
+      }
+      if (!allowed) {
+        toast({
+          title: "Kontrakt ikke signert",
+          description: "Kontrakten er ikke registrert som signert i systemet.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const parsed = parseSignicatDocumentUrl(contractFileUrl);
+      const documentId = contractDocumentId || parsed.documentId;
+      const sessionId = contractSessionId || parsed.sessionId;
+
+      if (documentId) {
+        const blob = await fetchSignedDocumentBlob("pdf", { documentId, sessionId });
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = "signed-contract.pdf";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+        return;
+      }
+
+      if (contractFileUrl && !contractFileUrl.includes("blob:")) {
+        const anchor = document.createElement("a");
+        anchor.href = contractFileUrl;
+        anchor.download = "signed-contract.pdf";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        return;
+      }
+
+      throw new Error("Mangler dokument-ID for kontrakt.");
     } catch (error) {
       toast({
         title: "Kunne ikke laste ned PDF",
@@ -586,18 +886,28 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
 
     const provisionalDocumentId =
       contractDocumentId || localStorage.getItem(STORAGE_KEYS.contractDocumentId);
+    const provisionalSessionId =
+      contractSessionId || localStorage.getItem(STORAGE_KEYS.contractSessionId);
     const provisionalSignedAt =
       contractSignedAt || localStorage.getItem(STORAGE_KEYS.contractSignedAt) || new Date().toISOString();
     const provisionalFileUrl = provisionalDocumentId
-      ? getContractDocumentPreviewUrl(provisionalDocumentId, "pdf")
+      ? getContractDocumentPreviewUrl(provisionalDocumentId, "pdf", provisionalSessionId)
       : null;
 
     setContractSignedAt(provisionalSignedAt);
+    setContractStatus("signed");
+    localStorage.setItem(STORAGE_KEYS.contractStatus, "signed");
     localStorage.setItem(STORAGE_KEYS.contractSignedAt, provisionalSignedAt);
     if (provisionalFileUrl) {
       setContractFileUrl(provisionalFileUrl);
       localStorage.setItem(STORAGE_KEYS.contractFileUrl, provisionalFileUrl);
     }
+    // Mark contract as signed immediately on successful Signicat redirect.
+    void updateBankIdVerificationContractState({
+      contract_status: true,
+      contract_signed_at: provisionalSignedAt,
+      contract_file_path: provisionalFileUrl,
+    });
 
     const trackingId =
       contractSessionId ||
@@ -621,8 +931,10 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
             const signedAt = status.signedAt ?? new Date().toISOString();
             const currentDocumentId =
               contractDocumentId || localStorage.getItem(STORAGE_KEYS.contractDocumentId);
+            const currentSessionId =
+              contractSessionId || localStorage.getItem(STORAGE_KEYS.contractSessionId);
             const previewUrl = currentDocumentId
-              ? getContractDocumentPreviewUrl(currentDocumentId, "pdf")
+              ? getContractDocumentPreviewUrl(currentDocumentId, "pdf", currentSessionId)
               : null;
             setContractStatus("signed");
             setContractSignedAt(signedAt);
@@ -655,15 +967,9 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Kunne ikke hente kontraktstatus etter retur.";
-        setContractStatus("failed");
+        // Keep signed state from callback; polling can fail transiently.
         setContractError(message);
-        localStorage.setItem(STORAGE_KEYS.contractStatus, "failed");
         localStorage.setItem(STORAGE_KEYS.contractError, message);
-        await updateBankIdVerificationContractState({
-          contract_status: false,
-          contract_signed_at: null,
-          contract_file_path: null,
-        });
       } finally {
         setIsCheckingContract(false);
         clearContractQueryParams();
@@ -783,43 +1089,18 @@ const uploadLicense = async (): Promise<string | null> => {
         return;
       }
 
-      if (!hasSignedContractLocally) {
-        const verificationClient = supabase as any;
-        const { data: verificationRows } = await verificationClient
-          .from("bankid_verification")
-          .select("contract_status, contract_signed_at, contract_file_path")
-          .eq("email", form.getValues("email"))
-          .order("updated_at", { ascending: false })
-          .limit(1);
-
-        const verificationRow = verificationRows?.[0] as
-          | { contract_status?: boolean; contract_signed_at?: string | null; contract_file_path?: string | null }
-          | undefined;
-
-        const verifiedAsSigned = Boolean(
-          verificationRow?.contract_status &&
-          (verificationRow?.contract_signed_at || verificationRow?.contract_file_path)
-        );
-
-        if (verifiedAsSigned) {
-          const signedAt = verificationRow?.contract_signed_at ?? new Date().toISOString();
-          const filePath = verificationRow?.contract_file_path ?? contractFileUrl ?? null;
-          setContractStatus("signed");
-          setContractSignedAt(signedAt);
-          setContractFileUrl(filePath);
-          localStorage.setItem(STORAGE_KEYS.contractStatus, "signed");
-          localStorage.setItem(STORAGE_KEYS.contractSignedAt, signedAt);
-          if (filePath) {
-            localStorage.setItem(STORAGE_KEYS.contractFileUrl, filePath);
-          }
-        } else {
-          toast({
-            title: "Kontrakt kreves",
-            description: "Signer kontrakten før du går videre til neste steg.",
-            variant: "destructive",
-          });
-          return;
-        }
+      let contractOk = serverContractSigned === true;
+      if (!contractOk) {
+        const synced = await syncVerificationFromServer();
+        contractOk = synced === true;
+      }
+      if (!contractOk) {
+        toast({
+          title: "Kontrakt kreves",
+          description: "Signer kontrakten før du går videre til neste steg.",
+          variant: "destructive",
+        });
+        return;
       }
 
       if (!licenseFile) {
@@ -847,9 +1128,6 @@ const uploadLicense = async (): Promise<string | null> => {
         fullName: data.fullName || HIDDEN_CUSTOMER_DEFAULTS.fullName,
         phone: data.phone || HIDDEN_CUSTOMER_DEFAULTS.phone,
         city: initialData?.city || HIDDEN_CUSTOMER_DEFAULTS.city,
-        dateOfBirth: initialData?.dateOfBirth
-          ? new Date(initialData.dateOfBirth)
-          : new Date(HIDDEN_CUSTOMER_DEFAULTS.dateOfBirth),
         driverLicenseFile: licenseUrl,
         bankIdVerifiedAt:
           localStorage.getItem(STORAGE_KEYS.bankIdVerifiedAt) ?? new Date().toISOString(),
@@ -950,7 +1228,7 @@ const uploadLicense = async (): Promise<string | null> => {
           <button
             type="button"
             onClick={handleBankIDLogin}
-            disabled={bankIdVerified || isBankIDPending}
+            disabled={isBankIDPending || (bankIdVerified && !bankIdReauthNeeded)}
             className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-[#4e1f67] bg-gradient-to-r from-[#39134C] to-[#4A1A60] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(57,19,76,0.35)] transition-all hover:from-[#470D70] hover:to-[#5a1d7a] focus:outline-none focus:ring-2 focus:ring-[#6d2b8f]/60 focus:ring-offset-2 focus:ring-offset-[#232e33] disabled:cursor-not-allowed disabled:opacity-60 active:translate-y-[1px]"
           >
             {isBankIDPending || bankIdStatus === "pending" ? (
@@ -958,19 +1236,29 @@ const uploadLicense = async (): Promise<string | null> => {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Starter BankID ...
               </>
-            ) : bankIdVerified ? (
+            ) : bankIdVerified && !bankIdReauthNeeded ? (
               <>
                 <CheckCircle className="h-4 w-4" />
                 BankID bekreftet
+              </>
+            ) : bankIdVerified && bankIdReauthNeeded ? (
+              <>
+                <CheckCircle className="h-4 w-4" />
+                Forny BankID (JWT utløpt)
               </>
             ) : (
               "Login with BankID"
             )}
           </button>
 
-          {bankIdVerified && (
+          {bankIdVerified && !bankIdReauthNeeded && (
             <div className="rounded-md border border-emerald-300/30 bg-emerald-100/95 px-3 py-1.5 text-center text-sm font-semibold text-emerald-800">
               BankID er verifisert
+            </div>
+          )}
+          {bankIdVerified && bankIdReauthNeeded && (
+            <div className="rounded-md border border-amber-300/40 bg-amber-500/15 px-3 py-1.5 text-center text-xs font-medium text-amber-100">
+              Innloggingstoken har utløpt. Trykk knappen over for å bekrefte BankID på nytt.
             </div>
           )}
           {!bankIdVerified && bankIdStatus === "failed" && (
@@ -1002,8 +1290,8 @@ const uploadLicense = async (): Promise<string | null> => {
               onClick={handleCreateContract}
               disabled={
                 !bankIdVerified ||
-                contractStatus === "signed" ||
-                contractStatus === "existing" ||
+                serverContractSigned === true ||
+                serverContractSigned === null ||
                 isCheckingContract ||
                 isStartingContract
               }
@@ -1018,7 +1306,7 @@ const uploadLicense = async (): Promise<string | null> => {
                 "Start kontrakt"
               )}
             </Button>
-            {contractDocumentId && (
+            {pdfActionsAllowed && (
               <>
                 <Button
                   type="button"
@@ -1040,7 +1328,7 @@ const uploadLicense = async (): Promise<string | null> => {
             )}
           </div>
 
-          {(contractStatus === "signed" || contractStatus === "existing") && (
+          {serverContractSigned === true && (
             <div className="rounded-md border border-emerald-300/30 bg-emerald-100/95 px-3 py-1.5 text-center text-sm font-semibold text-emerald-800">
               {contractStatus === "existing"
                 ? "Tidligere signert kontrakt funnet - ny signering er ikke nødvendig."

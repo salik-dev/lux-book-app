@@ -4,6 +4,7 @@ import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { useSession } from "@/hooks/use-signicat-auth";
 import { extractUserData } from "@/api/signicat";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 const STORAGE_KEYS = {
   verified: "bankid_verified",
@@ -14,6 +15,13 @@ const STORAGE_KEYS = {
   pendingSessionId: "bankid_pending_session_id",
   accessToken: "signicat_access_token",
   userData: "signicat_user_data",
+  jwtToken: "bankid_jwt_access_token",
+  jwtExpiresAt: "bankid_jwt_expires_at",
+  verificationRowId: "bankid_verification_row_id",
+  contractStatus: "bankid_contract_status",
+  contractFileUrl: "bankid_contract_file_url",
+  contractSignedAt: "bankid_contract_signed_at",
+  bankContractStatus: "bank_contract_status",
 } as const;
 
 export default function AuthSuccessPage() {
@@ -64,6 +72,73 @@ export default function AuthSuccessPage() {
       if (extractedUser) {
         localStorage.setItem(STORAGE_KEYS.userData, JSON.stringify(extractedUser));
       }
+
+      const persistVerification = async () => {
+        const verificationClient = supabase as any;
+        const resolvedSessionId = data.id || sessionId || null;
+        if (!resolvedSessionId) return;
+
+        const fullName = [extractedUser?.firstName, extractedUser?.lastName]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+        const birthDate = extractedUser?.dateOfBirth
+          ? extractedUser.dateOfBirth.slice(0, 10)
+          : null;
+
+        const { data: serverData, error: tokenError } = await verificationClient.functions.invoke(
+          "bankid-verification-token",
+          {
+            body: {
+              sessionId: resolvedSessionId,
+              provider: data.provider || "nbid",
+              subjectId: data.subject?.id || null,
+              nin: extractedUser?.nin || null,
+              name: fullName || null,
+              birthDate,
+              authLevel: data.authLevel || null,
+              nbidSid: data.sid || null,
+              bankidAccessToken: data.access_token || null,
+              raw: data,
+              email: extractedUser?.email || null,
+            },
+          }
+        );
+
+        if (tokenError) {
+          console.error("Failed to persist bankid verification on server:", tokenError);
+          return;
+        }
+
+        if (serverData?.verificationId) {
+          localStorage.setItem(STORAGE_KEYS.verificationRowId, serverData.verificationId);
+        }
+        if (serverData?.jwtAccessToken) {
+          localStorage.setItem(STORAGE_KEYS.jwtToken, serverData.jwtAccessToken);
+        }
+        if (serverData?.expiresAt) {
+          localStorage.setItem(STORAGE_KEYS.jwtExpiresAt, serverData.expiresAt);
+        }
+
+        const contractIsSigned = Boolean(serverData?.contractStatus);
+        if (contractIsSigned) {
+          localStorage.setItem(STORAGE_KEYS.contractStatus, "existing");
+          localStorage.setItem(STORAGE_KEYS.bankContractStatus, "true");
+          if (serverData?.contractFilePath) {
+            localStorage.setItem(STORAGE_KEYS.contractFileUrl, String(serverData.contractFilePath));
+          }
+          if (serverData?.contractSignedAt) {
+            localStorage.setItem(STORAGE_KEYS.contractSignedAt, String(serverData.contractSignedAt));
+          }
+        } else {
+          localStorage.removeItem(STORAGE_KEYS.contractStatus);
+          localStorage.removeItem(STORAGE_KEYS.contractFileUrl);
+          localStorage.removeItem(STORAGE_KEYS.contractSignedAt);
+          localStorage.setItem(STORAGE_KEYS.bankContractStatus, "false");
+        }
+      };
+
+      void persistVerification();
     } catch (storageError) {
       console.error("Failed to persist BankID session data:", storageError);
     }

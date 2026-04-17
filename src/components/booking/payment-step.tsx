@@ -50,6 +50,35 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
   );
   const contractReady = localStorage.getItem('signicat_access_token') !== null && localStorage.getItem('bankid_contract_document_id') !== null;
 
+  const linkCustomerToBankIdVerification = async (resolvedCustomerId: string) => {
+    if (!resolvedCustomerId) return;
+
+    try {
+      const verificationClient = supabase as any;
+      const sessionId = localStorage.getItem("bankid_session_id");
+      const nbidSid = localStorage.getItem("signicat_session_id");
+      const userRaw = localStorage.getItem("signicat_user_data");
+      const nin = userRaw ? JSON.parse(userRaw)?.nin ?? null : null;
+
+      const candidates: Array<{ column: string; value: string | null }> = [
+        { column: "session_id", value: sessionId },
+        { column: "nbid_sid", value: nbidSid },
+        { column: "nin", value: nin },
+      ];
+
+      for (const candidate of candidates) {
+        if (!candidate.value) continue;
+        await verificationClient
+          .from("bankid_verifications")
+          .update({ customer_id: resolvedCustomerId })
+          .eq(candidate.column, candidate.value);
+      }
+    } catch (error) {
+      // Non-blocking: booking/payment should continue even if linkage update fails.
+      console.error("Failed to link customer_id to bankid_verifications:", error);
+    }
+  };
+
   const handlePayment = async (method: "stripe" | "vipps") => {
     setIsProcessing(true);
     setPaymentMethod(method);
@@ -78,7 +107,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
               address: customerData.address,
               postal_code: customerData.postalCode,
               city: customerData.city,
-              date_of_birth: format(customerData.dateOfBirth, 'yyyy-MM-dd'),
               driver_license_number: customerData.driverLicenseNumber,
               driver_license_file_path: customerData.driverLicenseFile ? String(customerData.driverLicenseFile) : null,
             })
@@ -87,6 +115,10 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
 
           if (customerError) throw customerError;
           customerId = newCustomer.id;
+        }
+
+        if (customerId) {
+          await linkCustomerToBankIdVerification(customerId);
         }
       // }
 

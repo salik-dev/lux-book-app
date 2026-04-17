@@ -16,6 +16,11 @@ const EMAILJS_SERVICE_ID = Deno.env.get("EMAILJS_SERVICE_ID");
 const EMAILJS_TEMPLATE_ID = Deno.env.get("EMAILJS_TEMPLATE_ID");
 const EMAILJS_PUBLIC_KEY = Deno.env.get("EMAILJS_PUBLIC_KEY");
 const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "balisaalik@gmail.com";
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL") ?? "",
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  { auth: { persistSession: false } }
+);
 
 // EmailJS function to send admin notifications
 async function sendAdminNotificationEmail(bookingId: string) {
@@ -150,6 +155,21 @@ serve(async (req)=>{
           .single();
           
         if (payment?.booking_id) {
+          // Mark booking as confirmed when payment is settled.
+          await supabase
+            .from("bookings")
+            .update({ status: "confirmed", updated_at: new Date().toISOString() })
+            .eq("id", payment.booking_id);
+
+          // Send the normal customer confirmation email on successful payment.
+          await supabase.functions.invoke("send-booking-email", {
+            body: {
+              bookingId: payment.booking_id,
+              emailType: "confirmation",
+              language: "en",
+            },
+          });
+
           await sendAdminNotificationEmail(payment.booking_id);
         }
 

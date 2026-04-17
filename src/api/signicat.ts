@@ -8,6 +8,9 @@ export interface LoginResponse {
 export interface SessionResponse {
   id: string;
   status: string;
+  provider?: string;
+  authLevel?: string;
+  sid?: string;
   access_token?: string;
   subject?: {
     id?: string;
@@ -81,11 +84,11 @@ export async function initiateLogin(): Promise<LoginResponse> {
   });
 
   if (error) {
-    throw new Error(toErrorMessage(error, "Kunne ikke starte BankID-innlogging."));
+    throw new Error(toErrorMessage(error, "Could not start BankID login. Please try again."));
   }
 
   if (!data?.authenticationUrl) {
-    throw new Error("Mangler autentiseringslenke fra Signicat.");
+    throw new Error("Missing authentication URL from Signicat.");
   }
 
   return data as LoginResponse;
@@ -154,13 +157,20 @@ export async function getContractStatus(
   return data as ContractStatusResponse;
 }
 
-export function getContractDocumentPreviewUrl(documentId: string, type: "pdf" | "xml" = "pdf"): string {
+export function getContractDocumentPreviewUrl(
+  documentId: string,
+  type: "pdf" | "xml" = "pdf",
+  sessionId?: string | null
+): string {
   if (!documentId) return "";
   const baseUrl = import.meta.env.VITE_SUPABASE_URL as string;
   const params = new URLSearchParams({
     documentId,
     type,
   });
+  if (sessionId) {
+    params.set("sessionId", sessionId);
+  }
   return `${baseUrl}/functions/v1/signicat-document?${params.toString()}`;
 }
 

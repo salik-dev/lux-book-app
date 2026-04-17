@@ -29,7 +29,14 @@ serve(async (req) => {
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) throw new Error("RESEND_API_KEY is not set");
 
-    const { bookingId, emailType, language = 'en' } = await req.json();
+    const {
+      bookingId,
+      emailType,
+      language = 'en',
+      checkoutUrl,
+      adminNotes,
+      adminFullName,
+    } = await req.json();
     logStep("Request received", { bookingId, emailType, language });
 
     const resend = new Resend(resendKey);
@@ -119,6 +126,135 @@ serve(async (req) => {
           
           <div style="background: #f1f5f9; padding: 20px; text-align: center; color: #64748b; font-size: 12px;">
             <p>© 2024 Fjord Fleet. ${language === 'no' ? 'Alle rettigheter reservert.' : 'All rights reserved.'}</p>
+          </div>
+        </div>
+      `;
+    } else if (emailType === 'admin_invoice') {
+      // Invoice-style email for admin-initiated bookings. Includes a direct
+      // Stripe Checkout link so the customer can pay immediately.
+      const isNo = language === 'no';
+      subject = isNo
+        ? `Faktura for din bilutleie - ${booking.booking_number}`
+        : `Invoice for your car rental - ${booking.booking_number}`;
+
+      const durationHours = Math.max(
+        1,
+        Math.round(
+          (new Date(booking.end_datetime).getTime() - new Date(booking.start_datetime).getTime()) /
+            (1000 * 60 * 60)
+        )
+      );
+
+      const lineRow = (label: string, amount: number) => `
+        <tr>
+          <td style="padding: 10px 0; color:#334155;">${label}</td>
+          <td style="padding: 10px 0; text-align:right; color:#334155;">${formatPrice(amount)}</td>
+        </tr>`;
+
+      htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; background:#ffffff;">
+          <div style="background: linear-gradient(135deg, #1e40af, #0ea5e9); padding: 32px 24px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 26px;">Fjord Fleet</h1>
+            <p style="color: white; margin: 8px 0 0 0; opacity: 0.9; font-size:14px;">
+              ${isNo ? 'Luksus bilutleie i Norge' : 'Luxury Car Rental in Norway'}
+            </p>
+          </div>
+
+          <div style="padding: 32px 24px;">
+            <h2 style="color: #1e40af; margin: 0 0 8px 0;">
+              ${isNo ? 'Din bestilling er klar for betaling' : 'Your booking is ready for payment'}
+            </h2>
+            <p style="color:#475569; margin: 0 0 24px 0; line-height:1.5;">
+              ${
+                isNo
+                  ? `Hei ${booking.customer.full_name}, ${
+                      adminFullName ? `${adminFullName} ved Fjord Fleet` : 'vårt team'
+                    } har opprettet en bestilling på dine vegne. Fullfør betalingen nedenfor for å bekrefte bestillingen.`
+                  : `Hi ${booking.customer.full_name}, ${
+                      adminFullName ? `${adminFullName} at Fjord Fleet` : 'our team'
+                    } has created a booking on your behalf. Complete the payment below to confirm your reservation.`
+              }
+            </p>
+
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+              <h3 style="margin: 0 0 12px 0; color: #0f172a;">
+                ${isNo ? 'Bestillingsdetaljer' : 'Booking Details'}
+              </h3>
+              <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                <tbody>
+                  <tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Bestillingsnr.' : 'Booking #'}</td>
+                      <td style="padding:4px 0; text-align:right; font-weight:600;">${booking.booking_number}</td></tr>
+                  <tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Bil' : 'Vehicle'}</td>
+                      <td style="padding:4px 0; text-align:right;">${booking.car.name}</td></tr>
+                  <tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Henting' : 'Pickup'}</td>
+                      <td style="padding:4px 0; text-align:right;">${formatDateTime(booking.start_datetime)}</td></tr>
+                  <tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Retur' : 'Return'}</td>
+                      <td style="padding:4px 0; text-align:right;">${formatDateTime(booking.end_datetime)}</td></tr>
+                  <tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Varighet' : 'Duration'}</td>
+                      <td style="padding:4px 0; text-align:right;">${durationHours} h</td></tr>
+                  <tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Hentested' : 'Pickup location'}</td>
+                      <td style="padding:4px 0; text-align:right;">${booking.pickup_location}</td></tr>
+                  ${booking.delivery_location
+                    ? `<tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Leveringssted' : 'Delivery location'}</td>
+                           <td style="padding:4px 0; text-align:right;">${booking.delivery_location}</td></tr>`
+                    : ''}
+                </tbody>
+              </table>
+            </div>
+
+            <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+              <h3 style="margin: 0 0 12px 0; color: #0f172a;">
+                ${isNo ? 'Faktura' : 'Invoice'}
+              </h3>
+              <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                <tbody>
+                  ${lineRow(isNo ? 'Grunnpris' : 'Base price', Number(booking.base_price))}
+                  ${Number(booking.delivery_fee) > 0
+                    ? lineRow(isNo ? 'Leveringsgebyr' : 'Delivery fee', Number(booking.delivery_fee))
+                    : ''}
+                  ${lineRow(isNo ? 'MVA (25%)' : 'VAT (25%)', Number(booking.vat_amount))}
+                  <tr>
+                    <td style="padding: 12px 0 0 0; border-top:1px solid #e2e8f0; font-weight:700; color:#0f172a;">
+                      ${isNo ? 'Totalt å betale' : 'Total due'}
+                    </td>
+                    <td style="padding: 12px 0 0 0; border-top:1px solid #e2e8f0; text-align:right; font-weight:700; font-size:16px; color:#0f172a;">
+                      ${formatPrice(Number(booking.total_price))}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            ${checkoutUrl
+              ? `<div style="text-align:center; margin: 8px 0 28px 0;">
+                   <a href="${checkoutUrl}"
+                      style="display:inline-block; background:#0ea5e9; color:#ffffff; text-decoration:none;
+                             padding:14px 28px; border-radius:8px; font-weight:600; font-size:16px;">
+                     ${isNo ? 'Betal nå' : 'Pay now'}
+                   </a>
+                   <p style="color:#64748b; font-size:12px; margin-top:10px;">
+                     ${isNo
+                       ? 'Sikker betaling med kort via Stripe. Lenken utløper innen 24 timer.'
+                       : 'Secure card payment via Stripe. This link expires within 24 hours.'}
+                   </p>
+                 </div>`
+              : ''}
+
+            ${adminNotes
+              ? `<div style="background:#fef3c7; border:1px solid #f59e0b; padding:16px; border-radius:8px; margin-bottom:24px;">
+                   <p style="margin:0; color:#92400e; font-size:14px;"><strong>${isNo ? 'Melding fra Fjord Fleet' : 'Note from Fjord Fleet'}:</strong> ${adminNotes}</p>
+                 </div>`
+              : ''}
+
+            <p style="color:#64748b; font-size:12px; text-align:center; margin-top:20px;">
+              ${isNo
+                ? 'Spørsmål? Kontakt oss på support@fjordfleet.no eller +47 123 45 678'
+                : 'Questions? Contact us at support@fjordfleet.no or +47 123 45 678'}
+            </p>
+          </div>
+
+          <div style="background:#f1f5f9; padding:16px; text-align:center; color:#64748b; font-size:12px;">
+            <p style="margin:0;">© ${new Date().getFullYear()} Fjord Fleet. ${isNo ? 'Alle rettigheter reservert.' : 'All rights reserved.'}</p>
           </div>
         </div>
       `;

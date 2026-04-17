@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, Filter, Download, Eye, Edit, Mail, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft } from 'lucide-react';
+import { Search, Filter, Download, Eye, Edit, Mail, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { BookingDetailsDialog } from './BookingDetailsDialog';
+import { AdminBookOnBehalfDialog } from './book-on-behalf/AdminBookOnBehalfDialog';
 
 interface Booking {
   id: string;
@@ -55,6 +56,7 @@ export const BookingsManagement: React.FC = () => {
   const [itemsPerPage] = useState(10);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isBookOnBehalfOpen, setIsBookOnBehalfOpen] = useState(false);
 
   const handleViewDetails = (booking: Booking) => {
     setSelectedBooking(booking);
@@ -226,6 +228,14 @@ export const BookingsManagement: React.FC = () => {
           <CardTitle className="flex items-center justify-between">
             <span>{t('admin.bookings')} Management</span>
             <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => setIsBookOnBehalfOpen(true)}
+                className='rounded-lg bg-[#e3c08d] text-white hover:bg-[#d3b07d] hover:cursor-pointer transition-colors duration-500'
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Book on behalf
+              </Button>
               <Button variant="outline" size="sm" className='rounded-lg border-gray-200 hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500'>
                 <Download className="h-4 w-4 mr-2" />
                 Export
@@ -461,6 +471,12 @@ export const BookingsManagement: React.FC = () => {
         onStatusChange={handleStatusChange}
       />
     )}
+
+    <AdminBookOnBehalfDialog
+      open={isBookOnBehalfOpen}
+      onOpenChange={setIsBookOnBehalfOpen}
+      onBookingCreated={() => loadBookings()}
+    />
     </>
   );
 };

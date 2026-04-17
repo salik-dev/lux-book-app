@@ -89,13 +89,13 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[450px] bg-white p-0 overflow-hidden rounded-md">
-        <div className="p-8">
-          <span className='flex justify-center -mt-6'>
-            <img src={logo} alt="Logo" className='w-34 h-34 mx-auto' />
+      <DialogContent className="top-0 right-0 left-auto h-screen w-full max-w-[440px] translate-x-0 translate-y-0 overflow-y-auto border-l border-[#334047] bg-[#232e33] p-0 text-[#b1bdc3] shadow-2xl data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right data-[state=open]:duration-300 data-[state=closed]:duration-200">
+        <div className="p-4 sm:px-8 sm:pb-0">
+          <span className="flex justify-center">
+            <img src={logo} alt="Logo" className="h-40 w-40 object-contain p-2" />
           </span>
-          <DialogHeader className='-mt-5'>
-            <DialogTitle className="text-2xl font-bold text-center text-gray-900 -mt-2">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="text-center text-2xl font-bold text-[#E3C08D]">
               {isLogin ? 'Welcome Back' : 'Create an Account'}
             </DialogTitle>
           </DialogHeader>
@@ -158,13 +158,13 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                   }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-gray-700">Email <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#d0d9dd]">Email <span className="text-red-400">*</span></FormLabel>
                       <div className="relative mt-1">
-                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9eabb1]" />
                         <Input
                           placeholder="Enter your email"
                           {...field}
-                          className="pl-10 h-9 rounded-md border-gray-300 focus:ring-gray-[1px]"
+                          className="h-9 rounded-md border border-[#46555d] bg-[#1b2529] pl-10 text-[#b1bdc3] placeholder:text-[#7d8a91] focus-visible:ring-1 focus-visible:ring-[#E3C08D]"
                         />
                       </div>
                       <FormMessage className="text-red-500 text-xs mt-1" />
@@ -185,25 +185,25 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                   render={({ field }) => (
                     <FormItem>
                       <div className="flex justify-between items-center">
-                        <FormLabel className="text-sm font-medium text-gray-700">Password <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel className="text-sm font-medium text-[#d0d9dd]">Password <span className="text-red-400">*</span></FormLabel>
                         {!isLogin && (
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-[#9eabb1]">
                             Min. 6 characters
                           </span>
                         )}
                       </div>
                       <div className="relative mt-1">
-                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9eabb1]" />
                         <Input
                           type={showPassword ? "text" : "password"}
                           placeholder="Enter your password"
                           {...field}
-                          className="pl-10 h-9 rounded-md border-gray-300 focus:ring-gray-[1px]"
+                          className="h-9 rounded-md border border-[#46555d] bg-[#1b2529] pl-10 text-[#b1bdc3] placeholder:text-[#7d8a91] focus-visible:ring-1 focus-visible:ring-[#E3C08D]"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9eabb1] hover:text-[#d0d9dd]"
                         >
                           {showPassword ? (
                             <EyeOff className="h-4 w-4" />
@@ -229,17 +229,17 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                     render={({ field }) => (
                       <FormItem>
                         <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9eabb1]" />
                           <Input
                             type={showPassword ? "text" : "password"}
                             placeholder="Confirm Password"
                             {...field}
-                            className="pl-10 pr-10 h-9 rounded-md border-gray-300 focus:ring-gray-[1px]"
+                            className="h-9 rounded-md border border-[#46555d] bg-[#1b2529] pl-10 pr-10 text-[#b1bdc3] placeholder:text-[#7d8a91] focus-visible:ring-1 focus-visible:ring-[#E3C08D]"
                           />
                           <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9eabb1] hover:text-[#d0d9dd]"
                           >
                             {showPassword ? (
                               <EyeOff className="h-4 w-4" />
@@ -268,7 +268,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
 
               <Button
                 type="submit"
-                className="w-full h-9 bg-[#E3C08D] hover:bg-[#d4b27f] text-white font-medium rounded-md hover:cursor-pointer"
+                className="h-9 w-full rounded-md bg-[#E3C08D] font-medium text-black hover:cursor-pointer hover:bg-[#d4b27f]"
                 disabled={loading}
               >
                 {loading ? (
@@ -284,7 +284,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
               </Button>
 
               <div className="flex flex-col justify-center items-center">
-                <p className="text-sm text-gray-600 text-center">
+                <p className="text-center text-sm text-[#9eabb1]">
                   {isLogin ? "Don't have an account? " : 'Already have an account? '}
                 </p>
                 <Button
@@ -294,7 +294,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                     form.reset();
                     setIsLogin(!isLogin);
                   }}
-                  className="w-24 text-[#E3C08D] font-medium hover:underline hover:cursor-pointer leading-6"
+                  className="w-24 leading-6 font-medium text-[#E3C08D] hover:cursor-pointer hover:bg-transparent hover:underline"
                 >
                   {isLogin ? 'Sign up' : 'Sign in'}
                 </Button>
