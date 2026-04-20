@@ -38,6 +38,7 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
     year: car?.year || new Date().getFullYear(),
     base_price_per_hour: car?.base_price_per_hour || 0,
     base_price_per_day: car?.base_price_per_day || 0,
+    deposit_amount: car?.deposit_amount || 0,
     included_km_per_day: car?.included_km_per_day || 0,
     extra_km_rate: car?.extra_km_rate || 0,
     description: car?.description || "",
@@ -55,6 +56,7 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
         year: car.year,
         base_price_per_hour: car.base_price_per_hour,
         base_price_per_day: car.base_price_per_day,
+        deposit_amount: car.deposit_amount || 0,
         included_km_per_day: car.included_km_per_day,
         extra_km_rate: car.extra_km_rate,
         description: car.description || '',
@@ -169,6 +171,7 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
         year: formData.year,
         base_price_per_hour: formData.base_price_per_hour,
         base_price_per_day: formData.base_price_per_day,
+        deposit_amount: formData.deposit_amount ?? 0,
         included_km_per_day: formData.included_km_per_day,
         extra_km_rate: formData.extra_km_rate,
         description: formData.description,
@@ -211,6 +214,7 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
           description: '',
           base_price_per_hour: 100,
           base_price_per_day: 800,
+          deposit_amount: 0,
           included_km_per_day: 200,
           extra_km_rate: 5,
           image_url: '',
@@ -400,6 +404,24 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
                 min="0"
                 step="0.01"
                 required
+                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="deposit_amount">Deposit Amount (NOK)</Label>
+              <Input
+                id="deposit_amount"
+                type="number"
+                value={formData.deposit_amount ?? 0}
+                onChange={(e) =>
+                  handleInputChange(
+                    'deposit_amount',
+                    e.target.value ? parseFloat(e.target.value) : 0
+                  )
+                }
+                min="0"
+                step="0.01"
                 className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
               />
             </div>

@@ -1,9 +1,9 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "./components/ui/sonner";
 import { Header } from "./components/header";
 import { Footer } from "./components/footer";
-import { AuthProvider } from "./context/auth-context";
+import { AuthProvider, useAuth } from "./context/auth-context";
 
 // Pages
 import HomePage from "./pages/home-page";
@@ -31,6 +31,14 @@ function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function BlockAdminFromPublic({ children }: { children: React.ReactNode }) {
+  const { loading, user, isAdmin } = useAuth();
+
+  if (loading) return null;
+  if (user && isAdmin) return <Navigate to="/admin" replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -38,16 +46,20 @@ export default function App() {
       <Routes>
         {/* Home Page */}
         <Route path="/" element={
-          <Layout>
-            <HomePage />
-          </Layout>
+          <BlockAdminFromPublic>
+            <Layout>
+              <HomePage />
+            </Layout>
+          </BlockAdminFromPublic>
         } />
 
         {/* Booking Routes */}
         <Route path="/bookings" element={
-          <Layout>
-            <Bookings />
-          </Layout>
+          <BlockAdminFromPublic>
+            <Layout>
+              <Bookings />
+            </Layout>
+          </BlockAdminFromPublic>
         } />
 
         {/* Admin Routes */}

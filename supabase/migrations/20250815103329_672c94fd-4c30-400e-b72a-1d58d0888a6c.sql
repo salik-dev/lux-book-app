@@ -70,7 +70,7 @@ WITH customer_cars AS (
 INSERT INTO public.bookings (
   id, customer_id, car_id, booking_number, start_datetime, end_datetime, 
   pickup_location, delivery_location, base_price, delivery_fee, extra_km_price, 
-  total_price, vat_amount, status, notes
+  total_price, notes
 )
 SELECT 
   gen_random_uuid(),

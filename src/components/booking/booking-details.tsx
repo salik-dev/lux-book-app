@@ -219,7 +219,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
       return {
         basePrice: 0,
         deliveryFee: 0,
-        vatAmount: 0,
+        depositAmount: 0,
         totalPrice: 0,
         duration: "0 dager (0 timer)",
       };
@@ -230,7 +230,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
       return {
         basePrice: 0,
         deliveryFee: 0,
-        vatAmount: 0,
+        depositAmount: 0,
         totalPrice: 0,
         duration: "0 dager (0 timer)",
       };
@@ -247,13 +247,18 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
       basePrice = car.base_price_per_day ? car.base_price_per_day * totalDays : 0;
     }
 
-    const vatAmount = 0;
-    const totalPrice = basePrice + deliveryFee;
+    const depositAmount = Number(car.deposit_amount ?? 0);
+    const subtotal = basePrice + deliveryFee + depositAmount;
+    const withDriver = Boolean(watchedValues.decorationDriverNeed);
+    // Driver surcharge applies to base price only (not deposit/delivery).
+    const driverSurcharge = withDriver ? basePrice * 0.25 : 0;
+    const totalPrice = subtotal + driverSurcharge;
 
     return {
       basePrice,
       deliveryFee,
-      vatAmount,
+      depositAmount,
+      driverSurcharge,
       totalPrice,
       duration: `${totalDays} ${totalDays === 1 ? "dag" : "dager"} (${totalHours} timer)`,
     };
@@ -311,12 +316,16 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
     if (!isAvailable) {
       toast({
-        title: "Bilen er allerede booket",
+        title: "The car is already booked",
         variant: "destructive",
-        description: "Velg andre datoer.",
-      });
+        description: "Please select other dates.",
+        });
       return;
     }
+
+    const decorationRequired = Boolean(
+      data.decorationFlowers || data.decorationRibbon || data.decorationRedCarpets
+    );
 
     const bookingData: BookingData = {
       car,
@@ -327,7 +336,10 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
       totalPrice: pricing.totalPrice,
       basePrice: pricing.basePrice,
       deliveryFee: pricing.deliveryFee,
-      vatAmount: pricing.vatAmount,
+      depositAmount: pricing.depositAmount,
+      driverSurcharge: pricing.driverSurcharge,
+      withDriver: data.decorationDriverNeed,
+      decorationRequired,
       seatPricingMode: data.seatPricingMode,
       decorationFlowers: data.decorationFlowers,
       decorationRibbon: data.decorationRibbon,
@@ -366,6 +378,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                     <div className="flex gap-4 flex-wrap">
                       <p className="text-sm"><span className="font-semibold">Per time: </span>{car.base_price_per_hour}</p>
                       <p className="text-sm"><span className="font-semibold">Per dag: </span>{car.base_price_per_day}</p>
+                      <p className="text-sm"><span className="font-semibold">Depositum: </span>{car.deposit_amount ?? 0}</p>
                       <p className="text-sm"><span className="font-semibold">Inkl. km: </span>{car.included_km_per_day}/dag</p>
                     </div>
                   </div>
@@ -384,46 +397,13 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
             </CardHeader>
             <CardContent className="pt-0">
               <div className="flex max-w-full flex-nowrap items-center gap-x-2 gap-y-0 overflow-x-auto pb-0.5 text-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <span className="text-[#9aa8ae]">
-                  Seter <span className="text-red-500">*</span>
-                </span>
-                <FormField
-                  control={form.control}
-                  name="seatPricingMode"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row flex-nowrap items-center gap-x-2 space-y-0">
-                      {(
-                        [
-                          { value: "flat-rate" as const, label: "Fast pris" },
-                          { value: "daily-basis" as const, label: "Dagsbasis" },
-                        ] as const
-                      ).map((opt) => (
-                        <label
-                          key={opt.value}
-                          className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap"
-                        >
-                          <input
-                            type="radio"
-                            name="seatPricingMode"
-                            className="h-3.5 w-3.5 shrink-0 accent-[#E3C08D]"
-                            checked={field.value === opt.value}
-                            onChange={() => field.onChange(opt.value)}
-                          />
-                          <span className="text-[#b1bdc3]">{opt.label}</span>
-                        </label>
-                      ))}
-                      <FormMessage className="w-full" />
-                    </FormItem>
-                  )}
-                />
-                <div className="ml-3 flex shrink-0 flex-nowrap items-center gap-x-2 border-l border-[#46555d] pl-4 sm:ml-5 sm:pl-5">
+                <div className="ml-3 flex shrink-0 flex-nowrap items-center gap-x-2">
                 <span className="text-[#9aa8ae]">Dekorasjon</span>
                 {(
                   [
                     { name: "decorationFlowers" as const, label: "Blomster" },
                     { name: "decorationRibbon" as const, label: "Bånd" },
                     { name: "decorationRedCarpets" as const, label: "Røde løpere" },
-                    { name: "decorationDriverNeed" as const, label: "Sjåfør ønskes" },
                   ] as const
                 ).map((item) => (
                   <FormField
@@ -448,6 +428,31 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                   />
                 ))}
                 </div>
+              </div>
+
+              <div className="mt-3 border-t border-[#334047] pt-3">
+                <FormField
+                  control={form.control}
+                  name="decorationDriverNeed"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-md border border-[#46555d] bg-[#1b2529] px-3 py-2.5 space-y-0">
+                      <div className="space-y-0.5">
+                        <FormLabel className="!mt-0 cursor-pointer text-sm font-medium text-[#b1bdc3]">
+                          Sjåfør ønskes
+                        </FormLabel>
+                        <p className="text-xs text-[#9aa8ae]">Legger til 25% av bookingbeløpet</p>
+                      </div>
+                      <FormControl>
+                        <input
+                          type="checkbox"
+                          checked={field.value}
+                          onChange={field.onChange}
+                          className="h-4 w-4 shrink-0 rounded border-[#46555d] accent-[#E3C08D]"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
               </div>
             </CardContent>
           </Card>
@@ -518,9 +523,10 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                                 }
                               }}
                               disabled={(date) => {
-                                const startDateTime = form.getValues("startDateTime");
-                                if (!startDateTime) return date < new Date(new Date().setHours(0, 0, 0, 0));
-                                return date <= startDateTime;
+                                // Pickup can be changed to any future day, not only dates after current selection.
+                                const todayStart = new Date();
+                                todayStart.setHours(0, 0, 0, 0);
+                                return date < todayStart;
                               }}
                               captionLayout="label"
                               initialFocus

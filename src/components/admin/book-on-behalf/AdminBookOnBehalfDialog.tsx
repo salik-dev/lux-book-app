@@ -11,13 +11,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/auth-context";
 import {
   ArrowLeft,
   ArrowRight,
+  Calendar as CalendarIcon,
   Car,
   CheckCircle2,
   ChevronDown,
+  Clock,
   Copy,
   Loader2,
   Search,
@@ -27,10 +32,12 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import {
   computePricing,
   formatNOK,
   parseDateTimeLocal,
+  precheckCarAvailability,
   toDateTimeLocalInputValue,
   useAdminCreateBooking,
   useAvailableCars,
@@ -58,21 +65,163 @@ type Step = 1 | 2 | 3 | 4;
 const DEFAULT_PICKUP = "Karl Johans gate 1, 0154 Oslo";
 const defaultDelivery = "Oslo lufthavn Gardermoen, 2060 Gardermoen";
 
+const bookingTimeSelectContentClass =
+  "max-h-[min(240px,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)] overflow-y-auto p-1 " +
+  "[scrollbar-color:#d1d5db_transparent] [scrollbar-width:thin] " +
+  "[&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#d1d5db] [&::-webkit-scrollbar-track]:bg-transparent";
+
+function bookingDatePopoverOnInteractOutside(e: { preventDefault: () => void; target: EventTarget | null }) {
+  const el = e.target as HTMLElement | null;
+  if (
+    el?.closest?.('[data-slot="select-content"]') ||
+    el?.closest?.("[data-radix-select-content]")
+  ) {
+    e.preventDefault();
+  }
+}
+
+function parseLocalDateTimeValue(value: string): Date | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function toLocalDateTimeValue(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+const DateTimeTimeRow: React.FC<{
+  dateValue: Date | null;
+  onTimeChange: (next: Date) => void;
+}> = ({ dateValue, onTimeChange }) => {
+  const base = dateValue ? new Date(dateValue) : new Date();
+  const hours = dateValue ? base.getHours() : 10;
+  const minutes = dateValue ? base.getMinutes() : 0;
+
+  const apply = (h: number, m: number) => {
+    const next = dateValue ? new Date(dateValue) : new Date();
+    next.setHours(h, m, 0, 0);
+    onTimeChange(next);
+  };
+
+  return (
+    <div className="border-t border-gray-100 bg-gray-50 px-3 py-3">
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+        Time
+      </p>
+      <div className="flex items-center gap-2">
+        <Select value={String(hours)} onValueChange={(v) => apply(parseInt(v, 10), minutes)}>
+          <SelectTrigger className="h-8 w-[84px] shrink-0 rounded-md border-gray-200 bg-white text-xs">
+            <SelectValue placeholder="HH" />
+          </SelectTrigger>
+          <SelectContent className={bookingTimeSelectContentClass}>
+            {Array.from({ length: 24 }, (_, i) => (
+              <SelectItem key={i} value={String(i)} className="text-xs">
+                {String(i).padStart(2, "0")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-gray-400">:</span>
+        <Select value={String(minutes)} onValueChange={(v) => apply(hours, parseInt(v, 10))}>
+          <SelectTrigger className="h-8 w-[84px] shrink-0 rounded-md border-gray-200 bg-white text-xs">
+            <SelectValue placeholder="mm" />
+          </SelectTrigger>
+          <SelectContent className={bookingTimeSelectContentClass}>
+            {Array.from({ length: 60 }, (_, i) => (
+              <SelectItem key={i} value={String(i)} className="text-xs">
+                {String(i).padStart(2, "0")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+};
+
+const DateTimePickerField: React.FC<{
+  label: string;
+  valueLocal: string;
+  onChangeLocal: (v: string) => void;
+  minDate?: Date;
+}> = ({ label, valueLocal, onChangeLocal, minDate }) => {
+  const dateValue = parseLocalDateTimeValue(valueLocal);
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-left text-sm text-gray-800 hover:bg-gray-100 transition-colors inline-flex items-center"
+          >
+            {dateValue ? dateValue.toLocaleString() : "Select date"}
+            <CalendarIcon className="ml-auto h-4 w-4 text-gray-400" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-auto border-gray-200 bg-white p-0"
+          align="start"
+          onInteractOutside={bookingDatePopoverOnInteractOutside}
+        >
+          <div>
+            <Calendar
+              mode="single"
+              selected={dateValue ?? undefined}
+              onSelect={(date: Date | undefined) => {
+                if (!date) return;
+                const next = new Date(date.getTime());
+                if (dateValue) {
+                  next.setHours(dateValue.getHours(), dateValue.getMinutes(), 0, 0);
+                } else {
+                  next.setHours(10, 0, 0, 0);
+                }
+                onChangeLocal(toLocalDateTimeValue(next));
+              }}
+              disabled={(date) => {
+                if (!minDate) return false;
+                const min = new Date(minDate);
+                min.setHours(0, 0, 0, 0);
+                return date < min;
+              }}
+              captionLayout="label"
+              initialFocus
+              required
+            />
+            <DateTimeTimeRow
+              dateValue={dateValue}
+              onTimeChange={(next) => onChangeLocal(toLocalDateTimeValue(next))}
+            />
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+};
+
 export const AdminBookOnBehalfDialog: React.FC<Props> = ({
   open,
   onOpenChange,
   onBookingCreated,
 }) => {
   const { toast } = useToast();
+  const { isAdmin, loading: authLoading, session } = useAuth();
   const [step, setStep] = useState<Step>(1);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
 
   // Step 1
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState<EligibleCustomer | null>(null);
+  const [bookingForCompany, setBookingForCompany] = useState(false);
+  const [orgNo, setOrgNo] = useState("");
+  const [orgName, setOrgName] = useState("");
+  const customerSearchEnabled = open && isAdmin && !authLoading && !!session?.access_token;
   const { data: customersPage, loading: customersLoading, error: customersError } =
-    useEligibleCustomers(searchQuery, page, 10);
+    useEligibleCustomers(searchQuery, page, 10, customerSearchEnabled, session?.access_token);
 
   // Step 2
   const { cars, loading: carsLoading } = useAvailableCars(open);
@@ -98,6 +247,8 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
   const [deliveryLocation, setDeliveryLocation] = useState("");
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [deliveryFeeInput, setDeliveryFeeInput] = useState("0");
+  const [decorationRequired, setDecorationRequired] = useState(false);
+  const [withDriver, setWithDriver] = useState(false);
 
   // Step 3
   const [language, setLanguage] = useState<"en" | "no">("en");
@@ -112,6 +263,9 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
         setSearchQuery("");
         setPage(0);
         setSelectedCustomer(null);
+        setBookingForCompany(false);
+        setOrgNo("");
+        setOrgName("");
         setCarId("");
         setStartLocal(toDateTimeLocalInputValue(defaultStart));
         setEndLocal(toDateTimeLocalInputValue(defaultEnd));
@@ -119,6 +273,8 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
         setDeliveryLocation("");
         setDeliveryFee(0);
         setDeliveryFeeInput("0");
+        setDecorationRequired(false);
+        setWithDriver(false);
         setLanguage("en");
         resetMutation();
       }, 350);
@@ -128,11 +284,13 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
   const start = parseDateTimeLocal(startLocal);
   const end = parseDateTimeLocal(endLocal);
   const pricing = useMemo(
-    () => computePricing(start, end, selectedCar, deliveryFee),
-    [start, end, selectedCar, deliveryFee]
+    () => computePricing(start, end, selectedCar, deliveryFee, withDriver),
+    [start, end, selectedCar, deliveryFee, withDriver]
   );
 
-  const canAdvanceFrom1 = !!selectedCustomer;
+  const canAdvanceFrom1 =
+    !!selectedCustomer &&
+    (!bookingForCompany || (orgNo.trim().length > 0 && orgName.trim().length > 0));
   const canAdvanceFrom2 =
     !!selectedCar && !!start && !!end && end > start &&
     pickupLocation.trim().length > 0 && !!pricing;
@@ -152,6 +310,36 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
     setStep((s) => (s > 1 ? ((s - 1) as Step) : s));
   }
 
+  async function handleNextClick() {
+    if (step !== 2) {
+      goNext();
+      return;
+    }
+    if (!selectedCar || !start || !end) return;
+
+    setCheckingAvailability(true);
+    try {
+      const check = await precheckCarAvailability({
+        carId: selectedCar.id,
+        startDateTimeIso: start.toISOString(),
+        endDateTimeIso: end.toISOString(),
+      });
+
+      if (!check.ok) {
+        toast({
+          title: "Car unavailable for selected time",
+          description: check.reason,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      goNext();
+    } finally {
+      setCheckingAvailability(false);
+    }
+  }
+
   async function handleSubmit() {
     if (!selectedCustomer || !selectedCar || !start || !end || !pricing) return;
     try {
@@ -163,11 +351,30 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
         pickupLocation: pickupLocation.trim(),
         deliveryLocation: deliveryLocation.trim() || null,
         deliveryFee: pricing.deliveryFee,
+        bookingForCompany,
+        orgName: bookingForCompany ? orgName.trim() || null : null,
+        orgNo: bookingForCompany ? orgNo.trim() || null : null,
+        decorationRequired,
+        withDriver,
         basePrice: pricing.basePrice,
         totalPrice: pricing.totalPrice,
         vatAmount: pricing.vatAmount,
         language,
       });
+
+      // Safety net: persist organization fields client-side as well, so values are
+      // saved even if the deployed edge function is still on an older version.
+      const { error: orgPatchErr } = await supabase
+        .from("bookings")
+        .update({
+          org_name: bookingForCompany ? orgName.trim() || null : null,
+          org_no: bookingForCompany ? orgNo.trim() || null : null,
+        })
+        .eq("id", res.bookingId);
+      if (orgPatchErr) {
+        console.warn("Failed to persist organization fields on client fallback:", orgPatchErr.message);
+      }
+
       toast({
         title: "Booking created",
         description: `${res.bookingNumber} • invoice email sent to ${selectedCustomer.email}`,
@@ -245,6 +452,12 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                   onPageChange={setPage}
                   selected={selectedCustomer}
                   onSelect={(c) => setSelectedCustomer(c)}
+                  bookingForCompany={bookingForCompany}
+                  setBookingForCompany={setBookingForCompany}
+                  orgNo={orgNo}
+                  setOrgNo={setOrgNo}
+                  orgName={orgName}
+                  setOrgName={setOrgName}
                 />
               )}
               {step === 2 && (
@@ -265,6 +478,10 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                   setDeliveryFee={setDeliveryFee}
                   deliveryFeeInput={deliveryFeeInput}
                   setDeliveryFeeInput={setDeliveryFeeInput}
+                  decorationRequired={decorationRequired}
+                  setDecorationRequired={setDecorationRequired}
+                  withDriver={withDriver}
+                  setWithDriver={setWithDriver}
                   pricing={pricing}
                 />
               )}
@@ -276,6 +493,8 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                   end={end}
                   pickupLocation={pickupLocation}
                   deliveryLocation={deliveryLocation}
+                  decorationRequired={decorationRequired}
+                  withDriver={withDriver}
                   pricing={pricing}
                   language={language}
                   setLanguage={setLanguage}
@@ -306,7 +525,7 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                 {/* Back — disabled on step 1 */}
                 <button
                   type="button"
-                  disabled={step === 1 || creating}
+                  disabled={step === 1 || creating || checkingAvailability}
                   onClick={goBack}
                   className={cn(
                     "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-150",
@@ -332,12 +551,21 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                   </GoldButton>
                 ) : (
                   <GoldButton
-                    onClick={goNext}
-                    disabled={!canGoNext}
+                    onClick={handleNextClick}
+                    disabled={!canGoNext || checkingAvailability}
                     className="px-5"
                   >
-                    Next
-                    <ArrowRight className="h-3.5 w-3.5" />
+                    {checkingAvailability ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Checking...
+                      </>
+                    ) : (
+                      <>
+                        Next
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </>
+                    )}
                   </GoldButton>
                 )}
               </>
@@ -447,10 +675,17 @@ interface CustomerPickerStepProps {
   onPageChange: (p: number) => void;
   selected: EligibleCustomer | null;
   onSelect: (c: EligibleCustomer) => void;
+  bookingForCompany: boolean;
+  setBookingForCompany: (v: boolean) => void;
+  orgNo: string;
+  setOrgNo: (v: string) => void;
+  orgName: string;
+  setOrgName: (v: string) => void;
 }
 
 const CustomerPickerStep: React.FC<CustomerPickerStepProps> = ({
   query, setQuery, loading, error, items, total, hasMore, page, onPageChange, selected, onSelect,
+  bookingForCompany, setBookingForCompany, orgNo, setOrgNo, orgName, setOrgName,
 }) => (
   <div className="space-y-3">
     {/* Search */}
@@ -460,7 +695,7 @@ const CustomerPickerStep: React.FC<CustomerPickerStepProps> = ({
         autoFocus
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search by name, email, phone or license…"
+        placeholder="Search by name or email"
         className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white transition-colors"
         style={{ "--tw-ring-color": GOLD } as React.CSSProperties}
       />
@@ -577,6 +812,41 @@ const CustomerPickerStep: React.FC<CustomerPickerStepProps> = ({
         </div>
       </div>
     )}
+
+    <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-3">
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={bookingForCompany}
+          onChange={(e) => setBookingForCompany(e.target.checked)}
+          className="h-4 w-4 rounded border-gray-300"
+        />
+        <span className="text-sm text-gray-700">Booking for company</span>
+      </label>
+
+      {bookingForCompany && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <FieldLabel>Organization number</FieldLabel>
+            <input
+              value={orgNo}
+              onChange={(e) => setOrgNo(e.target.value)}
+              placeholder="e.g. 999999999"
+              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white transition-colors"
+            />
+          </div>
+          <div>
+            <FieldLabel>Organization name</FieldLabel>
+            <input
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              placeholder="Company AS"
+              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white transition-colors"
+            />
+          </div>
+        </div>
+      )}
+    </div>
   </div>
 );
 
@@ -713,6 +983,10 @@ interface BookingDetailsStepProps {
   setDeliveryFee: (v: number) => void;
   deliveryFeeInput: string;
   setDeliveryFeeInput: (v: string) => void;
+  decorationRequired: boolean;
+  setDecorationRequired: (v: boolean) => void;
+  withDriver: boolean;
+  setWithDriver: (v: boolean) => void;
   pricing: ReturnType<typeof computePricing>;
 }
 
@@ -722,8 +996,15 @@ const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
   pickupLocation, setPickupLocation,
   deliveryLocation, setDeliveryLocation,
   deliveryFee, setDeliveryFee, deliveryFeeInput, setDeliveryFeeInput,
+  decorationRequired, setDecorationRequired,
+  withDriver, setWithDriver,
   pricing,
-}) => (
+}) => {
+  const startDate = parseLocalDateTimeValue(startLocal);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return (
   <div className="space-y-5">
     {/* Vehicle */}
     <div>
@@ -731,24 +1012,29 @@ const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
       <CarPicker cars={cars} loading={carsLoading} value={carId} onChange={setCarId} />
     </div>
 
-    {/* Dates */}
-    <div className="grid grid-cols-2 gap-3">
-      <div>
-        <FieldLabel>Pickup date &amp; time</FieldLabel>
-        <StyledInput
-          type="datetime-local"
-          value={startLocal}
-          onChange={(e) => setStartLocal(e.target.value)}
+    {/* Dates (same functional style as customer booking form) */}
+    <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <Clock className="h-4 w-4 text-gray-500" />
+        <span className="text-sm font-semibold text-gray-700">Select date and time</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <DateTimePickerField
+          label="Pickup (date and time)"
+          valueLocal={startLocal}
+          onChangeLocal={setStartLocal}
+          minDate={today}
+        />
+        <DateTimePickerField
+          label="Return (date and time)"
+          valueLocal={endLocal}
+          onChangeLocal={setEndLocal}
+          minDate={startDate ?? today}
         />
       </div>
-      <div>
-        <FieldLabel>Return date &amp; time</FieldLabel>
-        <StyledInput
-          type="datetime-local"
-          value={endLocal}
-          onChange={(e) => setEndLocal(e.target.value)}
-        />
-      </div>
+      <p className="text-[11px] text-gray-500">
+        Return time must be after pickup time.
+      </p>
     </div>
 
     {/* Pickup location — static */}
@@ -763,21 +1049,28 @@ const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
         <FieldLabel>Delivery location</FieldLabel>
         <StaticField value={deliveryLocation || defaultDelivery} placeholder="No delivery — customer picks up" />
       </div>
-      <div>
-        <FieldLabel>Delivery fee (NOK)</FieldLabel>
-        <StyledInput
-          type="text"
-          inputMode="numeric"
-          value={deliveryFeeInput}
-          onFocus={(e) => { if (deliveryFeeInput === "0") { setDeliveryFeeInput(""); e.target.select(); } }}
-          onBlur={() => { if (!deliveryFeeInput) { setDeliveryFeeInput("0"); setDeliveryFee(0); } }}
-          onChange={(e) => {
-            const raw = e.target.value.replace(/\D/g, "");
-            setDeliveryFeeInput(raw);
-            setDeliveryFee(raw ? Number(raw) : 0);
-          }}
+    </div>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <label className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5">
+        <input
+          type="checkbox"
+          checked={decorationRequired}
+          onChange={(e) => setDecorationRequired(e.target.checked)}
+          className="h-4 w-4 rounded border-gray-300"
         />
-      </div>
+        <span className="text-sm text-gray-700">Decoration required</span>
+      </label>
+
+      <label className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5">
+        <input
+          type="checkbox"
+          checked={withDriver}
+          onChange={(e) => setWithDriver(e.target.checked)}
+          className="h-4 w-4 rounded border-gray-300"
+        />
+        <span className="text-sm text-gray-700">With driver (+25% on booking amount)</span>
+      </label>
     </div>
 
     {/* Pricing preview */}
@@ -787,10 +1080,12 @@ const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
         <dl className="text-sm space-y-1.5">
           <PricingRow label="Duration" value={`${pricing.durationHours} h`} />
           <PricingRow label="Base price" value={formatNOK(pricing.basePrice)} />
-          {pricing.deliveryFee > 0 && (
-            <PricingRow label="Delivery fee" value={formatNOK(pricing.deliveryFee)} />
+          {pricing.depositAmount > 0 && (
+            <PricingRow label="Deposit" value={formatNOK(pricing.depositAmount)} />
           )}
-          <PricingRow label="VAT (25%)" value={formatNOK(pricing.vatAmount)} />
+          {pricing.driverSurcharge > 0 && (
+            <PricingRow label="Driver surcharge (25%)" value={formatNOK(pricing.driverSurcharge)} />
+          )}
           <div className="pt-2 mt-1 border-t border-gray-200 flex justify-between">
             <span className="font-bold text-gray-900">Total</span>
             <span className="font-bold text-gray-900 text-base">{formatNOK(pricing.totalPrice)}</span>
@@ -799,7 +1094,8 @@ const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
       </div>
     )}
   </div>
-);
+  );
+};
 
 // ─── Step 3: Review ───────────────────────────────────────────────────────────
 
@@ -810,13 +1106,15 @@ interface ReviewStepProps {
   end: Date;
   pickupLocation: string;
   deliveryLocation: string;
+  decorationRequired: boolean;
+  withDriver: boolean;
   pricing: NonNullable<ReturnType<typeof computePricing>>;
   language: "en" | "no";
   setLanguage: (v: "en" | "no") => void;
 }
 
 const ReviewStep: React.FC<ReviewStepProps> = ({
-  customer, car, start, end, pickupLocation, deliveryLocation, pricing, language, setLanguage,
+  customer, car, start, end, pickupLocation, deliveryLocation, decorationRequired, withDriver, pricing, language, setLanguage,
 }) => (
   <div className="space-y-3">
 
@@ -878,6 +1176,8 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
         <ReviewRow label="Return" value={end.toLocaleString()} />
         <ReviewRow label="Pickup location" value={pickupLocation} />
         {deliveryLocation && <ReviewRow label="Delivery location" value={deliveryLocation} />}
+        {decorationRequired && <ReviewRow label="Decoration" value="Required" />}
+        {withDriver && <ReviewRow label="Driver" value="Included (+25%)" />}
       </div>
     </div>
 
@@ -889,8 +1189,9 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
       <div>
         <p className="text-xs text-gray-500 mb-0.5">Invoice total</p>
         <p className="text-xs text-gray-400">
-          Base {formatNOK(pricing.basePrice)} + VAT {formatNOK(pricing.vatAmount)}
-          {pricing.deliveryFee > 0 ? ` + Delivery ${formatNOK(pricing.deliveryFee)}` : ""}
+          Base {formatNOK(pricing.basePrice)}
+          {pricing.depositAmount > 0 ? ` + Deposit ${formatNOK(pricing.depositAmount)}` : ""}
+          {pricing.driverSurcharge > 0 ? ` + Driver ${formatNOK(pricing.driverSurcharge)}` : ""}
         </p>
       </div>
       <span className="text-2xl font-bold text-gray-900">{formatNOK(pricing.totalPrice)}</span>

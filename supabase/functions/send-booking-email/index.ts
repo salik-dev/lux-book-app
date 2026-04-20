@@ -92,7 +92,7 @@ serve(async (req) => {
       htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #1e40af, #0ea5e9); padding: 40px 20px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">🏔️ Fjord Fleet</h1>
+            <h1 style="color: white; margin: 0; font-size: 28px;">🏔️ Bookings</h1>
             <p style="color: white; margin: 10px 0 0 0; opacity: 0.9;">
               ${language === 'no' ? 'Luksus bilutleie i Norge' : 'Luxury Car Rental in Norway'}
             </p>
@@ -197,10 +197,6 @@ serve(async (req) => {
               <table style="width:100%; border-collapse:collapse; font-size:14px;">
                 <tbody>
                   ${lineRow(isNo ? 'Grunnpris' : 'Base price', Number(booking.base_price))}
-                  ${Number(booking.delivery_fee) > 0
-                    ? lineRow(isNo ? 'Leveringsgebyr' : 'Delivery fee', Number(booking.delivery_fee))
-                    : ''}
-                  ${lineRow(isNo ? 'MVA (25%)' : 'VAT (25%)', Number(booking.vat_amount))}
                   <tr>
                     <td style="padding: 12px 0 0 0; border-top:1px solid #e2e8f0; font-weight:700; color:#0f172a;">
                       ${isNo ? 'Totalt å betale' : 'Total due'}
@@ -230,7 +226,7 @@ serve(async (req) => {
 
             ${adminNotes
               ? `<div style="background:#fef3c7; border:1px solid #f59e0b; padding:16px; border-radius:8px; margin-bottom:24px;">
-                   <p style="margin:0; color:#92400e; font-size:14px;"><strong>${isNo ? 'Melding fra Fjord Fleet' : 'Note from Fjord Fleet'}:</strong> ${adminNotes}</p>
+                   <p style="margin:0; color:#92400e; font-size:14px;"><strong>${isNo ? 'Melding fra Primecar' : 'Note from Primecar'}:</strong> ${adminNotes}</p>
                  </div>`
               : ''}
           </div>

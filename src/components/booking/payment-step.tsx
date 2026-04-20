@@ -136,7 +136,22 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
           delivery_fee: bookingData.deliveryFee,
           base_price: bookingData.basePrice,
           total_price: bookingData.totalPrice,
-          vat_amount: bookingData.vatAmount,
+          with_driver: bookingData.withDriver ?? bookingData.decorationDriverNeed ?? false,
+          org_name:
+            customerData.bookingForCompany && customerData.orgName
+              ? customerData.orgName.trim()
+              : null,
+          org_no:
+            customerData.bookingForCompany && customerData.orgNo
+              ? customerData.orgNo.trim()
+              : null,
+          decoration_require:
+            bookingData.decorationRequired ??
+            Boolean(
+              bookingData.decorationFlowers ||
+              bookingData.decorationRibbon ||
+              bookingData.decorationRedCarpets
+            ),
           status: 'active',
         })
         .select()
@@ -253,12 +268,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
                   {bookingData.deliveryLocation}
                 </p>
               )}
-              <p className="text-sm text-[#9eabb1]">
-                <strong>Seter:</strong>{" "}
-                {bookingData.seatPricingMode === "daily-basis"
-                  ? "Dagsbasis"
-                  : "Fast pris"}
-              </p>
               {decorationReview.length > 0 && (
                 <p className="text-sm text-[#9eabb1]">
                   <strong>Dekorasjon:</strong> {decorationReview.join(", ")}
@@ -280,6 +289,18 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
                 <span>
                   {formatPrice(bookingData.deliveryFee)}
                 </span>
+              </div>
+            )}
+            {(bookingData.depositAmount ?? 0) > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Depositum:</span>
+                <span>{formatPrice(bookingData.depositAmount ?? 0)}</span>
+              </div>
+            )}
+            {(bookingData.driverSurcharge ?? 0) > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Sjåførtillegg (25%):</span>
+                <span>{formatPrice(bookingData.driverSurcharge ?? 0)}</span>
               </div>
             )}
             <Separator className="bg-[#46555d]" />

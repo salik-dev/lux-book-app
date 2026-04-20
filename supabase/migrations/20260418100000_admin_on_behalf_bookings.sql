@@ -73,7 +73,6 @@ create or replace function public.admin_create_booking_on_behalf(
   p_delivery_fee      numeric,
   p_base_price        numeric,
   p_total_price       numeric,
-  p_vat_amount        numeric,
   p_admin_user_id     uuid,
   p_admin_notes       text
 ) returns public.bookings
@@ -124,14 +123,14 @@ begin
     booking_number, customer_id, car_id,
     start_datetime, end_datetime,
     pickup_location, delivery_location, delivery_fee,
-    base_price, total_price, vat_amount,
+    base_price, total_price,
     status, booking_channel, created_by_admin_id, admin_notes
   )
   values (
     v_booking_number, p_customer_id, p_car_id,
     p_start, p_end,
     p_pickup, p_delivery, coalesce(p_delivery_fee, 0),
-    p_base_price, p_total_price, p_vat_amount,
+    p_base_price, p_total_price,
     'pending', 'admin', p_admin_user_id, p_admin_notes
   )
   returning * into v_booking;

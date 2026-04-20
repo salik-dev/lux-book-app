@@ -6,6 +6,7 @@ export interface Car {
   year: number;
   base_price_per_hour: number;
   base_price_per_day: number;
+  deposit_amount?: number | null;
   included_km_per_day: number | null;
   extra_km_rate: number | null;
   description?: string;

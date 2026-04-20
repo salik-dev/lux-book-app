@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
@@ -20,6 +21,7 @@ interface AuthFormData {
 
 export function AuthDialog({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
   const [isLogin, setIsLogin] = useState(true);
@@ -41,17 +43,21 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       if (isLogin) {
-        const { user, error } = await signIn(data.email, data.password);
-        console.log('user login', user)
+        const { error, isAdmin: signedInAsAdmin } = await signIn(data.email, data.password);
         if (error) {
           toast({
             title: 'Error',
             description: "Invalid email or password! Please try again.",
             variant: 'destructive',
           });
-          // setOpen(false);
           return;
         }
+        setOpen(false);
+        toast({
+          title: 'Welcome back',
+          description: signedInAsAdmin ? 'Redirecting to admin dashboard.' : 'Redirecting to your bookings.',
+        });
+        navigate(signedInAsAdmin ? '/admin' : '/bookings');
       } else {
         if (data.password !== data.confirmPassword) {
           console.log('Passwords do not match')

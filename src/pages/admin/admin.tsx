@@ -18,7 +18,7 @@ const Admin = () => {
 
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('bookings');
 
   useEffect(() => {
     console.log('Admin page - Auth state:', { user: user?.id, email: user?.email, isAdmin, loading });

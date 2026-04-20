@@ -5,7 +5,7 @@ import { Button } from "./button"
 import { CarCardProps } from "../../@types/data"
 import defaultImg from '../../assets/luxury-car-showroom-dark-elegant.jpg'
 
-export function CarCard({ id, name='Luksusbil', image_url, description, base_price_per_day, base_price_per_hour, included_km_per_day, extra_km_rate, is_available, onNavigateToBooking, onCarSelect }: CarCardProps) {
+export function CarCard({ id, name='Luksusbil', image_url, description, base_price_per_day, base_price_per_hour, deposit_amount, included_km_per_day, extra_km_rate, is_available, onNavigateToBooking, onCarSelect }: CarCardProps) {
   const [isInfoOpen, setIsInfoOpen] = useState(false)
     
   const handleCarSelect = () => {
@@ -15,6 +15,7 @@ export function CarCard({ id, name='Luksusbil', image_url, description, base_pri
       image_url,
       base_price_per_day,
       base_price_per_hour,
+      deposit_amount: deposit_amount ?? 0,
       included_km_per_day,
       extra_km_rate,
       is_available,
@@ -56,11 +57,15 @@ export function CarCard({ id, name='Luksusbil', image_url, description, base_pri
             <LocateFixed className="h-3 w-3 text-[#E3C08D] flex-shrink-0" />
             <span>Extra km: {extra_km_rate} / km</span>
           </div>
+          <div className="flex items-center space-x-3 text-sm text-[#D6D3D1]">
+            <LocateFixed className="h-3 w-3 text-[#E3C08D] flex-shrink-0" />
+            <span>Deposit: {deposit_amount ?? 0} pkr</span>
+          </div>
         </div>
 
         <div className="mt-6">
           <Button disabled={!is_available} onClick={handleCarSelect} className="w-full tracking-wide text-black bg-[#E3C08D] hover:bg-[#E3C08D]/90 hover:cursor-pointer transition-all duration-300 hover:text-white">
-            {is_available ? 'Reserver nå' : 'Bilen er utilgjengelig'}
+            {is_available ? 'Book now' : 'The car is not available'}
           </Button>
         </div>
         {/* Mer informasjon - expandable section at bottom */}

@@ -116,6 +116,7 @@ export type Database = {
           contract_signed_at: string | null
           created_at: string
           customer_id: string | null
+          decoration_require: boolean | null
           delivery_distance_km: number | null
           delivery_fee: number | null
           delivery_location: string | null
@@ -123,12 +124,14 @@ export type Database = {
           extra_km_price: number | null
           id: string
           notes: string | null
+          org_name: string | null
+          org_no: string | null
           pickup_location: string
           start_datetime: string
           status: Database["public"]["Enums"]["booking_status"] | null
           total_price: number
           updated_at: string
-          vat_amount: number
+          with_driver: boolean | null
         }
         Insert: {
           base_price: number
@@ -138,6 +141,7 @@ export type Database = {
           contract_signed_at?: string | null
           created_at?: string
           customer_id?: string | null
+          decoration_require?: boolean | null
           delivery_distance_km?: number | null
           delivery_fee?: number | null
           delivery_location?: string | null
@@ -145,12 +149,14 @@ export type Database = {
           extra_km_price?: number | null
           id?: string
           notes?: string | null
+          org_name?: string | null
+          org_no?: string | null
           pickup_location: string
           start_datetime: string
           status?: Database["public"]["Enums"]["booking_status"] | null
           total_price: number
           updated_at?: string
-          vat_amount: number
+          with_driver?: boolean | null
         }
         Update: {
           base_price?: number
@@ -160,6 +166,7 @@ export type Database = {
           contract_signed_at?: string | null
           created_at?: string
           customer_id?: string | null
+          decoration_require?: boolean | null
           delivery_distance_km?: number | null
           delivery_fee?: number | null
           delivery_location?: string | null
@@ -167,12 +174,14 @@ export type Database = {
           extra_km_price?: number | null
           id?: string
           notes?: string | null
+          org_name?: string | null
+          org_no?: string | null
           pickup_location?: string
           start_datetime?: string
           status?: Database["public"]["Enums"]["booking_status"] | null
           total_price?: number
           updated_at?: string
-          vat_amount?: number
+          with_driver?: boolean | null
         }
         Relationships: [
           {
@@ -195,6 +204,7 @@ export type Database = {
         Row: {
           base_price_per_day: number
           base_price_per_hour: number
+          deposit_amount: number | null
           brand: string
           created_at: string
           description: string | null
@@ -211,6 +221,7 @@ export type Database = {
         Insert: {
           base_price_per_day: number
           base_price_per_hour: number
+          deposit_amount?: number | null
           brand: string
           created_at?: string
           description?: string | null
@@ -227,6 +238,7 @@ export type Database = {
         Update: {
           base_price_per_day?: number
           base_price_per_hour?: number
+          deposit_amount?: number | null
           brand?: string
           created_at?: string
           description?: string | null

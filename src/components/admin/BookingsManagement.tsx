@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, Filter, Download, Eye, Edit, Mail, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft, UserPlus } from 'lucide-react';
+import { Search, Filter, Download, Eye, Edit, Mail, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft, UserPlus, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { BookingDetailsDialog } from './BookingDetailsDialog';
 import { AdminBookOnBehalfDialog } from './book-on-behalf/AdminBookOnBehalfDialog';
@@ -22,6 +22,9 @@ interface Booking {
   pickup_location: string;
   delivery_location?: string | null;
   total_price: number;
+  decoration_require?: boolean | null;
+  org_name?: string | null;
+  org_no?: string | null;
   created_at: string;
   car: {
     name: string;
@@ -296,11 +299,24 @@ export const BookingsManagement: React.FC = () => {
                   <TableCell>
                     <div>
                       <div className="font-medium">{booking.customer?.full_name || 'No customer data'}</div>
-                      <div className="text-sm text-gray-500">{booking.customer?.email || ''}</div>
+                      <div className="text-sm text-gray-500 flex items-center gap-2">
+                        <span>{booking.customer?.email || ''}</span>
+                        {(booking.org_name || booking.org_no) && (
+                          <span
+                            title={`Organization: ${booking.org_name || "-"} | Org no: ${booking.org_no || "-"}`}
+                            className="inline-flex items-center justify-center text-[#8b6b3e]"
+                          >
+                            <Building2 className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="font-medium">{booking.car?.name || 'No car data'}</div>
+                    {booking.decoration_require && (
+                      <div className="text-[11px] font-medium text-amber-700 mt-0.5">Decoration</div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="text-xs leading-3">

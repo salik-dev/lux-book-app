@@ -27,6 +27,7 @@ export interface AdminCarOption {
   model: string;
   base_price_per_hour: number;
   base_price_per_day: number;
+  deposit_amount?: number | null;
   image_url: string | null;
   is_available: boolean;
 }
@@ -35,7 +36,9 @@ export interface AdminBookingPricing {
   durationHours: number;
   basePrice: number;
   deliveryFee: number;
+  depositAmount: number;
   vatAmount: number;
+  driverSurcharge: number;
   totalPrice: number;
 }
 
@@ -47,6 +50,11 @@ export interface CreateBookingPayload {
   pickupLocation: string;
   deliveryLocation?: string | null;
   deliveryFee: number;
+  bookingForCompany?: boolean;
+  orgName?: string | null;
+  orgNo?: string | null;
+  withDriver?: boolean;
+  decorationRequired?: boolean;
   basePrice: number;
   totalPrice: number;
   vatAmount: number;

@@ -12,6 +12,7 @@ export interface CarCardProps {
   description: string;
   base_price_per_hour: number;
   base_price_per_day: number;
+  deposit_amount?: number;
   included_km_per_day: number;
   extra_km_rate: number;
   image_url: string;
@@ -29,6 +30,7 @@ export interface CarData {
   description: string;
   base_price_per_hour: number;
   base_price_per_day: number;
+  deposit_amount?: number;
   included_km_per_day: number;
   extra_km_rate: number;
   image_url: string;
@@ -46,7 +48,10 @@ export interface BookingData {
   totalPrice: number;
   basePrice: number;
   deliveryFee: number;
-  vatAmount: number;
+  depositAmount?: number;
+  driverSurcharge?: number;
+  withDriver?: boolean;
+  decorationRequired?: boolean;
   /** Seat / pricing preference */
   seatPricingMode?: SeatPricingMode;
   /** Optional decoration / service add-ons */
@@ -60,6 +65,9 @@ export interface CustomerData {
   fullName: string;
   email: string;
   phone: string;
+  bookingForCompany?: boolean;
+  orgName?: string;
+  orgNo?: string;
   address: string;
   postalCode: string;
   city: string;

@@ -70,7 +70,6 @@ CREATE TABLE public.bookings (
   base_price DECIMAL(10,2) NOT NULL,
   extra_km_price DECIMAL(10,2) DEFAULT 0,
   total_price DECIMAL(10,2) NOT NULL,
-  vat_amount DECIMAL(10,2) NOT NULL,
   status booking_status DEFAULT 'pending',
   contract_status Boolean DEFAULT false,
   contract_signed_at TIMESTAMPTZ,

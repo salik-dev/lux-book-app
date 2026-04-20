@@ -10,7 +10,13 @@ import type {
 } from "./types";
 
 /** Debounced search against the admin-search-customers edge function. */
-export function useEligibleCustomers(query: string, page = 0, pageSize = 20) {
+export function useEligibleCustomers(
+  query: string,
+  page = 0,
+  pageSize = 20,
+  enabled = true,
+  accessToken?: string | null
+) {
   const [state, setState] = useState<{
     data: EligibleCustomerPage | null;
     loading: boolean;
@@ -21,14 +27,41 @@ export function useEligibleCustomers(query: string, page = 0, pageSize = 20) {
   const reqIdRef = useRef(0);
 
   useEffect(() => {
+    if (!enabled) {
+      setState({ data: null, loading: false, error: null });
+      return;
+    }
+    if (!accessToken) {
+      setState({ data: null, loading: false, error: null });
+      return;
+    }
+
     const id = ++reqIdRef.current;
     setState((s) => ({ ...s, loading: true, error: null }));
 
     (async () => {
       try {
-        const res = await supabase.functions.invoke("admin-search-customers", {
+        let res = await supabase.functions.invoke("admin-search-customers", {
+          headers: { Authorization: `Bearer ${accessToken}` },
           body: { q: debouncedQ, page, pageSize },
         });
+        const unauthorized =
+          !!res.error &&
+          String(
+            (res.data as Record<string, unknown> | null)?.error ??
+              (res.error as { message?: string } | null)?.message ??
+              ""
+          ).toLowerCase().includes("unauthorized");
+        if (unauthorized) {
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          const refreshedToken = refreshed.session?.access_token;
+          if (refreshedToken) {
+            res = await supabase.functions.invoke("admin-search-customers", {
+              headers: { Authorization: `Bearer ${refreshedToken}` },
+              body: { q: debouncedQ, page, pageSize },
+            });
+          }
+        }
         if (id !== reqIdRef.current) return; // stale
         if (res.error) throw await extractEdgeError(res.error, res.data);
         setState({ data: res.data as EligibleCustomerPage, loading: false, error: null });
@@ -41,7 +74,7 @@ export function useEligibleCustomers(query: string, page = 0, pageSize = 20) {
         });
       }
     })();
-  }, [debouncedQ, page, pageSize]);
+  }, [debouncedQ, page, pageSize, enabled, accessToken]);
 
   return state;
 }
@@ -60,7 +93,7 @@ export function useAvailableCars(enabled: boolean) {
     (async () => {
       const { data, error } = await supabase
         .from("cars")
-        .select("id, name, brand, model, base_price_per_hour, base_price_per_day, image_url, is_available")
+        .select("id, name, brand, model, base_price_per_hour, base_price_per_day, image_url, is_available, deposit_amount")
         .eq("is_available", true)
         .order("name");
 
@@ -115,12 +148,51 @@ export function useAdminCreateBooking() {
   return { ...state, createBooking, reset };
 }
 
+/**
+ * Fast client-side precheck used by the Details -> Next button.
+ * Mirrors backend overlap semantics for statuses that reserve a car.
+ */
+export async function precheckCarAvailability(params: {
+  carId: string;
+  startDateTimeIso: string;
+  endDateTimeIso: string;
+}): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const { data: car, error: carErr } = await supabase
+    .from("cars")
+    .select("id, is_available")
+    .eq("id", params.carId)
+    .maybeSingle();
+
+  if (carErr) return { ok: false, reason: carErr.message };
+  if (!car?.is_available) {
+    return { ok: false, reason: "Selected car is not available." };
+  }
+
+  const { data: overlap, error: overlapErr } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("car_id", params.carId)
+    .in("status", ["pending", "confirmed", "active"])
+    // Half-open overlap check: [start, end)
+    .lt("start_datetime", params.endDateTimeIso)
+    .gt("end_datetime", params.startDateTimeIso)
+    .limit(1);
+
+  if (overlapErr) return { ok: false, reason: overlapErr.message };
+  if (overlap && overlap.length > 0) {
+    return { ok: false, reason: "Car is already booked in the selected time window." };
+  }
+
+  return { ok: true };
+}
+
 /** Pure pricing helper — kept in sync with Norwegian 25% VAT. */
 export function computePricing(
   start: Date | null,
   end: Date | null,
   car: AdminCarOption | null,
-  deliveryFee: number
+  deliveryFee: number,
+  withDriver = false
 ): AdminBookingPricing | null {
   if (!start || !end || !car) return null;
   const ms = end.getTime() - start.getTime();
@@ -135,15 +207,20 @@ export function computePricing(
     basePrice = hours * Number(car.base_price_per_hour);
   }
 
-  const VAT_RATE = 0.25;
-  const vatAmount = round2(basePrice * VAT_RATE);
-  const totalPrice = round2(basePrice + vatAmount + (deliveryFee || 0));
+  const depositAmount = round2(Number(car.deposit_amount ?? 0));
+  const vatAmount = 0;
+  const subtotal = round2(basePrice + (deliveryFee || 0) + depositAmount);
+  // Driver surcharge applies to base price only.
+  const driverSurcharge = withDriver ? round2(basePrice * 0.25) : 0;
+  const totalPrice = round2(subtotal + driverSurcharge);
 
   return {
     durationHours: hours,
     basePrice: round2(basePrice),
     deliveryFee: round2(deliveryFee || 0),
+    depositAmount,
     vatAmount,
+    driverSurcharge,
     totalPrice,
   };
 }

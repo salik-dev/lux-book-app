@@ -136,6 +136,9 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       fullName: initialData?.fullName || HIDDEN_CUSTOMER_DEFAULTS.fullName,
       email: initialData?.email || "",
       phone: initialData?.phone || HIDDEN_CUSTOMER_DEFAULTS.phone,
+      bookingForCompany: initialData?.bookingForCompany ?? false,
+      orgName: initialData?.orgName || "",
+      orgNo: initialData?.orgNo || "",
       address: initialData?.address || "",
       postalCode: initialData?.postalCode || "",
       city: initialData?.city || HIDDEN_CUSTOMER_DEFAULTS.city,
@@ -152,6 +155,9 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
         fullName: initialData.fullName || HIDDEN_CUSTOMER_DEFAULTS.fullName,
         email: initialData.email || "",
         phone: initialData.phone || HIDDEN_CUSTOMER_DEFAULTS.phone,
+        bookingForCompany: initialData.bookingForCompany ?? false,
+        orgName: initialData.orgName || "",
+        orgNo: initialData.orgNo || "",
         address: initialData.address || "",
         postalCode: initialData.postalCode || "",
         city: initialData.city || HIDDEN_CUSTOMER_DEFAULTS.city,
@@ -380,6 +386,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
   };
 
   const watchedEmail = form.watch("email");
+  const bookingForCompany = form.watch("bookingForCompany");
   void jwtUiTick;
   const bankIdReauthNeeded = bankIdVerified && isJwtMissingOrExpired();
   const pdfActionsAllowed =
@@ -1125,6 +1132,9 @@ const uploadLicense = async (): Promise<string | null> => {
 
       const customerData: CustomerData = {
         ...data,
+        bookingForCompany: data.bookingForCompany ?? false,
+        orgName: data.bookingForCompany ? data.orgName?.trim() : undefined,
+        orgNo: data.bookingForCompany ? data.orgNo?.trim() : undefined,
         fullName: data.fullName || HIDDEN_CUSTOMER_DEFAULTS.fullName,
         phone: data.phone || HIDDEN_CUSTOMER_DEFAULTS.phone,
         city: initialData?.city || HIDDEN_CUSTOMER_DEFAULTS.city,
@@ -1186,10 +1196,6 @@ const uploadLicense = async (): Promise<string | null> => {
                 </div>
               )}
               <div className="border-t border-[#46555d] pt-3 text-xs leading-relaxed text-[#9eabb1]">
-                <span className="font-medium text-[#b1bdc3]">Seter: </span>
-                {bookingData.seatPricingMode === "daily-basis"
-                  ? "Dagsbasis"
-                  : "Fast pris"}
                 {decorationSummary.length > 0 && (
                   <>
                     {" · "}
@@ -1456,6 +1462,85 @@ const uploadLicense = async (): Promise<string | null> => {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              <div className="rounded-md border border-[#3f4d54] bg-[#1b2529] p-4 space-y-3">
+                <FormField
+                  control={form.control}
+                  name="bookingForCompany"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between space-y-0">
+                      <div>
+                        <FormLabel className="text-sm font-medium text-[#b1bdc3]">
+                          Booking for company
+                        </FormLabel>
+                        <p className="text-xs text-[#9eabb1] mt-0.5">
+                          Provide organization details for this booking.
+                        </p>
+                      </div>
+                      <FormControl>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(field.value)}
+                          onChange={(e) => field.onChange(e.target.checked)}
+                          className="h-4 w-4 rounded border-[#46555d] accent-[#E3C08D]"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {bookingForCompany && (
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
+                    <FormField
+                      control={form.control}
+                      name="orgNo"
+                      rules={{
+                        validate: (v) =>
+                          !bookingForCompany || (v && v.trim().length > 0) || "Organization number is required",
+                      }}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium text-[#b1bdc3]">
+                            Organization number <span className="text-red-500">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#232e33] text-[#b1bdc3]"
+                              placeholder="e.g. 999999999"
+                            />
+                          </FormControl>
+                          <FormMessage className="text-red-500 mt-1" />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="orgName"
+                      rules={{
+                        validate: (v) =>
+                          !bookingForCompany || (v && v.trim().length > 0) || "Organization name is required",
+                      }}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium text-[#b1bdc3]">
+                            Organization name <span className="text-red-500">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#232e33] text-[#b1bdc3]"
+                              placeholder="Company AS"
+                            />
+                          </FormControl>
+                          <FormMessage className="text-red-500 mt-1" />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -78,7 +78,20 @@ serve(async (req: Request): Promise<Response> => {
       .eq("user_id", userData.user.id)
       .maybeSingle();
 
-    if (!adminUser?.is_active) return json({ error: "forbidden" }, 403);
+    let resolvedAdmin = adminUser;
+    if (!resolvedAdmin?.is_active && userData.user.email) {
+      const { data: adminByEmail } = await admin
+        .from("admin_users")
+        .select("id, is_active")
+        .eq("email", userData.user.email)
+        .maybeSingle();
+      if (adminByEmail?.is_active) {
+        await admin.from("admin_users").update({ user_id: userData.user.id }).eq("id", adminByEmail.id);
+        resolvedAdmin = adminByEmail;
+      }
+    }
+
+    if (!resolvedAdmin?.is_active) return json({ error: "forbidden" }, 403);
 
     // 2. Parse params
     let q = "";
@@ -117,7 +130,7 @@ serve(async (req: Request): Promise<Response> => {
     let viewQuery = admin
       .from("v_admin_eligible_customers")
       .select(
-        "customer_id, full_name, email, phone, city, driver_license_number, nin_last4, verification_id, contract_signed_at, total_bookings, customer_created_at",
+        "customer_id, full_name, email, phone, city, driver_license_number, nin_last4, verification_id, contract_signed_at, contract_file_path, total_bookings, customer_created_at",
         { count: "exact" }
       )
       .order("contract_signed_at", { ascending: false, nullsFirst: false })
@@ -147,7 +160,7 @@ serve(async (req: Request): Promise<Response> => {
       // 2a. Collect customer_ids with contract_status = true.
       const { data: bvRows, error: bvErr } = await admin
         .from("bankid_verifications")
-        .select("id, customer_id, nin, contract_signed_at")
+        .select("id, customer_id, nin, contract_signed_at, contract_file_path")
         .eq("contract_status", true)
         .not("customer_id", "is", null)
         .order("contract_signed_at", { ascending: false, nullsFirst: false });
@@ -159,7 +172,12 @@ serve(async (req: Request): Promise<Response> => {
 
       const bvByCustomer = new Map<
         string,
-        { id: string; nin: string | null; contract_signed_at: string | null }
+        {
+          id: string;
+          nin: string | null;
+          contract_signed_at: string | null;
+          contract_file_path: string | null;
+        }
       >();
       for (const row of bvRows ?? []) {
         if (row.customer_id && !bvByCustomer.has(row.customer_id)) {
@@ -167,6 +185,7 @@ serve(async (req: Request): Promise<Response> => {
             id: row.id,
             nin: row.nin,
             contract_signed_at: row.contract_signed_at,
+            contract_file_path: row.contract_file_path ?? null,
           });
         }
       }
@@ -176,25 +195,13 @@ serve(async (req: Request): Promise<Response> => {
         items = [];
         total = 0;
       } else {
-        let cQuery = admin
+        const cQuery = admin
           .from("customers")
           .select("id, full_name, email, phone, city, driver_license_number, created_at", {
             count: "exact",
           })
           .in("id", eligibleIds)
-          .order("created_at", { ascending: false })
-          .range(from, to);
-
-        if (safe) {
-          cQuery = cQuery.or(
-            [
-              `full_name.ilike.%${safe}%`,
-              `email.ilike.%${safe}%`,
-              `phone.ilike.%${safe}%`,
-              `driver_license_number.ilike.%${safe}%`,
-            ].join(",")
-          );
-        }
+          .order("created_at", { ascending: false });
 
         const cRes = await cQuery;
         if (cRes.error) {
@@ -202,7 +209,43 @@ serve(async (req: Request): Promise<Response> => {
           return json({ error: "query_failed", ...serializeError(cRes.error) }, 500);
         }
 
-        items = (cRes.data ?? []).map((row) => {
+        const allRows = cRes.data ?? [];
+        const searchNeedle = safe.toLowerCase();
+        const filteredRows =
+          searchNeedle.length === 0
+            ? allRows
+            : allRows.filter((row) => {
+                const bucket = [
+                  row.full_name ?? "",
+                  row.email ?? "",
+                  row.phone ?? "",
+                  row.driver_license_number ?? "",
+                ]
+                  .join(" ")
+                  .toLowerCase();
+                return bucket.includes(searchNeedle);
+              });
+
+        const pageRows = filteredRows.slice(from, to + 1);
+        const pageIds = pageRows.map((r) => r.id);
+
+        const bookingCounts = new Map<string, number>();
+        if (pageIds.length > 0) {
+          const { data: bookingRows, error: bookingErr } = await admin
+            .from("bookings")
+            .select("customer_id")
+            .in("customer_id", pageIds);
+          if (bookingErr) {
+            console.log("[admin-search-customers] bookings count fallback failed", bookingErr);
+            return json({ error: "query_failed", ...serializeError(bookingErr) }, 500);
+          }
+          for (const row of bookingRows ?? []) {
+            const key = row.customer_id as string;
+            bookingCounts.set(key, (bookingCounts.get(key) ?? 0) + 1);
+          }
+        }
+
+        items = pageRows.map((row) => {
           const bv = bvByCustomer.get(row.id);
           return {
             customer_id: row.id,
@@ -214,11 +257,12 @@ serve(async (req: Request): Promise<Response> => {
             nin_last4: bv?.nin ? String(bv.nin).slice(-4) : null,
             verification_id: bv?.id ?? null,
             contract_signed_at: bv?.contract_signed_at ?? null,
-            total_bookings: 0,
+            contract_file_path: bv?.contract_file_path ?? null,
+            total_bookings: bookingCounts.get(row.id) ?? 0,
             customer_created_at: row.created_at,
           };
         });
-        total = cRes.count ?? 0;
+        total = filteredRows.length;
       }
     } else {
       console.log("[admin-search-customers] view error", viewRes.error);
