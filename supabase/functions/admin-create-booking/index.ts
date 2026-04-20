@@ -270,7 +270,7 @@ serve(async (req: Request): Promise<Response> => {
 
     // 7. Fire email (non-blocking for the response, but awaited for error visibility)
     try {
-      await admin.functions.invoke("send-booking-email", {
+      const { data: emailData, error: emailInvokeError } = await admin.functions.invoke("send-booking-email", {
         body: {
           bookingId: booking.id,
           emailType: "admin_invoice",
@@ -279,9 +279,13 @@ serve(async (req: Request): Promise<Response> => {
           adminFullName: adminUser.full_name ?? null,
         },
       });
-      log("invoice_email_invoked");
+      if (emailInvokeError) {
+        log("invoice_email_error", serializeError(emailInvokeError));
+      } else {
+        log("invoice_email_invoked", emailData ?? { ok: true });
+      }
     } catch (e) {
-      log("invoice_email_error", e instanceof Error ? e.message : String(e));
+      log("invoice_email_error", serializeError(e));
       // Do not fail the booking: admin can re-send from the UI.
     }
 

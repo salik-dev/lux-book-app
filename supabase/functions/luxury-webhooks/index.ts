@@ -11,110 +11,11 @@ const STRIPE_WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET");
 const stripe = new Stripe(STRIPE_SECRET_KEY, {
   apiVersion: "2023-10-16"
 });
-// EmailJS configuration
-const EMAILJS_SERVICE_ID = Deno.env.get("EMAILJS_SERVICE_ID");
-const EMAILJS_TEMPLATE_ID = Deno.env.get("EMAILJS_TEMPLATE_ID");
-const EMAILJS_PUBLIC_KEY = Deno.env.get("EMAILJS_PUBLIC_KEY");
-const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "balisaalik@gmail.com";
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
   { auth: { persistSession: false } }
 );
-
-// EmailJS function to send admin notifications
-async function sendAdminNotificationEmail(bookingId: string) {
-  try {
-    // Get booking details with car and customer info
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
-      .select(`
-        *,
-        car:cars(*),
-        customer:customers(*)
-      `)
-      .eq('id', bookingId)
-      .single();
-
-    if (bookingError || !booking) {
-      throw new Error(`Failed to fetch booking: ${bookingError?.message}`);
-    }
-
-    // Fetch active admin users from database
-    const { data: adminUsers, error: adminError } = await supabase
-      .from('admin_users')
-      .select('email')
-      .eq('is_active', true);
-
-    if (adminError || !adminUsers || adminUsers.length === 0) {
-      console.log('No active admin users found');
-      return;
-    }
-
-    const adminEmails = adminUsers.map(admin => admin.email).filter(Boolean);
-
-    // Format dates and prices for email
-    const formatDateTime = (dateTime: string) => {
-      return new Date(dateTime).toLocaleString('en-US', {
-        timeZone: 'Europe/Oslo',
-        dateStyle: 'full',
-        timeStyle: 'short',
-      });
-    };
-
-    const formatPrice = (price: number) => {
-      return new Intl.NumberFormat('no-NO', {
-        style: 'currency',
-        currency: 'NOK',
-        minimumFractionDigits: 0,
-      }).format(price);
-    };
-
-    // Send email to each admin
-    for (const adminEmail of adminEmails) {
-      if (!adminEmail) continue;
-
-      const templateParams = {
-        to_email: adminEmail,
-        from_name: 'Fjord Fleet Admin',
-        booking_number: booking.booking_number,
-        car_name: booking.car?.name || 'N/A',
-        customer_name: booking.customer?.full_name || 'N/A',
-        customer_email: booking.customer?.email || 'N/A',
-        total_price: formatPrice(booking.total_price),
-        pickup_datetime: formatDateTime(booking.start_datetime),
-        return_datetime: formatDateTime(booking.end_datetime),
-        admin_dashboard_url: `${Deno.env.get("SUPABASE_URL")}/admin/bookings/${booking.id}` 
-      };
-
-      // Send email via EmailJS
-      const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          service_id: EMAILJS_SERVICE_ID,
-          template_id: EMAILJS_TEMPLATE_ID,
-          user_id: EMAILJS_PUBLIC_KEY,
-          template_params: templateParams
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`EmailJS error for ${adminEmail}:`, errorText);
-        continue; // Continue with other admins even if one fails
-      }
-
-      console.log(`Admin notification sent to ${adminEmail} for booking ${booking.booking_number}`);
-    }
-
-  } catch (error) {
-    console.error('Error sending admin notification:', error);
-    // Don't throw - don't block the webhook
-  }
-}
 
 serve(async (req)=>{
   if (req.method === "OPTIONS") {
@@ -126,11 +27,14 @@ serve(async (req)=>{
   try {
     const body = await req.text();
     const signature = req.headers.get("stripe-signature");
-    event = stripe.webhooks.constructEvent(body, signature, STRIPE_WEBHOOK_SECRET);
+    if (!signature) throw new Error("Missing stripe-signature header");
+    if (!STRIPE_WEBHOOK_SECRET) throw new Error("STRIPE_WEBHOOK_SECRET is not set");
+    event = await stripe.webhooks.constructEventAsync(body, signature, STRIPE_WEBHOOK_SECRET);
     console.log(`[STRIPE-WEBHOOK] Received event: ${event.type}`);
   } catch (err) {
-    console.error(`❌ Webhook signature verification failed.`, err.message);
-    return new Response(`Webhook error: ${err.message}`, {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`❌ Webhook signature verification failed.`, message);
+    return new Response(`Webhook error: ${message}`, {
       status: 400
     });
   }
@@ -147,30 +51,52 @@ serve(async (req)=>{
           status: "paid"
         }).eq("stripe_session_id", session.id);
 
-        // Get booking ID and send admin notification
-        const { data: payment } = await supabase
+        // Get booking ID from payments table; fall back to Stripe metadata if needed.
+        const { data: payment, error: paymentError } = await supabase
           .from('payments')
           .select('booking_id')
           .eq('stripe_session_id', session.id)
           .single();
-          
-        if (payment?.booking_id) {
+
+        if (paymentError) {
+          console.error("[STRIPE-WEBHOOK] payment lookup failed", {
+            sessionId: session.id,
+            error: paymentError,
+          });
+        }
+
+        const bookingId = payment?.booking_id ?? session?.metadata?.bookingId ?? null;
+        if (!bookingId) {
+          console.error("[STRIPE-WEBHOOK] No bookingId resolved; skipping booking/email updates", {
+            sessionId: session.id,
+            paymentLookupBookingId: payment?.booking_id ?? null,
+            metadataBookingId: session?.metadata?.bookingId ?? null,
+          });
+          break;
+        }
+
+        if (bookingId) {
           // Mark booking as confirmed when payment is settled.
           await supabase
             .from("bookings")
             .update({ status: "confirmed", updated_at: new Date().toISOString() })
-            .eq("id", payment.booking_id);
+            .eq("id", bookingId);
 
           // Send the normal customer confirmation email on successful payment.
-          await supabase.functions.invoke("send-booking-email", {
+          const { data: emailData, error: emailInvokeError } = await supabase.functions.invoke("send-booking-email", {
             body: {
-              bookingId: payment.booking_id,
+              bookingId,
               emailType: "confirmation",
               language: "en",
             },
           });
+          if (emailInvokeError) {
+            console.error("[STRIPE-WEBHOOK] send-booking-email invoke failed", emailInvokeError);
+          } else {
+            console.log("[STRIPE-WEBHOOK] send-booking-email invoke ok", emailData);
+          }
 
-          await sendAdminNotificationEmail(payment.booking_id);
+          // EmailJS admin notifications removed by request.
         }
 
         break;

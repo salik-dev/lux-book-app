@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@4.0.0";
+import nodemailer from "npm:nodemailer@6.9.16";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -10,6 +10,14 @@ const corsHeaders = {
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[SEND-BOOKING-EMAIL] ${step}${detailsStr}`);
+};
+
+const parseBool = (value: string | undefined): boolean | null => {
+  if (!value) return null;
+  const v = value.trim().toLowerCase();
+  if (v === "true") return true;
+  if (v === "false") return false;
+  return null;
 };
 
 serve(async (req) => {
@@ -26,8 +34,12 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const resendKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendKey) throw new Error("RESEND_API_KEY is not set");
+    const smtpHost = Deno.env.get("SMTP_HOST")?.trim();
+    const smtpUser = Deno.env.get("SMTP_USER")?.trim();
+    const smtpPass = Deno.env.get("SMTP_PASS")?.trim();
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      throw new Error("SMTP_HOST, SMTP_USER, and SMTP_PASS must be set for Nodemailer");
+    }
 
     const {
       bookingId,
@@ -38,8 +50,6 @@ serve(async (req) => {
       adminFullName,
     } = await req.json();
     logStep("Request received", { bookingId, emailType, language });
-
-    const resend = new Resend(resendKey);
 
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseClient
@@ -103,30 +113,8 @@ serve(async (req) => {
               ${booking.delivery_location ? `<p><strong>${language === 'no' ? 'Leveringssted' : 'Delivery Location'}:</strong> ${booking.delivery_location}</p>` : ''}
               <p><strong>${language === 'no' ? 'Total pris' : 'Total Price'}:</strong> ${formatPrice(booking.total_price)}</p>
             </div>
-
-            <div style="background: #ecfdf5; border: 1px solid #10b981; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-              <h3 style="margin-top: 0; color: #059669;">
-                ${language === 'no' ? '📋 Neste steg' : '📋 Next Steps'}
-              </h3>
-              <ul style="margin: 0; padding-left: 20px;">
-                <li>${language === 'no' ? 'Du vil motta en SMS bekrefelse kort tid' : 'You will receive an SMS confirmation shortly'}</li>
-                <li>${language === 'no' ? 'Ha med deg gyldig førerkort ved henting' : 'Bring your valid driving license for pickup'}</li>
-                <li>${language === 'no' ? 'Vårt team vil kontakte deg før henting' : 'Our team will contact you before pickup'}</li>
-              </ul>
-            </div>
-
-            <div style="text-align: center; margin-top: 30px;">
-              <p style="color: #64748b;">
-                ${language === 'no' 
-                  ? 'Har du spørsmål? Kontakt oss på support@fjordfleet.no eller +47 123 45 678' 
-                  : 'Questions? Contact us at support@fjordfleet.no or +47 123 45 678'}
-              </p>
-            </div>
           </div>
           
-          <div style="background: #f1f5f9; padding: 20px; text-align: center; color: #64748b; font-size: 12px;">
-            <p>© 2024 Fjord Fleet. ${language === 'no' ? 'Alle rettigheter reservert.' : 'All rights reserved.'}</p>
-          </div>
         </div>
       `;
     } else if (emailType === 'admin_invoice') {
@@ -154,7 +142,7 @@ serve(async (req) => {
       htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; background:#ffffff;">
           <div style="background: linear-gradient(135deg, #1e40af, #0ea5e9); padding: 32px 24px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 26px;">Fjord Fleet</h1>
+            <h1 style="color: white; margin: 0; font-size: 26px;">Prime Car Rental</h1>
             <p style="color: white; margin: 8px 0 0 0; opacity: 0.9; font-size:14px;">
               ${isNo ? 'Luksus bilutleie i Norge' : 'Luxury Car Rental in Norway'}
             </p>
@@ -168,10 +156,10 @@ serve(async (req) => {
               ${
                 isNo
                   ? `Hei ${booking.customer.full_name}, ${
-                      adminFullName ? `${adminFullName} ved Fjord Fleet` : 'vårt team'
+                      adminFullName ? `${adminFullName} ved Prime Car Rental` : 'vårt team'
                     } har opprettet en bestilling på dine vegne. Fullfør betalingen nedenfor for å bekrefte bestillingen.`
                   : `Hi ${booking.customer.full_name}, ${
-                      adminFullName ? `${adminFullName} at Fjord Fleet` : 'our team'
+                      adminFullName ? `${adminFullName} at Prime Car Rental` : 'our team'
                     } has created a booking on your behalf. Complete the payment below to confirm your reservation.`
               }
             </p>
@@ -245,16 +233,6 @@ serve(async (req) => {
                    <p style="margin:0; color:#92400e; font-size:14px;"><strong>${isNo ? 'Melding fra Fjord Fleet' : 'Note from Fjord Fleet'}:</strong> ${adminNotes}</p>
                  </div>`
               : ''}
-
-            <p style="color:#64748b; font-size:12px; text-align:center; margin-top:20px;">
-              ${isNo
-                ? 'Spørsmål? Kontakt oss på support@fjordfleet.no eller +47 123 45 678'
-                : 'Questions? Contact us at support@fjordfleet.no or +47 123 45 678'}
-            </p>
-          </div>
-
-          <div style="background:#f1f5f9; padding:16px; text-align:center; color:#64748b; font-size:12px;">
-            <p style="margin:0;">© ${new Date().getFullYear()} Fjord Fleet. ${isNo ? 'Alle rettigheter reservert.' : 'All rights reserved.'}</p>
           </div>
         </div>
       `;
@@ -266,7 +244,7 @@ serve(async (req) => {
       htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #1e40af, #0ea5e9); padding: 40px 20px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">🏔️ Fjord Fleet</h1>
+            <h1 style="color: white; margin: 0; font-size: 28px;">🏔️ Prime Car Rental</h1>
           </div>
           
           <div style="padding: 40px 20px;">
@@ -298,15 +276,78 @@ serve(async (req) => {
       `;
     }
 
-    const { error: emailError } = await resend.emails.send({
-      from: 'Fjord Fleet <bookings@fjordfleet.no>',
-      to: [booking.customer.email],
-      subject: subject!,
-      html: htmlContent!,
-    });
+    // Optional BOOKING_EMAIL_TO_OVERRIDE (e.g. balisaalik@gmail.com) for testing; otherwise
+    // uses the customer email from the booking.
+    const recipientOverride = Deno.env.get("BOOKING_EMAIL_TO_OVERRIDE")?.trim();
+    const customerEmail = booking.customer?.email?.trim();
+    // const customerEmail = "balisaalik@gmail.com";
+    const toEmail = customerEmail;
+    if (!toEmail) {
+      throw new Error("No recipient: customer has no email and BOOKING_EMAIL_TO_OVERRIDE is not set");
+    }
+    if (recipientOverride && customerEmail && recipientOverride !== customerEmail) {
+      logStep("Recipient override active", { actualCustomerEmail: customerEmail, sendingTo: toEmail });
+    }
 
-    if (emailError) throw emailError;
-    logStep("Email sent successfully");
+    // const fromAddress =
+    //   Deno.env.get("BOOKING_SMTP_FROM")?.trim() ??
+    //   Deno.env.get("SMTP_FROM")?.trim() ??
+    //   smtpUser;
+    const fromAddress = "dev.bahadurali@gmail.com";
+
+    const smtpPort = Number(Deno.env.get("SMTP_PORT")?.trim() || "587");
+    const envSecure = parseBool(Deno.env.get("SMTP_SECURE"));
+    const primarySecure = envSecure ?? smtpPort === 465;
+    const secureModes = envSecure === null ? [primarySecure, !primarySecure] : [primarySecure];
+
+    let lastError: unknown = null;
+    let sentInfo: { messageId?: string } | null = null;
+
+    for (const secureMode of secureModes) {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: secureMode,
+        auth: { user: smtpUser, pass: smtpPass },
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 20000,
+        requireTLS: !secureMode,
+        tls: { servername: smtpHost },
+      });
+
+      try {
+        logStep("Attempting SMTP send", {
+          host: smtpHost,
+          port: smtpPort,
+          secure: secureMode,
+          toEmail,
+          fromAddress,
+        });
+        sentInfo = await transporter.sendMail({
+          from: fromAddress,
+          to: toEmail,
+          subject: subject!,
+          html: htmlContent!,
+        });
+        break;
+      } catch (err) {
+        lastError = err;
+        const errMessage = err instanceof Error ? err.message : String(err);
+        logStep("SMTP send attempt failed", {
+          host: smtpHost,
+          port: smtpPort,
+          secure: secureMode,
+          message: errMessage,
+        });
+      }
+    }
+
+    if (!sentInfo) {
+      throw lastError instanceof Error ? lastError : new Error(String(lastError ?? "smtp_send_failed"));
+    }
+
+    logStep("Email sent successfully", { messageId: sentInfo.messageId });
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
