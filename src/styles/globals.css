@@ -1,5 +1,147 @@
 @import "tailwindcss";
 
+@theme inline {
+  --color-background: var(--cal-bg, transparent);
+  --color-foreground: var(--cal-fg, inherit);
+  --color-card: var(--cal-card, transparent);
+  --color-card-foreground: var(--cal-card-fg, inherit);
+  --color-popover: var(--cal-popover, transparent);
+  --color-popover-foreground: var(--cal-popover-fg, inherit);
+  --color-primary: var(--cal-primary, transparent);
+  --color-primary-foreground: var(--cal-primary-fg, inherit);
+  --color-secondary: var(--cal-secondary, transparent);
+  --color-secondary-foreground: var(--cal-secondary-fg, inherit);
+  --color-muted: var(--cal-muted, transparent);
+  --color-muted-foreground: var(--cal-muted-fg, inherit);
+  --color-accent: var(--cal-accent, transparent);
+  --color-accent-foreground: var(--cal-accent-fg, inherit);
+  --color-destructive: var(--cal-destructive, transparent);
+  --color-destructive-foreground: var(--cal-destructive-fg, inherit);
+  --color-border: var(--cal-border, currentColor);
+  --color-input: var(--cal-input, transparent);
+  --color-ring: var(--cal-ring, transparent);
+}
+
+/*
+ * Light-theme tokens scoped to the calendar modal only.
+ * Applied via the `lux-calendar` class on the calendar DialogContent.
+ */
+.lux-calendar {
+  --cal-bg: #ffffff;
+  --cal-fg: #18181b;
+  --cal-card: #ffffff;
+  --cal-card-fg: #18181b;
+  --cal-popover: #ffffff;
+  --cal-popover-fg: #18181b;
+  --cal-primary: #e3c08d;
+  --cal-primary-fg: #1c1917;
+  --cal-secondary: #f4f4f5;
+  --cal-secondary-fg: #18181b;
+  --cal-muted: #f4f4f5;
+  --cal-muted-fg: #71717a;
+  --cal-accent: #f1f0ec;
+  --cal-accent-fg: #18181b;
+  --cal-destructive: #ef4444;
+  --cal-destructive-fg: #ffffff;
+  --cal-border: #e4e4e7;
+  --cal-input: #e4e4e7;
+  --cal-ring: #e3c08d;
+
+  background-color: var(--cal-bg);
+  color: var(--cal-fg);
+}
+
+/* Light default border for calendar elements; explicit border-* utilities still win. */
+@layer base {
+  .lux-calendar :where(*) {
+    border-color: var(--cal-border);
+  }
+}
+
+@keyframes lux-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes lux-overlay-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes lux-dialog-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes lux-dialog-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.96); }
+}
+@keyframes lux-pop-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes lux-pop-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.96); }
+}
+@keyframes lux-sheet-slide-in-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes lux-sheet-slide-out-right {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+@keyframes lux-sheet-slide-in-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes lux-sheet-slide-out-left {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); }
+}
+
+.lux-overlay[data-state="open"] {
+  animation: lux-overlay-in 0.2s ease both;
+}
+.lux-overlay[data-state="closed"] {
+  animation: lux-overlay-out 0.15s ease both;
+}
+.lux-dialog[data-state="open"] {
+  animation: lux-dialog-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.lux-dialog[data-state="closed"] {
+  animation: lux-dialog-out 0.16s ease both;
+}
+.lux-pop[data-state="open"] {
+  animation: lux-pop-in 0.16s ease both;
+}
+.lux-pop[data-state="closed"] {
+  animation: lux-pop-out 0.12s ease both;
+}
+
+/* Sheet slide animations */
+.lux-calendar[data-state="open"]:is([class*="right-0"]) {
+  animation: lux-sheet-slide-in-right 0.3s ease both;
+}
+.lux-calendar[data-state="closed"]:is([class*="right-0"]) {
+  animation: lux-sheet-slide-out-right 0.3s ease both;
+}
+.lux-calendar[data-state="open"]:is([class*="left-0"]) {
+  animation: lux-sheet-slide-in-left 0.3s ease both;
+}
+.lux-calendar[data-state="closed"]:is([class*="left-0"]) {
+  animation: lux-sheet-slide-out-left 0.3s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lux-overlay[data-state],
+  .lux-dialog[data-state],
+  .lux-pop[data-state],
+  .lux-calendar[data-state] {
+    animation: none;
+  }
+}
+
 @layer base {
   :root {
     /* Base colors */

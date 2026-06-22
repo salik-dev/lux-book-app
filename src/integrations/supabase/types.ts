@@ -200,6 +200,47 @@ export type Database = {
           },
         ]
       }
+      car_unavailability: {
+        Row: {
+          car_id: string
+          created_at: string
+          created_by: string | null
+          end_datetime: string
+          id: string
+          reason: string | null
+          start_datetime: string
+          updated_at: string
+        }
+        Insert: {
+          car_id: string
+          created_at?: string
+          created_by?: string | null
+          end_datetime: string
+          id?: string
+          reason?: string | null
+          start_datetime: string
+          updated_at?: string
+        }
+        Update: {
+          car_id?: string
+          created_at?: string
+          created_by?: string | null
+          end_datetime?: string
+          id?: string
+          reason?: string | null
+          start_datetime?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "car_unavailability_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cars: {
         Row: {
           base_price_per_day: number

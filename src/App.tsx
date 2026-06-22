@@ -20,6 +20,9 @@ import BookingCancelled from "./pages/booking-cancelled";
 import AuthSuccessPage from "./pages/auth-success";
 import AuthAbortPage from "./pages/auth-abort";
 import AuthErrorPage from "./pages/auth-error";
+import { RootLayout } from "./pages/admin/schedule/components/layout/root-layout";
+import { CalendarLayout } from "./pages/admin/schedule/calendar/components/calendar-layout";
+import { ClientContainer } from "./pages/admin/schedule/calendar/components/client-container";
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -66,6 +69,18 @@ export default function App() {
         <Route path="/admin" element={
             <Admin />
         } />
+      {/* 
+         <Route element={<RootLayout />}>
+          <Route element={<CalendarLayout />}>
+            <Route index element={<Navigate to="/admin" replace />} />
+            <Route path="day-view" element={<ClientContainer view="day" />} />
+            <Route path="week-view" element={<ClientContainer view="week" />} />
+            <Route path="month-view" element={<ClientContainer view="month" />} />
+            <Route path="year-view" element={<ClientContainer view="year" />} />
+            <Route path="agenda-view" element={<ClientContainer view="agenda" />} />
+            <Route path="*" element={<Navigate to="/admin" replace />} />
+          </Route>
+        </Route> */}
 
         {/* Other Pages */}
         <Route path="/om-oss" element={

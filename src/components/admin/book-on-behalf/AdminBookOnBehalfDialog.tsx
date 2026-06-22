@@ -58,6 +58,12 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onBookingCreated?: (res: CreateBookingResponse) => void;
+  /** Pre-select the vehicle (e.g. when launched from the admin calendar). */
+  prefillCarId?: string;
+  /** Pre-fill the pickup date/time. */
+  prefillStart?: Date;
+  /** Pre-fill the return date/time. */
+  prefillEnd?: Date;
 }
 
 type Step = 1 | 2 | 3 | 4;
@@ -205,6 +211,9 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
   open,
   onOpenChange,
   onBookingCreated,
+  prefillCarId,
+  prefillStart,
+  prefillEnd,
 }) => {
   const { toast } = useToast();
   const { isAdmin, loading: authLoading, session } = useAuth();
@@ -280,6 +289,14 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
       }, 350);
     }
   }, [open, defaultStart, defaultEnd, resetMutation]);
+
+  // Apply calendar prefill (car + date range) whenever the dialog opens.
+  useEffect(() => {
+    if (!open) return;
+    if (prefillCarId) setCarId(prefillCarId);
+    if (prefillStart) setStartLocal(toDateTimeLocalInputValue(prefillStart));
+    if (prefillEnd) setEndLocal(toDateTimeLocalInputValue(prefillEnd));
+  }, [open, prefillCarId, prefillStart, prefillEnd]);
 
   const start = parseDateTimeLocal(startLocal);
   const end = parseDateTimeLocal(endLocal);
