@@ -7,8 +7,17 @@ import { buttonVariants } from "@/pages/admin/schedule/components/ui/button";
 
 import { cn } from "@/pages/admin/schedule/lib/utils";
 
+type TSingleCalendarProps = React.ComponentProps<typeof DayPicker> & {
+  /**
+   * Called when the visible month is changed via the prev/next buttons.
+   * Some callers (e.g. the Day view's mini calendar) use this to keep the
+   * main selected date in sync with month navigation, not just day clicks.
+   */
+  onNavigate?: (date: Date) => void;
+};
+
 // react-day-picker v9 API
-function SingleCalendar({ className, classNames, showOutsideDays = true, ...props }: React.ComponentProps<typeof DayPicker>) {
+function SingleCalendar({ className, classNames, showOutsideDays = true, onNavigate, ...props }: TSingleCalendarProps) {
   const selectedDate = "selected" in props && props.selected instanceof Date ? props.selected : undefined;
   const [currentMonth, setCurrentMonth] = React.useState<Date | undefined>(() => selectedDate || new Date());
 
@@ -23,6 +32,7 @@ function SingleCalendar({ className, classNames, showOutsideDays = true, ...prop
       const newMonth = new Date(currentMonth);
       newMonth.setMonth(newMonth.getMonth() - 1);
       setCurrentMonth(newMonth);
+      onNavigate?.(newMonth);
     }
   };
 
@@ -31,6 +41,7 @@ function SingleCalendar({ className, classNames, showOutsideDays = true, ...prop
       const newMonth = new Date(currentMonth);
       newMonth.setMonth(newMonth.getMonth() + 1);
       setCurrentMonth(newMonth);
+      onNavigate?.(newMonth);
     }
   };
 

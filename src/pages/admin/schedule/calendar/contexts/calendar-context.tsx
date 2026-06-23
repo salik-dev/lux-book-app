@@ -13,7 +13,7 @@ export interface ICarCalendarActions {
   onMarkUnavailable?: (carId?: string, start?: Date) => void;
   onToggleCarAvailability?: (carId: string, currentlyAvailable: boolean) => void;
   onCancelBooking?: (bookingId: string) => void;
-  onDeleteBlock?: (blockId: string) => void;
+  onDeleteBlock?: (blockId: string, carId?: string) => void;
 }
 
 interface ICalendarContext extends ICarCalendarActions {

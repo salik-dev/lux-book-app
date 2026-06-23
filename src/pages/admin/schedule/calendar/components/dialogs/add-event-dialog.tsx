@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { AlertTriangle } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/pages/admin/schedule/components/ui/input";
 import { Button } from "@/pages/admin/schedule/components/ui/button";
 import { Textarea } from "@/pages/admin/schedule/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/pages/admin/schedule/components/ui/avatar";
 import { Form, FormField, FormLabel, FormItem, FormControl, FormMessage } from "@/pages/admin/schedule/components/ui/form";
 import { Select, SelectItem, SelectContent, SelectTrigger, SelectValue } from "@/pages/admin/schedule/components/ui/select";
 import { Dialog, DialogHeader, DialogClose, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogFooter } from "@/pages/admin/schedule/components/ui/dialog";
@@ -16,6 +15,9 @@ import { useDisclosure } from "../../../hooks/use-disclosure";
 import { eventSchema, TEventFormData } from "../../schemas";
 import { SingleDayPicker } from "../../../components/ui/single-day-picker";
 import { TimeSelect } from "../../../components/ui/time-select";
+import { CarSearchBox, CarThumbnail, CarEmptyState, useCarSearch } from "../ui/car-search-select";
+
+import type { ICalendarCar } from "../../interfaces";
 
 interface IProps {
   children: React.ReactNode;
@@ -24,7 +26,26 @@ interface IProps {
 }
 
 export function AddEventDialog({ children, startDate, startTime }: IProps) {
-  const { users } = useCalendar();
+  const { users, cars } = useCalendar();
+
+  // Prefer the richer car records (image, brand, model) when available;
+  // fall back to the generic resource list for the non-car demo calendar.
+  const searchableCars = useMemo<ICalendarCar[]>(
+    () =>
+      cars ??
+      users.map((u) => ({
+        id: u.id,
+        name: u.name,
+        brand: "",
+        model: "",
+        image_url: u.picturePath,
+        is_available: true,
+        base_price_per_hour: 0,
+        base_price_per_day: 0,
+      })),
+    [cars, users]
+  );
+  const { query, setQuery, filtered } = useCarSearch(searchableCars);
 
   const { isOpen, onClose, onToggle } = useDisclosure();
 
@@ -72,26 +93,27 @@ export function AddEventDialog({ children, startDate, startTime }: IProps) {
               name="user"
               render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel>Responsible</FormLabel>
+                  <FormLabel>Vehicle</FormLabel>
                   <FormControl>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger data-invalid={fieldState.invalid}>
-                        <SelectValue placeholder="Select an option" />
+                        <SelectValue placeholder="Select a vehicle" />
                       </SelectTrigger>
 
-                      <SelectContent>
-                        {users.map(user => (
-                          <SelectItem key={user.id} value={user.id} className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <Avatar key={user.id} className="size-6">
-                                <AvatarImage src={user.picturePath ?? undefined} alt={user.name} />
-                                <AvatarFallback className="text-xxs">{user.name[0]}</AvatarFallback>
-                              </Avatar>
-
-                              <p className="truncate">{user.name}</p>
-                            </div>
-                          </SelectItem>
-                        ))}
+                      <SelectContent className="max-h-64">
+                        <CarSearchBox value={query} onChange={setQuery} />
+                        {filtered.length === 0 ? (
+                          <CarEmptyState />
+                        ) : (
+                          filtered.map(car => (
+                            <SelectItem key={car.id} value={car.id} className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <CarThumbnail car={car} />
+                                <p className="truncate">{car.name}</p>
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </FormControl>

@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, CalendarPlus, Car } from "lucide-react";
+import { ArrowRight, CalendarPlus } from "lucide-react";
 
 import { Button } from "@/pages/admin/schedule/components/ui/button";
-import { Input } from "@/pages/admin/schedule/components/ui/input";
 import { Label } from "@/pages/admin/schedule/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/pages/admin/schedule/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/pages/admin/schedule/components/ui/select";
+
+import { DateTime24hField } from "@/pages/admin/schedule/calendar/components/ui/datetime-24h-field";
+import { CarSearchBox, CarThumbnail, CarEmptyState, useCarSearch } from "@/pages/admin/schedule/calendar/components/ui/car-search-select";
+
+import { isPickupLeadTimeValid, MIN_PICKUP_LEAD_HOURS } from "@/lib/booking-time";
 
 import type { ICalendarCar } from "@/pages/admin/schedule/calendar/interfaces";
 
@@ -20,31 +24,28 @@ interface IProps {
   onConfirm: (carId: string, start: Date, end: Date) => void;
 }
 
-function toLocalInput(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 export function BookCarDialog({ open, onOpenChange, cars, defaultCarId, defaultStart, onConfirm }: IProps) {
   const [carId, setCarId] = useState("");
-  const [startLocal, setStartLocal] = useState("");
-  const [endLocal, setEndLocal] = useState("");
+  const [start, setStart] = useState<Date | null>(null);
+  const [end, setEnd] = useState<Date | null>(null);
+
+  const { query, setQuery, filtered } = useCarSearch(cars);
 
   useEffect(() => {
     if (!open) return;
-    const start = defaultStart ? new Date(defaultStart) : new Date();
-    start.setHours(start.getHours() + 2, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
+    const from = defaultStart ? new Date(defaultStart) : new Date();
+    from.setHours(from.getHours() + 2, 0, 0, 0);
+    const to = new Date(from);
+    to.setDate(to.getDate() + 1);
 
     setCarId(defaultCarId && cars.some((c) => c.id === defaultCarId) ? defaultCarId : "");
-    setStartLocal(toLocalInput(start));
-    setEndLocal(toLocalInput(end));
-  }, [open, defaultCarId, defaultStart, cars]);
+    setStart(from);
+    setEnd(to);
+    setQuery("");
+  }, [open, defaultCarId, defaultStart, cars, setQuery]);
 
-  const start = startLocal ? new Date(startLocal) : null;
-  const end = endLocal ? new Date(endLocal) : null;
-  const canSubmit = !!carId && !!start && !!end && end > start;
+  const pickupValid = isPickupLeadTimeValid(start);
+  const canSubmit = !!carId && !!start && !!end && end > start && pickupValid;
 
   const handleContinue = () => {
     if (!carId || !start || !end) return;
@@ -54,7 +55,7 @@ export function BookCarDialog({ open, onOpenChange, cars, defaultCarId, defaultS
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarPlus className="size-5" />
@@ -65,22 +66,23 @@ export function BookCarDialog({ open, onOpenChange, cars, defaultCarId, defaultS
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-1.5">
+        <div className="min-w-0 space-y-5 py-1">
+          <div className="min-w-0 space-y-1.5">
             <Label>Vehicle</Label>
             <Select value={carId} onValueChange={setCarId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a vehicle" />
               </SelectTrigger>
-              <SelectContent>
-                {cars.length === 0 ? (
-                  <div className="px-2 py-1.5 text-sm text-muted-foreground">No available vehicles</div>
+              <SelectContent className="max-h-72">
+                <CarSearchBox value={query} onChange={setQuery} />
+                {filtered.length === 0 ? (
+                  <CarEmptyState text={cars.length === 0 ? "No available vehicles" : "No vehicles found"} />
                 ) : (
-                  cars.map((c) => (
+                  filtered.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      <span className="flex items-center gap-2">
-                        <Car className="size-3.5" />
-                        {c.name}
+                      <span className="flex w-full items-center gap-2">
+                        <CarThumbnail car={c} />
+                        <span className="truncate">{c.name}</span>
                       </span>
                     </SelectItem>
                   ))
@@ -89,14 +91,19 @@ export function BookCarDialog({ open, onOpenChange, cars, defaultCarId, defaultS
             </Select>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="min-w-0 space-y-1.5">
               <Label>Pickup</Label>
-              <Input type="datetime-local" value={startLocal} onChange={(e) => setStartLocal(e.target.value)} />
+              <DateTime24hField value={start} onChange={setStart} placeholder="Pickup date" />
+              {start && !pickupValid && (
+                <p className="text-xs text-red-600">
+                  Pickup must be at least {MIN_PICKUP_LEAD_HOURS} hour from now.
+                </p>
+              )}
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label>Return</Label>
-              <Input type="datetime-local" value={endLocal} min={startLocal} onChange={(e) => setEndLocal(e.target.value)} />
+              <DateTime24hField value={end} onChange={setEnd} placeholder="Return date" />
             </div>
           </div>
         </div>

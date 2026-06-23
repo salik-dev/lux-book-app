@@ -162,7 +162,7 @@ export function EventDetailsDialog({ event, children }: IProps) {
               variant="destructive"
               disabled={busy}
               onClick={() => {
-                onDeleteBlock(event.referenceId!);
+                onDeleteBlock(event.referenceId!, event.carId);
                 setOpen(false);
               }}
             >

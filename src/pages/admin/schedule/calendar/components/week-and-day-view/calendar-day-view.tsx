@@ -6,7 +6,7 @@ import { useCalendar } from "@/pages/admin/schedule/calendar/contexts/calendar-c
 import { ScrollArea } from "@/pages/admin/schedule/components/ui/scroll-area";
 import { SingleCalendar } from "@/pages/admin/schedule/components/ui/single-calendar";
 
-import { AddEventDialog } from "@/pages/admin/schedule/calendar/components/dialogs/add-event-dialog";
+import { BookableTimeSlot } from "@/pages/admin/schedule/calendar/components/week-and-day-view/bookable-time-slot";
 import { EventBlock } from "@/pages/admin/schedule/calendar/components/week-and-day-view/event-block";
 import { DroppableTimeBlock } from "@/pages/admin/schedule/calendar/components/dnd/droppable-time-block";
 import { CalendarTimeline } from "@/pages/admin/schedule/calendar/components/week-and-day-view/calendar-time-line";
@@ -79,29 +79,41 @@ export function CalendarDayView({ singleDayEvents, multiDayEvents }: IProps) {
                       {index !== 0 && <div className="pointer-events-none absolute inset-x-0 top-0 border-b"></div>}
 
                       <DroppableTimeBlock date={selectedDate} hour={hour} minute={0}>
-                        <AddEventDialog startDate={selectedDate} startTime={{ hour, minute: 0 }}>
-                          <div className="absolute inset-x-0 top-0 h-[24px] cursor-pointer transition-colors hover:bg-accent" />
-                        </AddEventDialog>
+                        <BookableTimeSlot
+                          date={selectedDate}
+                          hour={hour}
+                          minute={0}
+                          className="absolute inset-x-0 top-0 h-[24px] cursor-pointer transition-colors hover:bg-accent"
+                        />
                       </DroppableTimeBlock>
 
                       <DroppableTimeBlock date={selectedDate} hour={hour} minute={15}>
-                        <AddEventDialog startDate={selectedDate} startTime={{ hour, minute: 15 }}>
-                          <div className="absolute inset-x-0 top-[24px] h-[24px] cursor-pointer transition-colors hover:bg-accent" />
-                        </AddEventDialog>
+                        <BookableTimeSlot
+                          date={selectedDate}
+                          hour={hour}
+                          minute={15}
+                          className="absolute inset-x-0 top-[24px] h-[24px] cursor-pointer transition-colors hover:bg-accent"
+                        />
                       </DroppableTimeBlock>
 
                       <div className="pointer-events-none absolute inset-x-0 top-1/2 border-b border-dashed"></div>
 
                       <DroppableTimeBlock date={selectedDate} hour={hour} minute={30}>
-                        <AddEventDialog startDate={selectedDate} startTime={{ hour, minute: 30 }}>
-                          <div className="absolute inset-x-0 top-[48px] h-[24px] cursor-pointer transition-colors hover:bg-accent" />
-                        </AddEventDialog>
+                        <BookableTimeSlot
+                          date={selectedDate}
+                          hour={hour}
+                          minute={30}
+                          className="absolute inset-x-0 top-[48px] h-[24px] cursor-pointer transition-colors hover:bg-accent"
+                        />
                       </DroppableTimeBlock>
 
                       <DroppableTimeBlock date={selectedDate} hour={hour} minute={45}>
-                        <AddEventDialog startDate={selectedDate} startTime={{ hour, minute: 45 }}>
-                          <div className="absolute inset-x-0 top-[72px] h-[24px] cursor-pointer transition-colors hover:bg-accent" />
-                        </AddEventDialog>
+                        <BookableTimeSlot
+                          date={selectedDate}
+                          hour={hour}
+                          minute={45}
+                          className="absolute inset-x-0 top-[72px] h-[24px] cursor-pointer transition-colors hover:bg-accent"
+                        />
                       </DroppableTimeBlock>
                     </div>
                   );
@@ -139,7 +151,20 @@ export function CalendarDayView({ singleDayEvents, multiDayEvents }: IProps) {
       </div>
 
       <div className="hidden w-64 divide-y border-l md:block">
-        <SingleCalendar className="mx-auto w-fit" mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus />
+        <SingleCalendar
+          className="mx-auto w-fit"
+          mode="single"
+          selected={selectedDate}
+          onSelect={setSelectedDate}
+          onNavigate={(month) => {
+            // Keep the day-of-month so the mini calendar's prev/next month
+            // buttons also move the main Day view (and Fleet availability),
+            // not just the calendar's own preview.
+            const day = Math.min(selectedDate.getDate(), new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate());
+            setSelectedDate(new Date(month.getFullYear(), month.getMonth(), day));
+          }}
+          initialFocus
+        />
 
         <div className="flex-1 space-y-3">
           {currentEvents.length > 0 ? (

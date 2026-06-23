@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
-import { format, addDays, differenceInHours } from "date-fns";
+import { format, addDays, addHours, differenceInHours } from "date-fns";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -26,13 +26,14 @@ import {
   SelectValue,
 } from "../ui/select";
 import { cn } from "@/lib/utils";
+import { isPickupLeadTimeValid, MIN_PICKUP_LEAD_HOURS } from "@/lib/booking-time";
 
 /** Fixed demo locations (Norway) — always applied to the booking. */
 const DEFAULT_PICKUP_LOCATION = "Karl Johans gate 1, 0154 Oslo";
 const DEFAULT_DELIVERY_LOCATION = "Oslo lufthavn Gardermoen, 2060 Gardermoen";
 
 const bookingTimeSelectContentClass =
-  "border-[#46555d] bg-[#232e33] text-[#b1bdc3] max-h-[min(240px,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)] overflow-y-auto p-1 shadow-xl " +
+  "notranslate border-[#46555d] bg-[#232e33] text-[#b1bdc3] max-h-[min(240px,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)] overflow-y-auto p-1 shadow-xl " +
   "[scrollbar-color:#6b7280_transparent] [scrollbar-width:thin] " +
   "[&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#6b7280] [&::-webkit-scrollbar-track]:bg-transparent";
 
@@ -70,7 +71,7 @@ function BookingDateTimeTimeRow({
   };
 
   return (
-    <div className="border-t border-[#3f4d54] bg-[#232e33] px-3 py-3">
+    <div className="notranslate border-t border-[#3f4d54] bg-[#232e33] px-3 py-3" translate="no">
       <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[#9aa8ae]">
         Klokkeslett
       </p>
@@ -84,6 +85,7 @@ function BookingDateTimeTimeRow({
           </SelectTrigger>
           <SelectContent
             className={bookingTimeSelectContentClass}
+            translate="no"
             position="popper"
             side="bottom"
             align="start"
@@ -113,6 +115,7 @@ function BookingDateTimeTimeRow({
           </SelectTrigger>
           <SelectContent
             className={bookingTimeSelectContentClass}
+            translate="no"
             position="popper"
             side="bottom"
             align="start"
@@ -178,7 +181,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
   const form = useForm<FormData>({
     defaultValues: {
-      startDateTime: initialData ? new Date(initialData.startDateTime) : new Date(),
+      startDateTime: initialData ? new Date(initialData.startDateTime) : addHours(new Date(), 2),
       endDateTime: initialData ? new Date(initialData.endDateTime) : addDays(new Date(), 1),
       startTime: "10:00",
       endTime: "10:00",
@@ -300,9 +303,18 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
     const startDateTime = data.startDateTime;
     const endDateTime = data.endDateTime;
 
+    if (!isPickupLeadTimeValid(startDateTime)) {
+      toast({
+        title: "Ugyldig hentetidspunkt",
+        variant: "destructive",
+        description: `Hentetidspunkt må være minst ${MIN_PICKUP_LEAD_HOURS} time fra nå.`,
+      });
+      return;
+    }
+
     // Basic validation - ensure end date is after start date
     if (endDateTime <= startDateTime) {
-      // alert('End date must be after start date'); 
+      // alert('End date must be after start date');
       toast({
         title: "Ugyldig datoperiode",
         variant: "destructive",
@@ -473,8 +485,11 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                   rules={{
                     required: "Hentedato er påkrevd",
                     validate: (value) => {
-                      const start = form.getValues("startDateTime");
-                      return !start || !value || value >= start || "Retur må være etter henting";
+                      if (!value) return true;
+                      if (!isPickupLeadTimeValid(value)) {
+                        return `Hentetidspunkt må være minst ${MIN_PICKUP_LEAD_HOURS} time fra nå`;
+                      }
+                      return true;
                     },
                   }}
                   render={({ field }) => (
@@ -486,8 +501,9 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                             <Button
                               variant="outline"
                               type="button"
+                              translate="no"
                               className={cn(
-                                "h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] pl-3 text-left font-normal text-[#b1bdc3] hover:cursor-pointer hover:bg-[#27343a]",
+                                "notranslate h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] pl-3 text-left font-normal text-[#b1bdc3] hover:cursor-pointer hover:bg-[#27343a]",
                                 !field.value && "text-muted-foreground"
                               )}
                             >
@@ -502,7 +518,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                         </PopoverTrigger>
 
                         <PopoverContent
-                          className="w-auto border-[#46555d] bg-[#1b2529] p-0 text-[#b1bdc3]"
+                          className="notranslate w-auto border-[#46555d] bg-[#1b2529] p-0 text-[#b1bdc3]"
+                          translate="no"
                           align="start"
                           onInteractOutside={bookingDatePopoverOnInteractOutside}
                         >
@@ -565,8 +582,9 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                             <Button
                               variant="outline"
                               type="button"
+                              translate="no"
                               className={cn(
-                                "h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] pl-3 text-left font-normal text-[#b1bdc3] hover:cursor-pointer hover:bg-[#27343a]",
+                                "notranslate h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] pl-3 text-left font-normal text-[#b1bdc3] hover:cursor-pointer hover:bg-[#27343a]",
                                 !field.value && "text-muted-foreground"
                               )}
                             >
@@ -581,7 +599,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                         </PopoverTrigger>
 
                         <PopoverContent
-                          className="w-auto border-[#46555d] bg-[#1b2529] p-0 text-[#b1bdc3]"
+                          className="notranslate w-auto border-[#46555d] bg-[#1b2529] p-0 text-[#b1bdc3]"
+                          translate="no"
                           align="start"
                           onInteractOutside={bookingDatePopoverOnInteractOutside}
                         >

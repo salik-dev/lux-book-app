@@ -32,6 +32,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isPickupLeadTimeValid, MIN_PICKUP_LEAD_HOURS } from "@/lib/booking-time";
 import { supabase } from "@/integrations/supabase/client";
 import {
   computePricing,
@@ -310,7 +311,8 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
     (!bookingForCompany || (orgNo.trim().length > 0 && orgName.trim().length > 0));
   const canAdvanceFrom2 =
     !!selectedCar && !!start && !!end && end > start &&
-    pickupLocation.trim().length > 0 && !!pricing;
+    pickupLocation.trim().length > 0 && !!pricing &&
+    isPickupLeadTimeValid(start);
 
   const canGoNext =
     step === 1 ? canAdvanceFrom1 :
@@ -1049,9 +1051,15 @@ const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
           minDate={startDate ?? today}
         />
       </div>
-      <p className="text-[11px] text-gray-500">
-        Return time must be after pickup time.
-      </p>
+      {startDate && !isPickupLeadTimeValid(startDate) ? (
+        <p className="text-[11px] text-red-600">
+          Pickup time must be at least {MIN_PICKUP_LEAD_HOURS} hour from now.
+        </p>
+      ) : (
+        <p className="text-[11px] text-gray-500">
+          Return time must be after pickup time.
+        </p>
+      )}
     </div>
 
     {/* Pickup location — static */}

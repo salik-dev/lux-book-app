@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { sweepExpiredCarUnavailability } from "@/lib/car-unavailability-sweep";
 import type { IEvent, IUser, ICalendarCar } from "@/pages/admin/schedule/calendar/interfaces";
 import type { TEventColor } from "@/pages/admin/schedule/calendar/types";
 
@@ -64,6 +65,8 @@ export function useCarCalendarData(enabled = true): CarCalendarData {
     setError(null);
 
     try {
+      await sweepExpiredCarUnavailability();
+
       const [carsRes, bookingsRes, blocksRes] = await Promise.all([
         supabase
           .from("cars")

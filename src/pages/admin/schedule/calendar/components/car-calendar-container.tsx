@@ -13,8 +13,6 @@ import { MarkUnavailableDialog } from "@/pages/admin/schedule/calendar/component
 
 import { AdminBookOnBehalfDialog } from "@/components/admin/book-on-behalf/AdminBookOnBehalfDialog";
 
-import type { ICalendarCar } from "@/pages/admin/schedule/calendar/interfaces";
-
 /**
  * Real-data wiring for the admin car-availability calendar. Replaces the
  * mock-fed CalendarProvider/ClientContainer in admin.tsx.
@@ -80,10 +78,17 @@ export function CarCalendarContainer() {
     }
   };
 
-  const handleDeleteBlock = async (blockId: string) => {
+  const handleDeleteBlock = async (blockId: string, carId?: string) => {
     try {
       const { error } = await supabase.from("car_unavailability").delete().eq("id", blockId);
       if (error) throw error;
+
+      // Removing the block also re-enables the car so it's bookable again.
+      if (carId) {
+        const { error: carError } = await supabase.from("cars").update({ is_available: true }).eq("id", carId);
+        if (carError) console.error("Failed to re-enable car:", carError);
+      }
+
       toast({ title: "Block removed", description: "The car is available again for that period." });
       refetch();
     } catch (err) {
@@ -189,28 +194,22 @@ function AvailabilitySummary({ loading }: { loading: boolean }) {
   ];
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold text-neutral-800">Fleet availability</p>
-          <p className="text-xs text-neutral-500">
-            {loading ? "Loading…" : `${summary.total} vehicle${summary.total === 1 ? "" : "s"} · ${dateLabel}`}
-          </p>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="flex flex-wrap items-center gap-2 rounded-md border border-neutral-200 bg-white px-3 py-1.5">
+      <p className="shrink-0 whitespace-nowrap text-xs font-medium text-neutral-500">
+        {loading ? "Loading fleet…" : `${summary.total} vehicle${summary.total === 1 ? "" : "s"} · ${dateLabel}`}
+      </p>
+      <div className="flex flex-1 flex-wrap items-center justify-end gap-1.5">
         {stats.map(({ key, label, value, icon: Icon, className }) => (
           <button
             key={key}
             type="button"
             onClick={() => setSelectedUserId("all")}
-            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors ${className}`}
+            title={`${label}: ${value}`}
+            className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors ${className}`}
           >
-            <Icon className="size-4 shrink-0" />
-            <span className="flex flex-col leading-tight">
-              <span className="text-base font-semibold">{value}</span>
-              <span className="text-xs opacity-80">{label}</span>
-            </span>
+            <Icon className="size-3 shrink-0" />
+            <span className="font-semibold">{value}</span>
+            <span className="hidden opacity-80 sm:inline">{label}</span>
           </button>
         ))}
       </div>

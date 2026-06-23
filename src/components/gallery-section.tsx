@@ -74,7 +74,7 @@ export function GallerySection() {
               <Button
                 onClick={prevPage}
                 variant="outline"
-                className="text-gray-400 hover:text-[#E3C08D] transition-colors bg-transparent hover:bg-transparent hover:cursor-pointer"
+                className="text-gray-400 hover:text-[#E3C08D] transition-colors bg-transparent hover:bg-transparent border-0 shadow-none hover:cursor-pointer dark:bg-transparent dark:hover:bg-transparent dark:border-0"
               >
                 Prev
               </Button>
@@ -84,8 +84,10 @@ export function GallerySection() {
                 key={page}
                 onClick={() => setCurrentPage(page)}
                 variant="outline"
-                className={`w-8 h-8 transition-colors ${
-                  currentPage === page ? "bg-[#E3C08D] text-black" : "text-gray-400 hover:text-[#E3C08D] hover:bg-transparent hover:cursor-pointer"
+                className={`w-8 h-8 transition-colors border-0 shadow-none dark:border-0 ${
+                  currentPage === page
+                    ? "bg-[#E3C08D] text-black hover:bg-[#E3C08D] hover:text-black dark:bg-[#E3C08D] dark:hover:bg-[#E3C08D] dark:text-black dark:hover:text-black"
+                    : "text-gray-400 hover:text-[#E3C08D] bg-transparent hover:bg-transparent hover:cursor-pointer dark:bg-transparent dark:hover:bg-transparent"
                 }`}
               >
                 {page}
@@ -95,7 +97,7 @@ export function GallerySection() {
               <Button
                 onClick={nextPage}
                 variant="outline"
-                className="text-gray-400 hover:text-[#E3C08D] transition-colors bg-transparent hover:bg-transparent hover:cursor-pointer"
+                className="text-gray-400 hover:text-[#E3C08D] transition-colors bg-transparent hover:bg-transparent border-0 shadow-none hover:cursor-pointer dark:bg-transparent dark:hover:bg-transparent dark:border-0"
               >
                 Next
               </Button>
@@ -111,7 +113,7 @@ export function GallerySection() {
             <Button
               onClick={() => setSelectedImage(null)}
               variant="outline"
-              className="absolute top-4 right-4 z-10 text-white hover:text-[#E3C08D] transition-colors"
+              className="absolute top-4 right-4 z-10 text-white hover:text-[#E3C08D] transition-colors bg-transparent hover:bg-transparent border-0 shadow-none hover:cursor-pointer dark:bg-transparent dark:hover:bg-transparent dark:border-0"
             >
               <X size={32} />
             </Button>
@@ -128,14 +130,14 @@ export function GallerySection() {
               <Button
                 onClick={prevImage}
                 variant="outline"
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-[#E3C08D] transition-colors bg-transparent hover:bg-transparent hover:cursor-pointer"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-[#E3C08D] transition-colors bg-transparent hover:bg-transparent border-0 shadow-none hover:cursor-pointer dark:bg-transparent dark:hover:bg-transparent dark:border-0"
               >
                 <ChevronLeft size={48} />
               </Button>
               <Button
                 onClick={nextImage}
                 variant="outline"
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-[#E3C08D] transition-colors bg-transparent hover:bg-transparent hover:cursor-pointer"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-[#E3C08D] transition-colors bg-transparent hover:bg-transparent border-0 shadow-none hover:cursor-pointer dark:bg-transparent dark:hover:bg-transparent dark:border-0"
               >
                 <ChevronRight size={48} />
               </Button>
@@ -156,7 +158,7 @@ export function GallerySection() {
                   key={index}
                   onClick={() => setSelectedImage(index)}
                   variant="outline"
-                  className={`flex-shrink-0 w-16 h-12 overflow-hidden border-2 transition-colors ${
+                  className={`flex-shrink-0 w-16 h-12 overflow-hidden border-2 shadow-none transition-colors bg-transparent hover:bg-transparent hover:cursor-pointer dark:bg-transparent dark:hover:bg-transparent ${
                     selectedImage === index ? "border-[#E3C08D]" : "border-transparent hover:border-gray-400"
                   }`}
                 >
@@ -175,10 +177,10 @@ export function GallerySection() {
                     setSelectedImage(null)
                   }}
                   variant="outline"
-                  className={`w-8 h-8 transition-colors ${
+                  className={`w-8 h-8 transition-colors border-0 shadow-none hover:cursor-pointer dark:border-0 ${
                     Math.ceil((selectedImage + 1) / imagesPerPage) === page
-                      ? "bg-[#E3C08D] text-black"
-                      : "text-gray-400 hover:text-[#E3C08D]"
+                      ? "bg-[#E3C08D] text-black hover:bg-[#E3C08D] hover:text-black dark:bg-[#E3C08D] dark:hover:bg-[#E3C08D] dark:text-black dark:hover:text-black"
+                      : "text-gray-400 hover:text-[#E3C08D] bg-transparent hover:bg-transparent dark:bg-transparent dark:hover:bg-transparent"
                   }`}
                 >
                   {page}
