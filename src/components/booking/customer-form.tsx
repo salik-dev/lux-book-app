@@ -12,7 +12,7 @@ import { BookingData, CustomerData } from "@/@types/data";
 import { useToast } from "@/hooks/use-toast";
 import { generateUniqueId } from "@/utils/carPlaceholder";
 import { supabase } from '@/integrations/supabase/client';
-import { useInitiateLogin } from "@/hooks/use-signicat-auth";
+import { useCriiptoVerify } from "@criipto/verify-react";
 import { createContractSigning, getContractDocumentPreviewUrl, getContractStatus, UserData } from "@/api/signicat";
 
 /** Values not shown in the form; still sent to complete the booking. */
@@ -106,7 +106,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
   const [serverContractSigned, setServerContractSigned] = useState<boolean | null>(null);
   const [jwtUiTick, setJwtUiTick] = useState(0);
   const { toast } = useToast();
-  const { mutate: initiateLogin, isPending: isBankIDPending } = useInitiateLogin();
+  const { loginWithRedirect, isLoading: isBankIDPending, isInitializing } = useCriiptoVerify();
 
   /** Only clear app JWT; keep BankID + contract state so signicat-document still works after JWT expiry. */
   const clearExpiredJwtLocalState = () => {
@@ -523,7 +523,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
 
       setBankIdStatus("pending");
       setBankIdError("");
-      await initiateLogin();
+      await loginWithRedirect();
     } catch (error) {
       const message =
         error instanceof Error && error.message
@@ -1234,7 +1234,7 @@ const uploadLicense = async (): Promise<string | null> => {
           <button
             type="button"
             onClick={handleBankIDLogin}
-            disabled={isBankIDPending || (bankIdVerified && !bankIdReauthNeeded)}
+            disabled={isBankIDPending || isInitializing || (bankIdVerified && !bankIdReauthNeeded)}
             className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-[#4e1f67] bg-gradient-to-r from-[#39134C] to-[#4A1A60] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(57,19,76,0.35)] transition-all hover:from-[#470D70] hover:to-[#5a1d7a] focus:outline-none focus:ring-2 focus:ring-[#6d2b8f]/60 focus:ring-offset-2 focus:ring-offset-[#232e33] disabled:cursor-not-allowed disabled:opacity-60 active:translate-y-[1px]"
           >
             {isBankIDPending || bankIdStatus === "pending" ? (
