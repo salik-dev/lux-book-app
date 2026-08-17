@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-import { useSession } from "@/hooks/use-signicat-auth";
-import { extractUserData } from "@/api/signicat";
+import { useCriiptoVerify } from "@criipto/verify-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { UserData } from "@/api/signicat";
 
 const STORAGE_KEYS = {
   verified: "bankid_verified",
@@ -24,49 +24,65 @@ const STORAGE_KEYS = {
   bankContractStatus: "bank_contract_status",
 } as const;
 
+/** Best-effort extraction of user attributes from Idura's decoded id_token claims — the exact
+ * claim set varies per eID provider, so every field is optional. */
+function extractUserDataFromClaims(claims: Record<string, unknown> | null): UserData | null {
+  if (!claims) return null;
+
+  const asString = (value: unknown): string | undefined => {
+    const trimmed = typeof value === "string" ? value.trim() : "";
+    return trimmed ? trimmed : undefined;
+  };
+
+  const userData: UserData = {
+    firstName: asString(claims.given_name),
+    lastName: asString(claims.family_name),
+    dateOfBirth: asString(claims.birthdate),
+    email: asString(claims.email),
+    phoneNumber: asString(claims.phone_number),
+    address: asString(claims.address),
+    gender: asString(claims.gender),
+    nin: asString(claims.ssn) ?? asString(claims.nin) ?? asString(claims.social_security_number),
+    ssn: asString(claims.ssn),
+  };
+
+  if (!userData.firstName && !userData.lastName) {
+    const fullName = asString(claims.name);
+    if (fullName) {
+      const [first, ...rest] = fullName.split(" ");
+      userData.firstName = first;
+      userData.lastName = rest.join(" ") || undefined;
+    }
+  }
+
+  if (!Object.values(userData).some(Boolean)) {
+    return null;
+  }
+
+  return userData;
+}
+
 export default function AuthSuccessPage() {
-  const location = useLocation();
   const navigate = useNavigate();
   const [finalError, setFinalError] = useState<string | null>(null);
+  const { result, claims, error, isLoading } = useCriiptoVerify();
 
-  const sessionId = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return (
-      params.get("sessionId") ||
-      params.get("session_id") ||
-      params.get("sid") ||
-      params.get("id") ||
-      localStorage.getItem(STORAGE_KEYS.pendingSessionId) ||
-      null
-    );
-  }, [location.search]);
-
-  const { data, isLoading, error } = useSession(sessionId);
-  const normalizedStatus = data?.status?.toLowerCase();
-  const extractedUser = useMemo(() => (data ? extractUserData(data) : null), [data]);
-  const isSuccessfulSession = Boolean(
-    data &&
-      (
-        ["success", "succeeded", "completed", "complete", "finished", "approved"].includes(
-          normalizedStatus ?? ""
-        ) ||
-        // Fallback: session contains verified subject attributes from Signicat
-        Boolean(extractedUser)
-      )
-  );
+  const extractedUser = useMemo(() => extractUserDataFromClaims(claims), [claims]);
+  const idToken = result && "id_token" in result ? result.id_token : undefined;
+  const isSuccessfulSession = Boolean(!isLoading && !error && claims && idToken);
 
   useEffect(() => {
-    if (!data || !isSuccessfulSession) return;
+    if (!isSuccessfulSession || !claims) return;
 
     try {
       localStorage.setItem(STORAGE_KEYS.verified, "true");
       localStorage.setItem(STORAGE_KEYS.status, "success");
       localStorage.removeItem(STORAGE_KEYS.error);
       localStorage.setItem(STORAGE_KEYS.verifiedAt, new Date().toISOString());
-      localStorage.setItem(STORAGE_KEYS.sessionId, data.id);
+      localStorage.setItem(STORAGE_KEYS.sessionId, claims.sub);
       localStorage.removeItem(STORAGE_KEYS.pendingSessionId);
-      if (data.access_token) {
-        localStorage.setItem(STORAGE_KEYS.accessToken, data.access_token);
+      if (idToken) {
+        localStorage.setItem(STORAGE_KEYS.accessToken, idToken);
       }
 
       if (extractedUser) {
@@ -75,8 +91,6 @@ export default function AuthSuccessPage() {
 
       const persistVerification = async () => {
         const verificationClient = supabase as any;
-        const resolvedSessionId = data.id || sessionId || null;
-        if (!resolvedSessionId) return;
 
         const fullName = [extractedUser?.firstName, extractedUser?.lastName]
           .filter(Boolean)
@@ -90,23 +104,23 @@ export default function AuthSuccessPage() {
           "bankid-verification-token",
           {
             body: {
-              sessionId: resolvedSessionId,
-              provider: data.provider || "nbid",
-              subjectId: data.subject?.id || null,
+              sessionId: claims.sub,
+              provider: "idura",
+              subjectId: claims.sub,
               nin: extractedUser?.nin || null,
               name: fullName || null,
               birthDate,
-              authLevel: data.authLevel || null,
-              nbidSid: data.sid || null,
-              bankidAccessToken: data.access_token || null,
-              raw: data,
+              authLevel: claims.identityscheme || claims.authenticationtype || null,
+              nbidSid: null,
+              bankidAccessToken: idToken || null,
+              raw: claims,
               email: extractedUser?.email || null,
             },
           }
         );
 
         if (tokenError) {
-          console.error("Failed to persist bankid verification on server:", tokenError);
+          console.error("Failed to persist Idura verification on server:", tokenError);
           return;
         }
 
@@ -140,12 +154,12 @@ export default function AuthSuccessPage() {
 
       void persistVerification();
     } catch (storageError) {
-      console.error("Failed to persist BankID session data:", storageError);
+      console.error("Failed to persist Idura verification data:", storageError);
     }
-  }, [data, extractedUser, isSuccessfulSession]);
+  }, [claims, extractedUser, idToken, isSuccessfulSession]);
 
   const isSuccess = isSuccessfulSession;
-  const hasError = Boolean(finalError || error || normalizedStatus === "error");
+  const hasError = Boolean(finalError || error);
 
   useEffect(() => {
     if (!isSuccess) return;
@@ -154,6 +168,14 @@ export default function AuthSuccessPage() {
     }, 700);
     return () => window.clearTimeout(timer);
   }, [isSuccess, navigate]);
+
+  useEffect(() => {
+    if (!error) return;
+    localStorage.setItem(STORAGE_KEYS.status, "failed");
+    localStorage.setItem(STORAGE_KEYS.error, error.message);
+    localStorage.removeItem(STORAGE_KEYS.verified);
+    localStorage.removeItem(STORAGE_KEYS.verifiedAt);
+  }, [error]);
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-4">
@@ -192,10 +214,7 @@ export default function AuthSuccessPage() {
               <span>BankID-verifisering mislyktes.</span>
             </div>
             <p className="text-sm text-[#9eabb1]">
-              {finalError ||
-                error?.message ||
-                data?.error?.message ||
-                "Ukjent feil fra Signicat."}
+              {finalError || error?.message || "Ukjent feil fra Idura."}
             </p>
             <Button
               className="mt-2 w-full bg-[#334047] text-[#b1bdc3] hover:bg-[#3d4b53]"
@@ -209,11 +228,11 @@ export default function AuthSuccessPage() {
         {!isLoading && !isSuccess && !hasError && (
           <div className="space-y-3">
             <p className="text-sm text-[#9eabb1]">
-              Fant ikke gyldig session-id i callbacken. Prøv BankID på nytt.
+              Fant ikke gyldig autentiseringsresultat i callbacken. Prøv BankID på nytt.
             </p>
             <Button
               className="mt-2 w-full bg-[#334047] text-[#b1bdc3] hover:bg-[#3d4b53]"
-              onClick={() => setFinalError("Mangler session-id i callback-URL.")}
+              onClick={() => setFinalError("Mangler autentiseringsresultat i callback-URL.")}
             >
               Vis feildetalj
             </Button>
