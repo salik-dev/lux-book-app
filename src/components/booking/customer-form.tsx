@@ -1766,37 +1766,7 @@ const uploadLicense = async (): Promise<string | null> => {
                 )}
               </div>
             </div>
-          )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="absolute -top-2 -right-2 rounded-full h-6 w-6 p-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRemoveLicense();
-            }}
-          >
-            <X className="h-3 w-3" />
-            <span className="sr-only">Remove file</span>
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <Upload className="h-10 w-10 mx-auto text-muted-foreground" />
-          <p className="text-muted-foreground">
-            {isDragActive
-              ? "Drop the file here..."
-              : "Drag & drop your driver's license, or click to select"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Supports: JPEG, PNG, PDF (max 5MB)
-          </p>
-        </div>
-      )}
-    </div>
-  </div>
-</div>
+          </div>
 
        {SHOW_DRIVER_LICENSE_UPLOAD && (
        <div className="rounded-xl border border-[#334047] bg-[#232e33] p-6 text-[#b1bdc3]">
