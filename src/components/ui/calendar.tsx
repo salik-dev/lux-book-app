@@ -10,6 +10,7 @@ import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { nb } from "date-fns/locale"
 
 function Calendar({
   className,
@@ -19,6 +20,7 @@ function Calendar({
   buttonVariant = "ghost",
   formatters,
   components,
+  locale = nb,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
@@ -27,6 +29,7 @@ function Calendar({
 
   return (
     <DayPicker
+      locale={locale}
       showOutsideDays={showOutsideDays}
       className={cn(
         "bg-background group/calendar p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
@@ -37,7 +40,7 @@ function Calendar({
       captionLayout={captionLayout}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
+          date.toLocaleString("nb-NO", { month: "short" }),
         ...formatters,
       }}
       classNames={{
@@ -70,11 +73,11 @@ function Calendar({
           defaultClassNames.dropdowns
         ),
         dropdown_root: cn(
-          "relative bg-[#f9fafb] shadow-xs rounded-md",
+          "relative rounded-md border border-[#46555d] bg-[#232e33] text-[#b1bdc3] shadow-xs",
           defaultClassNames.dropdown_root
         ),
         dropdown: cn(
-          "absolute bg-[#f9fafb] inset-0 opacity-0 border-0 rounded-md",
+          "absolute inset-0 rounded-md border-0 bg-[#232e33] text-[#b1bdc3] opacity-0",
           defaultClassNames.dropdown
         ),
         caption_label: cn(
@@ -201,7 +204,7 @@ function CalendarDayButton({
       data-range-end={modifiers.range_end}
       data-range-middle={modifiers.range_middle}
       className={cn(
-        "data-[selected-single=true]:bg-[#f9fafb] data-[selected-single=true]:text-primary-foreground data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground dark:hover:text-accent-foreground flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10  data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md [&>span]:text-xs [&>span]:opacity-70 hover:bg-[#f7eddfa9] hover:text-primary-foreground hover:cursor-pointer",
+        "data-[selected-single=true]:bg-[#334047] data-[selected-single=true]:text-[#E3C08D] data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground dark:hover:text-accent-foreground flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10  data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md [&>span]:text-xs [&>span]:opacity-70 hover:bg-[#2b3940] hover:text-[#E3C08D] hover:cursor-pointer",
         defaultClassNames.day,
         className
       )}

@@ -84,7 +84,7 @@ export function Header() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="px-5 text-[#E3C08D] hover:bg-[#E3C08D] hover:text-black bg-transparent transition-colors duration-500 border-[#E3C08D] hover:cursor-pointer"
+                    className="px-5 text-[#E3C08D] hover:bg-[#E3C08D] hover:text-black bg-transparent shadow-none transition-colors duration-500 border-[#E3C08D] hover:cursor-pointer dark:bg-transparent dark:border-[#E3C08D] dark:hover:bg-[#E3C08D] dark:hover:text-black"
                   >
                     Ring Oss
                   </Button>
@@ -92,7 +92,7 @@ export function Header() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="px-5 text-black bg-[#E3C08D] hover:bg-white hover:text-black border-[#E3C08D] hover:cursor-pointer transition-colors duration-500"
+                      className="px-5 text-black bg-[#E3C08D] hover:bg-white hover:text-black border-[#E3C08D] shadow-none hover:cursor-pointer transition-colors duration-500 dark:bg-[#E3C08D] dark:border-[#E3C08D] dark:hover:bg-white dark:hover:text-black"
                     >
                       Logg inn
                     </Button>
@@ -172,7 +172,7 @@ export function Header() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-[#E3C08D] text-[#E3C08D] hover:bg-[#E3C08D] hover:text-black w-full bg-transparent hover:cursor-pointer"
+                      className="border-[#E3C08D] text-[#E3C08D] hover:bg-[#E3C08D] hover:text-black w-full bg-transparent shadow-none hover:cursor-pointer dark:bg-transparent dark:border-[#E3C08D] dark:hover:bg-[#E3C08D] dark:hover:text-black"
                     >
                       Ring oss
                     </Button>
@@ -180,7 +180,7 @@ export function Header() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="border-[#E3C08D] bg-[#E3C08D] text-black hover:bg-white hover:text-black w-full hover:cursor-pointer"
+                        className="border-[#E3C08D] bg-[#E3C08D] text-black hover:bg-white hover:text-black w-full shadow-none hover:cursor-pointer dark:bg-[#E3C08D] dark:border-[#E3C08D] dark:hover:bg-white dark:hover:text-black"
                       >
                         Logg inn
                       </Button>
@@ -190,7 +190,7 @@ export function Header() {
                       variant="outline"
                       size="sm"
                       onClick={handleSignOut}
-                      className="border-[#E3C08D] text-[#E3C08D] hover:bg-[#E3C08D] hover:text-black w-full bg-transparent hover:cursor-pointer"
+                      className="border-[#E3C08D] text-[#E3C08D] hover:bg-[#E3C08D] hover:text-black w-full bg-transparent shadow-none hover:cursor-pointer dark:bg-transparent dark:border-[#E3C08D] dark:hover:bg-[#E3C08D] dark:hover:text-black"
                     >
                       Logg ut
                     </Button>

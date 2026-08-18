@@ -18,7 +18,7 @@ export function FavoriteCarsSection() {
           <HeroHeading title="Dine favorittbiler" />
           <HeroDescription description="Opplev luksus på hjul med Prime Norge flåte av BMW, Porsche, Audi og Mercedes-biler. Kjør med stil og komfort, enten du trenger en bybil som Porsche Taycan eller en sporty AUDI RS6. Eller, ta turen inn i ulendt terreng med en Mercedes G Wagon eller cruise med stil i en BMW I7. Uansett hva du velger, vil du nyte en smidig kjøreopplevelse med Prime Norge." className="text-xl text-gray-300 mb-8 tracking-wide max-[656px]:text-md max-[500px]:text-[16px]" />
           
-          <div className="flex gap-8 justify-center items-center border">
+          <div className="flex gap-8 justify-center items-center">
             <Button size="lg" className="bg-[#e3c08d] text-black hover:bg-[#e3c08d]/90 group">
               <Heart className="mr-2 h-5 w-5" />
               Se favoritter
@@ -26,7 +26,8 @@ export function FavoriteCarsSection() {
             <Button
               variant="outline"
               size="lg"
-              className="border-white text-white hover:bg-white hover:text-black bg-transparent"
+              style={{ borderColor: "white" }}
+              className="text-white bg-transparent"
             >
               Utforsk flåten
             </Button>

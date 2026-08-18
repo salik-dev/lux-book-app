@@ -61,7 +61,11 @@ const Auth = () => {
           title: 'Success',
           description: isLogin ? 'Signed in successfully' : 'Account created successfully',
         });
-        navigate('/');
+        if (isLogin && 'isAdmin' in result) {
+          navigate(result.isAdmin ? '/admin' : '/bookings');
+        } else if (!isLogin) {
+          navigate('/');
+        }
       }
     } catch (error) {
       toast({
@@ -81,7 +85,7 @@ const Auth = () => {
           <div className="flex items-center justify-center space-x-2 mb-4">
             <Mountain className="h-8 w-8 text-primary" />
             <span className="text-xl font-bold bg-gradient-fjord bg-clip-text text-transparent">
-              Fjord Fleet
+              Bookings
             </span>
           </div>
           <CardTitle className="text-2xl">

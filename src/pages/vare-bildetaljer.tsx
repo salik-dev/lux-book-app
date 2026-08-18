@@ -71,7 +71,7 @@ export default function VareBildetaljerPage() {
           onClick={handleLoadMore}
           variant="outline"
           size="lg"
-          className="text-lg tracking-wide p-7 border-[#E3C08D] text-black bg-[#E3C08D] hover:bg-[#E3C08D]/90 hover:cursor-pointer transition-all duration-300 hover:text-white"
+          className="text-lg tracking-wide p-7 border-[#E3C08D] text-black bg-[#E3C08D] shadow-none hover:bg-[#E3C08D]/90 hover:cursor-pointer transition-all duration-300 hover:text-white dark:bg-[#E3C08D] dark:border-[#E3C08D] dark:hover:bg-[#E3C08D]/90 dark:hover:text-white"
         >{sliceCar ? 'Bla gjennom alle kjøretøy' : 'Vis mindre'} </Button>
       </div>
     </main>

@@ -10,15 +10,18 @@ import { CustomersManagement } from '@/components/admin/CustomersManagement';
 import { PricingManagement } from '@/components/admin/PricingManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, Car, Users, Settings, DollarSign, Calendar } from 'lucide-react';
+import { Sheet, SheetContent, SheetTitle } from '@/pages/admin/schedule/components/ui/sheet';
+import { BarChart3, Car, Users, Settings, DollarSign, Calendar, CalendarDays } from 'lucide-react';
 import { AdminHeader } from '@/components/admin/AdminHeader';
+import { CarCalendarContainer } from '@/pages/admin/schedule/calendar/components/car-calendar-container';
 
 const Admin = () => {
   const { t } = useTranslation();
 
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('bookings');
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   useEffect(() => {
     console.log('Admin page - Auth state:', { user: user?.id, email: user?.email, isAdmin, loading });
@@ -56,7 +59,7 @@ const Admin = () => {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6 lg:w-fit bg-[#f5f5f5] rounded-lg gap-2">
+            <TabsList className="grid w-full grid-cols-7 lg:w-fit bg-[#f5f5f5] rounded-lg gap-2">
               <TabsTrigger value="overview" className="flex items-center gap-[4px] rounded-lg hover:cursor-pointer transition-colors duration-500">
                 <BarChart3 className="h-4 w-4" />
                 <span className="flex items-center gap-[4px] rounded-lg hover:cursor-pointer transition-colors duration-500">
@@ -85,6 +88,14 @@ const Admin = () => {
                   Customers
                 </span>
               </TabsTrigger>
+              <button
+                type="button"
+                onClick={() => setIsCalendarOpen(true)}
+                className="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-medium text-gray-500 transition-colors duration-500 hover:cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <CalendarDays className="h-4 w-4" />
+                <span className="flex items-center gap-[4px]">Calendar</span>
+              </button>
               <TabsTrigger value="pricing" className="flex items-center gap-2 rounded-lg hover:cursor-pointer transition-colors duration-500">
                 <DollarSign className="h-4 w-4" />
                 <span className="flex items-center gap-[4px] hover:cursor-pointer transition-colors duration-500">
@@ -134,6 +145,16 @@ const Admin = () => {
               </Card>
             </TabsContent>
           </Tabs>
+
+          <Sheet open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+            <SheetContent side="right" className="w-full p-0 sm:max-w-[90vw] overflow-y-auto">
+              <SheetTitle className="sr-only">Calendar</SheetTitle>
+
+              <div className="h-full p-6">
+                {isCalendarOpen && <CarCalendarContainer />}
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </>

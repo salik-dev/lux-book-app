@@ -1,20 +1,17 @@
 import React, { useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Button } from "../ui/button";
 import { Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "../ui/card";
-import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import { useToast } from "../../hooks/use-toast";
-import { format } from "date-fns";
+import { format, differenceInHours } from "date-fns";
+import { nb } from "date-fns/locale";
 import {
   CreditCard,
   Smartphone,
-  FileText,
-  CheckCircle,
   Loader2,
 } from "lucide-react";
 import { PaymentStepProps } from "@/@types/data";
@@ -22,11 +19,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/auth-context";
 
 export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerData, onComplete }) => {
-  const { t } = useTranslation();
   const { toast } = useToast();
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [contractSigned, setContractSigned] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<
     "stripe" | "vipps" | null
   >(null);
@@ -39,41 +34,56 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
     }).format(price);
   };
 
-  const handleSignContract = async () => {
-    setIsProcessing(true);
+  const formatBookingDuration = (start: Date, end: Date) => {
+    const totalHours = Math.max(1, differenceInHours(end, start));
+    const totalDays = Math.ceil(totalHours / 24);
+    return `${totalDays} ${totalDays === 1 ? "dag" : "dager"} (${totalHours} timer)`;
+  };
+
+  const decorationReview = (
+    [
+      bookingData.decorationFlowers && "Blomster",
+      bookingData.decorationRibbon && "Bånd",
+      bookingData.decorationRedCarpets && "Røde løpere",
+      bookingData.decorationDriverNeed && "Sjåfør ønskes",
+    ].filter(Boolean) as string[]
+  );
+  // Payment unlocks once BankID and driver-licence verification are done.
+  // (Contract signing was replaced by the Vegvesen licence check.)
+  const bankIdVerified = localStorage.getItem('bankid_verified') === 'true';
+  const licenseVerified = customerData.licenseVerified === true;
+  const canPay = bankIdVerified && licenseVerified;
+
+  const linkCustomerToBankIdVerification = async (resolvedCustomerId: string) => {
+    if (!resolvedCustomerId) return;
+
     try {
-      // Simulate BankID signing process
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      setContractSigned(true);
-      toast({
-        title: "Contract Signed",
-        description:
-          "Your rental contract has been successfully signed with BankID.",
-      });
+      const verificationClient = supabase as any;
+      const sessionId = localStorage.getItem("bankid_session_id");
+      const nbidSid = localStorage.getItem("signicat_session_id");
+      const userRaw = localStorage.getItem("signicat_user_data");
+      const nin = userRaw ? JSON.parse(userRaw)?.nin ?? null : null;
+
+      const candidates: Array<{ column: string; value: string | null }> = [
+        { column: "session_id", value: sessionId },
+        { column: "nbid_sid", value: nbidSid },
+        { column: "nin", value: nin },
+      ];
+
+      for (const candidate of candidates) {
+        if (!candidate.value) continue;
+        await verificationClient
+          .from("bankid_verifications")
+          .update({ customer_id: resolvedCustomerId })
+          .eq(candidate.column, candidate.value);
+      }
     } catch (error) {
-      toast({
-        title: "Error",
-        description:
-          "Failed to sign contract. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
+      // Non-blocking: booking/payment should continue even if linkage update fails.
+      console.error("Failed to link customer_id to bankid_verifications:", error);
     }
   };
 
   const handlePayment = async (method: "stripe" | "vipps") => {
-    
-    if (!contractSigned) {
-      toast({
-        title: "Contract Required",
-        description:
-          "Please sign the contract before proceeding with payment.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsProcessing(true);
     setPaymentMethod(method);
 
@@ -101,15 +111,18 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
               address: customerData.address,
               postal_code: customerData.postalCode,
               city: customerData.city,
-              date_of_birth: format(customerData.dateOfBirth, 'yyyy-MM-dd'),
               driver_license_number: customerData.driverLicenseNumber,
-              driver_license_file_path: customerData.driverLicenseFile,
+              driver_license_file_path: customerData.driverLicenseFile ? String(customerData.driverLicenseFile) : null,
             })
             .select('id')
             .single();
 
           if (customerError) throw customerError;
           customerId = newCustomer.id;
+        }
+
+        if (customerId) {
+          await linkCustomerToBankIdVerification(customerId);
         }
       // }
 
@@ -119,7 +132,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
         .insert({
           booking_number: `FJB${Date.now()}`,
           customer_id: customerId,
-          car_id: bookingData.car.id,
+          car_id: String(bookingData.car.id),
           start_datetime: bookingData.startDateTime.toISOString(),
           end_datetime: bookingData.endDateTime.toISOString(),
           pickup_location: bookingData.pickupLocation,
@@ -127,9 +140,23 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
           delivery_fee: bookingData.deliveryFee,
           base_price: bookingData.basePrice,
           total_price: bookingData.totalPrice,
-          vat_amount: bookingData.vatAmount,
+          with_driver: bookingData.withDriver ?? bookingData.decorationDriverNeed ?? false,
+          org_name:
+            customerData.bookingForCompany && customerData.orgName
+              ? customerData.orgName.trim()
+              : null,
+          org_no:
+            customerData.bookingForCompany && customerData.orgNo
+              ? customerData.orgNo.trim()
+              : null,
+          decoration_require:
+            bookingData.decorationRequired ??
+            Boolean(
+              bookingData.decorationFlowers ||
+              bookingData.decorationRibbon ||
+              bookingData.decorationRedCarpets
+            ),
           status: 'active',
-          contract_signed_at: new Date().toISOString(),
         })
         .select()
         .single();
@@ -183,10 +210,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
       //   }
       // }
       toast({
-        // title: t('payment.success'),
-        title: "Success",
+        title: "Fullført",
         description:
-          "Your booking has been created. Complete payment in the new window.",
+          "Bestillingen er opprettet. Fullfør betaling i det nye vinduet.",
       });
 
       // Close the booking flow after a delay
@@ -196,14 +222,13 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
     } catch (error) {
       console.error("Payment error:", error);
       toast({
-        // title: t('payment.error'),
-        title: "Payment failed: Try Again",
+        title: "Betaling feilet",
         description:
           error instanceof Error
             ? error.message
             : typeof error === "string"
               ? error
-              : "An unexpected error occurred.",
+              : "En uventet feil oppstod.",
         variant: "destructive",
       });
     } finally {
@@ -215,80 +240,100 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
   return (
     <div className="space-y-6">
       {/* Booking Review */}
-      <Card className="bg-white">
+      <Card className="border-[#334047] bg-[#232e33] text-[#b1bdc3] shadow-sm">
         <CardHeader>
           {/* <CardTitle>{t('payment.reviewBooking')}</CardTitle> */}
-          <CardTitle className="text-xl font-semibold">Review Booking</CardTitle>
+          <CardTitle className="text-xl font-semibold">Gjennomgå bestilling</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="font-semibold text-">
+              <h3 className="font-semibold text-[#b1bdc3]">
                 {bookingData.car.name}
               </h3>
-              <p className="text-gray-600 text-sm">
-                {format(new Date(bookingData.startDateTime), "PPP p")} -{" "}
-                {format(new Date(bookingData.endDateTime), "PPP p")}
+              <p className="text-sm text-[#9eabb1]">
+                {format(new Date(bookingData.startDateTime), "PPP p", { locale: nb })} –{" "}
+                {format(new Date(bookingData.endDateTime), "PPP p", { locale: nb })}
               </p>
-              <p className="text-gray-600 text-sm">
-                <strong>Pickup:</strong>{" "}
+              <p className="text-sm text-[#9eabb1]">
+                <strong>Varighet:</strong>{" "}
+                {formatBookingDuration(
+                  new Date(bookingData.startDateTime),
+                  new Date(bookingData.endDateTime),
+                )}
+              </p>
+              <p className="text-sm text-[#9eabb1]">
+                <strong>Henting:</strong>{" "}
                 {bookingData.pickupLocation}
               </p>
               {bookingData.deliveryLocation && (
-                <p className="text-gray-600 text-sm">
-                  <strong>Delivery:</strong>{" "}
+                <p className="text-sm text-[#9eabb1]">
+                  <strong>Levering:</strong>{" "}
                   {bookingData.deliveryLocation}
+                </p>
+              )}
+              {decorationReview.length > 0 && (
+                <p className="text-sm text-[#9eabb1]">
+                  <strong>Dekorasjon:</strong> {decorationReview.join(", ")}
                 </p>
               )}
             </div>
           </div>
 
-          <Separator className="border-[0.2px]" />
+          <Separator className="bg-[#46555d]" />
 
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span>Base Price:</span>
+              <span>Grunnpris:</span>
               <span>{formatPrice(bookingData.basePrice)}</span>
             </div>
             {bookingData.deliveryFee > 0 && (
               <div className="flex justify-between text-sm">
-                <span>Delivery Fee:</span>
+                <span>Leveringsgebyr:</span>
                 <span>
                   {formatPrice(bookingData.deliveryFee)}
                 </span>
               </div>
             )}
-            <div className="flex justify-between">
-              <span>VAT (25%):</span>
-              <span>{formatPrice(bookingData.vatAmount)}</span>
-            </div>
-            <Separator className="border-[0.2px]" />
+            {(bookingData.depositAmount ?? 0) > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Depositum:</span>
+                <span>{formatPrice(bookingData.depositAmount ?? 0)}</span>
+              </div>
+            )}
+            {(bookingData.driverSurcharge ?? 0) > 0 && (
+              <div className="flex justify-between text-sm">
+                <span>Sjåførtillegg (25%):</span>
+                <span>{formatPrice(bookingData.driverSurcharge ?? 0)}</span>
+              </div>
+            )}
+            <Separator className="bg-[#46555d]" />
             <div className="flex justify-between text-lg font-bold">
-              <span>Total:</span>
+              <span>Totalt:</span>
               <span className="text-primary">
                 {formatPrice(bookingData.totalPrice)}
               </span>
             </div>
           </div>
 
-          <Separator className="border-[0.2px]" />
+          <Separator className="bg-[#46555d]" />
 
           <div>
             <h4 className="font-semibold mb-2 text-[14px]">
-              Customer Information:
+              Kundeinformasjon:
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs tracking-wide">
               <div>
-                <strong>Name:</strong> {customerData.fullName}
+                <strong>Navn:</strong> {customerData.fullName}
               </div>
               <div>
-                <strong>Email:</strong> {customerData.email}
+                <strong>E-post:</strong> {customerData.email}
               </div>
               <div>
-                <strong>Phone:</strong> {customerData.phone}
+                <strong>Telefon:</strong> {customerData.phone}
               </div>
               <div>
-                <strong>Address:</strong> {customerData.address}
+                <strong>Adresse:</strong> {customerData.address}
                 , {customerData.postalCode} {customerData.city}
               </div>
             </div>
@@ -296,80 +341,20 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
         </CardContent>
       </Card>
 
-      {/* Contract Signing */}
-      <Card className="card-premium bg-white">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl">
-            <FileText className="h-5 w-5" />
-            {/* {t('payment.terms')} */}
-            Terms & Conditions
-          </CardTitle>
-        </CardHeader>
-          <CardContent>
-          <div className="bg-gray-50 p-4 rounded-md">
-            <h4 className="text-[14px] font-semibold mb-2">
-              Rental Terms & Conditions
-            </h4>
-            <p className="text-xs tracking-wide text-gray-600">
-              By proceeding with this booking, you agree to our
-              terms and conditions including: insurance
-              coverage, damage liability, age restrictions, and
-              payment terms. Full terms will be provided via
-              email upon booking confirmation.
-            </p>
-          </div>
-
-          <Button
-            onClick={handleSignContract}
-            disabled={contractSigned || isProcessing}
-            className="w-full rounded-md h-9 text-white mt-3 bg-[#E3C08D] hover:bg-[#E3C08D]/90 hover:cursor-pointer"
-            size="lg"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {/* {t('payment.processing')} */}
-                Processing
-              </>
-            ) : contractSigned ? (
-              <>
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Contract Signed ✓
-              </>
-            ) : (
-              <>
-                <FileText className="mr-2 h-4 w-4" />
-                {/* {t('payment.signContract')} */}
-                Sign Contract With BankID
-              </>
-            )}
-          </Button>
-
-          {contractSigned && (
-            <Badge
-              variant="default"
-              className="w-full py-1 mt-2 tracking-wide justify-center bg-green-100 text-green-800"
-            >
-              Contract successfully signed with BankID
-            </Badge>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Payment Methods */}
-      <Card className="bg-white">
+      <Card className="border-[#334047] bg-[#232e33] text-[#b1bdc3] shadow-sm">
         <CardHeader>
           {/* <CardTitle>{t('payment.paymentMethod')}</CardTitle> */}
-          <CardTitle>Payment Method</CardTitle>
+          <CardTitle>Betalingsmetode</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Button
               onClick={() => handlePayment("stripe")}
-              disabled={!contractSigned || isProcessing}
+              disabled={!canPay || isProcessing}
               variant="outline"
               size="lg"
-              className="h-20 py-12 flex flex-col items-center border-gray-200 hover:bg-[#E3C08D] hover:border-[#E3C08D] hover:cursor-pointer transition-premium rounded-md bg-gray-50"
+              className="h-20 rounded-md border border-[#46555d] bg-[#1b2529] py-12 transition-premium hover:cursor-pointer hover:border-[#E3C08D] hover:bg-[#2c3b40]"
             >
               {isProcessing && paymentMethod === "stripe" ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -377,9 +362,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
                 <CreditCard className="h-6 w-6" />
               )}
               {/* <span>{t('payment.payWithStripe')}</span> */}
-              <span>Pay With Stripe</span>
-              <span className="text-xs text-muted-foreground">
-                Visa, Mastercard, etc.
+              <span>Betal med Stripe</span>
+              <span className="text-xs text-[#9eabb1]">
+                Visa, Mastercard osv.
               </span>
             </Button>
 
@@ -388,7 +373,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
               disabled={true}
               variant="outline"
               size="lg"
-              className="h-20 py-12 flex flex-col items-center gap-2 border-gray-200 hover:bg-[#E3C08D] hover:border-[#E3C08D] hover:cursor-pointer transition-premium rounded-md bg-gray-50"
+              className="h-20 rounded-md border border-[#46555d] bg-[#1b2529] py-12 transition-premium hover:cursor-pointer hover:border-[#E3C08D] hover:bg-[#2c3b40]"
             >
               {isProcessing && paymentMethod === "vipps" ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -396,25 +381,26 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
                 <Smartphone className="h-6 w-6" />
               )}
               {/* <span>{t('payment.payWithVipps')}</span> */}
-              <span>For now Vipps is unavailable</span>
-              <span className="text-xs text-muted-foreground">
-                Norwegian mobile payment
+              <span>Vipps er foreløpig utilgjengelig</span>
+              <span className="text-xs text-[#9eabb1]">
+                Norsk mobilbetaling
               </span>
             </Button>
           </div>
 
-          {!contractSigned && (
-            <p className="text-sm text-red-300 text-center ">
-              Please sign the contract before selecting a
-              payment method
+          {!canPay && (
+            <p className="text-sm text-red-300 text-center">
+              {!bankIdVerified
+                ? "Fullfør BankID i forrige steg før betaling."
+                : "Verifiser førerkort i forrige steg før betaling."}
             </p>
           )}
         </CardContent>
       </Card>
 
       {/* <Button
-        onClick={() => contractSigned && handlePayment("stripe")}
-        disabled={!contractSigned}
+        onClick={() => contractReady && handlePayment("stripe")}
+        disabled={!contractReady}
         className="w-full rounded-md h-9 bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-5 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
         size="lg"
       >

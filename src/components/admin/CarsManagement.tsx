@@ -19,6 +19,7 @@ interface Car {
   year: number;
   base_price_per_hour: number;
   base_price_per_day: number;
+  deposit_amount: number | null;
   included_km_per_day: number | null;
   extra_km_rate: number | null;
   image_url?: string | null;
@@ -188,6 +189,7 @@ export const CarsManagement: React.FC = () => {
                     <div className="text-sm">
                       <div className="font-medium">{formatPrice(car.base_price_per_day)}/day</div>
                       <div className="text-gray-500">{formatPrice(car.base_price_per_hour)}/hour</div>
+                      <div className="text-gray-500">Deposit: {formatPrice(car.deposit_amount ?? 0)}</div>
                     </div>
                   </TableCell>
                   <TableCell>

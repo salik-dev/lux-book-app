@@ -12,6 +12,7 @@ export interface CarCardProps {
   description: string;
   base_price_per_hour: number;
   base_price_per_day: number;
+  deposit_amount?: number;
   included_km_per_day: number;
   extra_km_rate: number;
   image_url: string;
@@ -29,11 +30,14 @@ export interface CarData {
   description: string;
   base_price_per_hour: number;
   base_price_per_day: number;
+  deposit_amount?: number;
   included_km_per_day: number;
   extra_km_rate: number;
   image_url: string;
   is_available: boolean;
 }
+
+export type SeatPricingMode = "flat-rate" | "daily-basis";
 
 export interface BookingData {
   car: CarData;
@@ -44,19 +48,42 @@ export interface BookingData {
   totalPrice: number;
   basePrice: number;
   deliveryFee: number;
-  vatAmount: number;
+  depositAmount?: number;
+  driverSurcharge?: number;
+  withDriver?: boolean;
+  decorationRequired?: boolean;
+  /** Seat / pricing preference */
+  seatPricingMode?: SeatPricingMode;
+  /** Optional decoration / service add-ons */
+  decorationFlowers?: boolean;
+  decorationRibbon?: boolean;
+  decorationRedCarpets?: boolean;
+  decorationDriverNeed?: boolean;
 }
 
 export interface CustomerData {
   fullName: string;
+  lastName: string;
+  nin: string;
   email: string;
   phone: string;
+  bookingForCompany?: boolean;
+  orgName?: string;
+  orgNo?: string;
   address: string;
   postalCode: string;
   city: string;
   dateOfBirth: Date;
   driverLicenseNumber: string;
   driverLicenseFile?: File | string; // Can be either File object or URL string
+  bankIdVerifiedAt?: string;
+  contractSignedAt?: string;
+  contractFilePath?: string;
+  contractDocumentId?: string;
+  /** Statens vegvesen driver-licence verification result. */
+  licenseVerified?: boolean;
+  licenseCategories?: string[];
+  licenseVerifiedAt?: string;
 }
 
 export interface PaymentStepProps {
@@ -70,6 +97,9 @@ export interface BookingFlowProps {
   isOpen: boolean;
   onClose: () => void;
   selectedCar: CarData | null;
+  initialStep?: number;
+  initialBookingData?: BookingData | null;
+  initialCustomerData?: CustomerData | null;
 }
 
 export interface BookingProps {
