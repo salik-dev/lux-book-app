@@ -39,8 +39,7 @@ const createJwtToken = async (payload: {
   }
 
   const nowSec = Math.floor(Date.now() / 1000);
-  // const expSec = nowSec + 7 * 24 * 60 * 60;
-  const expSec = nowSec + 120;
+  const expSec = nowSec + 7 * 24 * 60 * 60;
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),

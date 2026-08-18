@@ -48,6 +48,11 @@ const STORAGE_KEYS = {
 
 const SIGNED_STATUS_VALUES = ["signed", "completed", "complete", "success", "approved"];
 
+/** Contract signing and manual driver's license upload are temporarily hidden while
+ * driver's license verification is moved to an external API driven by NIN + last name. */
+const SHOW_CONTRACT_SECTION = false;
+const SHOW_DRIVER_LICENSE_UPLOAD = false;
+
 /** Parse documentId/sessionId from a stored signicat-document function URL. */
 const parseSignicatDocumentUrl = (
   raw: string | null | undefined
@@ -105,6 +110,12 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
   /** Mirrors `bankid_verifications.contract_status` from the server (null = not loaded yet). */
   const [serverContractSigned, setServerContractSigned] = useState<boolean | null>(null);
   const [jwtUiTick, setJwtUiTick] = useState(0);
+  // Statens vegvesen driver-licence verification
+  const [licenseStatus, setLicenseStatus] = useState<"idle" | "checking" | "verified" | "failed">("idle");
+  const [licenseCategories, setLicenseCategories] = useState<string[]>([]);
+  const [licenseFullName, setLicenseFullName] = useState<string>("");
+  const [licenseVerifiedAt, setLicenseVerifiedAt] = useState<string | null>(null);
+  const [licenseError, setLicenseError] = useState("");
   const { toast } = useToast();
   const { loginWithRedirect, isLoading: isBankIDPending, isInitializing } = useCriiptoVerify();
 
@@ -134,6 +145,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
   const form = useForm<CustomerData>({
     defaultValues: {
       fullName: initialData?.fullName || HIDDEN_CUSTOMER_DEFAULTS.fullName,
+      lastName: initialData?.lastName || "",
+      nin: initialData?.nin || "",
       email: initialData?.email || "",
       phone: initialData?.phone || HIDDEN_CUSTOMER_DEFAULTS.phone,
       bookingForCompany: initialData?.bookingForCompany ?? false,
@@ -153,6 +166,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
     if (initialData) {
       form.reset({
         fullName: initialData.fullName || HIDDEN_CUSTOMER_DEFAULTS.fullName,
+        lastName: initialData.lastName || "",
+        nin: initialData.nin || "",
         email: initialData.email || "",
         phone: initialData.phone || HIDDEN_CUSTOMER_DEFAULTS.phone,
         bookingForCompany: initialData.bookingForCompany ?? false,
@@ -185,6 +200,12 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
     }
     if (bankIdUser.address && !form.getValues("address")) {
       form.setValue("address", bankIdUser.address);
+    }
+    if (bankIdUser.lastName && !form.getValues("lastName")) {
+      form.setValue("lastName", bankIdUser.lastName);
+    }
+    if (bankIdUser.nin && !form.getValues("nin")) {
+      form.setValue("nin", bankIdUser.nin);
     }
   }, [bankIdVerified, bankIdUser, form]);
 
@@ -497,6 +518,80 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
 
     return () => clearTimeout(timer);
   }, [watchedEmail, serverContractSigned, bankIdUser?.nin]);
+
+  const handleVerifyLicense = async () => {
+    const nin = (form.getValues("nin") || "").trim();
+    const lastName = (form.getValues("lastName") || "").trim();
+
+    if (!bankIdVerified) {
+      toast({
+        title: "BankID kreves",
+        description: "Fullfør BankID-verifisering før du verifiserer førerkort.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!/^\d{11}$/.test(nin)) {
+      form.setError("nin", { type: "manual", message: "Fødselsnummer må være 11 siffer" });
+      toast({ title: "Ugyldig fødselsnummer", description: "Fødselsnummer må være 11 siffer.", variant: "destructive" });
+      return;
+    }
+    if (!lastName) {
+      form.setError("lastName", { type: "manual", message: "Etternavn er påkrevd" });
+      return;
+    }
+
+    try {
+      setLicenseStatus("checking");
+      setLicenseError("");
+
+      const { data, error } = await supabase.functions.invoke("vegvesen-license-check", {
+        body: { nin, lastName },
+      });
+
+      // A non-2xx response (400/403/500) surfaces as `error`; read the JSON body for the message.
+      if (error) {
+        let message = error.message || "Førerkortverifisering feilet.";
+        try {
+          const ctxBody = await (error as { context?: Response }).context?.json?.();
+          if (ctxBody?.error) message = String(ctxBody.error);
+        } catch {
+          /* keep default message */
+        }
+        throw new Error(message);
+      }
+
+      if (!data?.verified) {
+        const message = data?.message || "Førerkort kunne ikke verifiseres. Kontroller opplysningene.";
+        setLicenseStatus("failed");
+        setLicenseError(message);
+        setLicenseCategories([]);
+        setLicenseFullName("");
+        toast({ title: "Førerkort ikke verifisert", description: message, variant: "destructive" });
+        return;
+      }
+
+      const categories: string[] = Array.isArray(data.categories) ? data.categories : [];
+      const at = new Date().toISOString();
+      setLicenseCategories(categories);
+      setLicenseFullName(data.fullName || "");
+      setLicenseVerifiedAt(at);
+      setLicenseStatus("verified");
+      toast({
+        title: "Førerkort verifisert",
+        description: categories.length
+          ? `Førerkortklasser: ${categories.join(", ")}`
+          : "Fant ingen aktive førerkortklasser for denne personen.",
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Ukjent feil ved førerkortverifisering.";
+      setLicenseStatus("failed");
+      setLicenseError(message);
+      setLicenseCategories([]);
+      setLicenseFullName("");
+      toast({ title: "Verifisering feilet", description: message, variant: "destructive" });
+    }
+  };
 
   const handleBankIDLogin = async () => {
     try {
@@ -1096,21 +1191,32 @@ const uploadLicense = async (): Promise<string | null> => {
         return;
       }
 
-      let contractOk = serverContractSigned === true;
-      if (!contractOk) {
-        const synced = await syncVerificationFromServer();
-        contractOk = synced === true;
-      }
-      if (!contractOk) {
+      if (licenseStatus !== "verified") {
         toast({
-          title: "Kontrakt kreves",
-          description: "Signer kontrakten før du går videre til neste steg.",
+          title: "Førerkort kreves",
+          description: "Verifiser førerkort før du går videre til betaling.",
           variant: "destructive",
         });
         return;
       }
 
-      if (!licenseFile) {
+      if (SHOW_CONTRACT_SECTION) {
+        let contractOk = serverContractSigned === true;
+        if (!contractOk) {
+          const synced = await syncVerificationFromServer();
+          contractOk = synced === true;
+        }
+        if (!contractOk) {
+          toast({
+            title: "Kontrakt kreves",
+            description: "Signer kontrakten før du går videre til neste steg.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      if (SHOW_DRIVER_LICENSE_UPLOAD && !licenseFile) {
         toast({
           title: "Feil",
           description: "Last opp et gyldig førerkort",
@@ -1119,15 +1225,18 @@ const uploadLicense = async (): Promise<string | null> => {
         return;
       }
 
-      // Upload license first
-      const licenseUrl = await uploadLicense();
-      if (!licenseUrl) {
-        toast({
-          title: "Feil",
-          description: "Kunne ikke laste opp førerkort. Prøv igjen.",
-          variant: "destructive",
-        });
-        return;
+      // Upload license first (skipped while manual upload is hidden)
+      let licenseUrl: string | null = null;
+      if (SHOW_DRIVER_LICENSE_UPLOAD) {
+        licenseUrl = await uploadLicense();
+        if (!licenseUrl) {
+          toast({
+            title: "Feil",
+            description: "Kunne ikke laste opp førerkort. Prøv igjen.",
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
       const customerData: CustomerData = {
@@ -1138,13 +1247,16 @@ const uploadLicense = async (): Promise<string | null> => {
         fullName: data.fullName || HIDDEN_CUSTOMER_DEFAULTS.fullName,
         phone: data.phone || HIDDEN_CUSTOMER_DEFAULTS.phone,
         city: initialData?.city || HIDDEN_CUSTOMER_DEFAULTS.city,
-        driverLicenseFile: licenseUrl,
+        driverLicenseFile: licenseUrl ?? undefined,
         bankIdVerifiedAt:
           localStorage.getItem(STORAGE_KEYS.bankIdVerifiedAt) ?? new Date().toISOString(),
         contractSignedAt: contractSignedAt ?? localStorage.getItem(STORAGE_KEYS.contractSignedAt) ?? undefined,
         contractFilePath: contractFileUrl ?? localStorage.getItem(STORAGE_KEYS.contractFileUrl) ?? undefined,
         contractDocumentId:
           contractDocumentId ?? localStorage.getItem(STORAGE_KEYS.contractDocumentId) ?? undefined,
+        licenseVerified: licenseStatus === "verified",
+        licenseCategories: licenseCategories.length ? licenseCategories : undefined,
+        licenseVerifiedAt: licenseVerifiedAt ?? undefined,
       };
       
       onComplete(customerData);
@@ -1279,74 +1391,76 @@ const uploadLicense = async (): Promise<string | null> => {
           )}
         </div>
 
-        <div className="mt-4 space-y-3 rounded-md border border-[#3f4d54] bg-[#1b2529] p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-[#d0d9dd]">Kontrakt</p>
-              <p className="mt-1 text-xs text-[#9eabb1]">
-                Etter BankID må kontrakten signeres før betaling.
-              </p>
+        {SHOW_CONTRACT_SECTION && (
+          <div className="mt-4 space-y-3 rounded-md border border-[#3f4d54] bg-[#1b2529] p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#d0d9dd]">Kontrakt</p>
+                <p className="mt-1 text-xs text-[#9eabb1]">
+                  Etter BankID må kontrakten signeres før betaling.
+                </p>
+              </div>
+              {isCheckingContract && <Loader2 className="h-4 w-4 animate-spin text-[#9eabb1]" />}
             </div>
-            {isCheckingContract && <Loader2 className="h-4 w-4 animate-spin text-[#9eabb1]" />}
-          </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              onClick={handleCreateContract}
-              disabled={
-                !bankIdVerified ||
-                serverContractSigned === true ||
-                serverContractSigned === null ||
-                isCheckingContract ||
-                isStartingContract
-              }
-              className="bg-[#E3C08D] text-black hover:bg-[#E3C08D]/90"
-            >
-              {isStartingContract ? (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                onClick={handleCreateContract}
+                disabled={
+                  !bankIdVerified ||
+                  serverContractSigned === true ||
+                  serverContractSigned === null ||
+                  isCheckingContract ||
+                  isStartingContract
+                }
+                className="bg-[#E3C08D] text-black hover:bg-[#E3C08D]/90"
+              >
+                {isStartingContract ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Starter kontrakt ...
+                  </>
+                ) : (
+                  "Start kontrakt"
+                )}
+              </Button>
+              {pdfActionsAllowed && (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Starter kontrakt ...
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handlePreviewSignedDocument}
+                    className="border-[#46555d] bg-[#232e33] text-[#b1bdc3] hover:bg-[#2d3a40]"
+                  >
+                    Vis PDF
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleDownloadSignedDocument}
+                    className="inline-flex h-9 items-center justify-center rounded-md border border-[#46555d] bg-[#232e33] px-4 text-sm text-[#b1bdc3] hover:bg-[#2d3a40]"
+                  >
+                    Last ned PDF
+                  </Button>
                 </>
-              ) : (
-                "Start kontrakt"
               )}
-            </Button>
-            {pdfActionsAllowed && (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handlePreviewSignedDocument}
-                  className="border-[#46555d] bg-[#232e33] text-[#b1bdc3] hover:bg-[#2d3a40]"
-                >
-                  Vis PDF
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleDownloadSignedDocument}
-                  className="inline-flex h-9 items-center justify-center rounded-md border border-[#46555d] bg-[#232e33] px-4 text-sm text-[#b1bdc3] hover:bg-[#2d3a40]"
-                >
-                  Last ned PDF
-                </Button>
-              </>
+            </div>
+
+            {serverContractSigned === true && (
+              <div className="rounded-md border border-emerald-300/30 bg-emerald-100/95 px-3 py-1.5 text-center text-sm font-semibold text-emerald-800">
+                {contractStatus === "existing"
+                  ? "Tidligere signert kontrakt funnet - ny signering er ikke nødvendig."
+                  : "Kontrakt er signert."}
+              </div>
+            )}
+            {contractStatus === "failed" && (
+              <div className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-center text-xs text-red-200">
+                {contractError || "Kontraktssignering feilet. Prøv igjen."}
+              </div>
             )}
           </div>
-
-          {serverContractSigned === true && (
-            <div className="rounded-md border border-emerald-300/30 bg-emerald-100/95 px-3 py-1.5 text-center text-sm font-semibold text-emerald-800">
-              {contractStatus === "existing"
-                ? "Tidligere signert kontrakt funnet - ny signering er ikke nødvendig."
-                : "Kontrakt er signert."}
-            </div>
-          )}
-          {contractStatus === "failed" && (
-            <div className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-center text-xs text-red-200">
-              {contractError || "Kontraktssignering feilet. Prøv igjen."}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       <FormProvider {...form}>
@@ -1368,6 +1482,55 @@ const uploadLicense = async (): Promise<string | null> => {
               <p className="mt-1 text-sm text-[#9eabb1]">Fyll inn opplysningene dine for å fullføre bestillingen</p>
             </div>
             <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  rules={{ required: "Etternavn er påkrevd" }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Etternavn <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
+                            placeholder="Etternavn ..."
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-red-500 mt-1" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="nin"
+                  rules={{
+                    required: "Fødselsnummer er påkrevd",
+                    pattern: {
+                      value: /^\d+$/,
+                      message: "Fødselsnummer kan kun inneholde tall",
+                    },
+                  }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Fødselsnummer <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
+                            placeholder="11-sifret fødselsnummer"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-red-500 mt-1" />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
                 <FormField
                   control={form.control}
@@ -1464,6 +1627,66 @@ const uploadLicense = async (): Promise<string | null> => {
                 />
               </div>
 
+              {/* Driver's licence verification (Statens vegvesen via Maskinporten) */}
+              <div className="rounded-md border border-[#3f4d54] bg-[#1b2529] p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="flex items-center gap-2 text-sm font-semibold text-[#d0d9dd]">
+                      <FileText className="h-4 w-4" />
+                      Førerkortverifisering
+                    </p>
+                    <p className="mt-0.5 text-xs text-[#9eabb1]">
+                      Verifiser førerkort mot Statens vegvesen med fødselsnummer og etternavn.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleVerifyLicense}
+                    disabled={licenseStatus === "checking" || !bankIdVerified}
+                    className="shrink-0 bg-[#E3C08D] text-black hover:bg-[#E3C08D]/90"
+                  >
+                    {licenseStatus === "checking" ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Verifiserer ...
+                      </>
+                    ) : licenseStatus === "verified" ? (
+                      <>
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Verifisert
+                      </>
+                    ) : (
+                      "Verifiser førerkort"
+                    )}
+                  </Button>
+                </div>
+
+                {!bankIdVerified && (
+                  <p className="text-xs text-amber-200/80">
+                    Fullfør BankID-verifisering før du kan verifisere førerkort.
+                  </p>
+                )}
+
+                {licenseStatus === "verified" && (
+                  <div className="rounded-md border border-emerald-300/30 bg-emerald-100/95 px-3 py-2 text-sm text-emerald-900">
+                    <p className="font-semibold">{licenseFullName || "Førerkort verifisert"}</p>
+                    {licenseCategories.length > 0 ? (
+                      <p className="mt-0.5">
+                        Førerkortklasser: <span className="font-medium">{licenseCategories.join(", ")}</span>
+                      </p>
+                    ) : (
+                      <p className="mt-0.5">Ingen aktive førerkortklasser registrert.</p>
+                    )}
+                  </div>
+                )}
+
+                {licenseStatus === "failed" && (
+                  <div className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                    {licenseError || "Førerkort kunne ikke verifiseres."}
+                  </div>
+                )}
+              </div>
+
               <div className="rounded-md border border-[#3f4d54] bg-[#1b2529] p-4 space-y-3">
                 <FormField
                   control={form.control}
@@ -1545,8 +1768,8 @@ const uploadLicense = async (): Promise<string | null> => {
             </div>
           </div>
 
-       {/* Driver's License Upload */}
-<div className="rounded-xl border border-[#334047] bg-[#232e33] p-6 text-[#b1bdc3]">
+       {SHOW_DRIVER_LICENSE_UPLOAD && (
+       <div className="rounded-xl border border-[#334047] bg-[#232e33] p-6 text-[#b1bdc3]">
   <div className="mb-6">
     <h3 className="flex items-center gap-2 text-lg font-semibold text-[#E3C08D]">
       <FileText className="h-5 w-5 text-primary" />
@@ -1556,7 +1779,7 @@ const uploadLicense = async (): Promise<string | null> => {
       Last opp gyldig førerkort (JPEG, PNG eller PDF, maks 5 MB)
     </p>
   </div>
-  
+
   <div className="space-y-4">
     <div
       {...getRootProps()}
@@ -1567,12 +1790,12 @@ const uploadLicense = async (): Promise<string | null> => {
           : "border-[#46555d] bg-[#1b2529] hover:border-[#E3C08D]",
       )}
     >
-      <input 
-        {...getInputProps()} 
+      <input
+        {...getInputProps()}
         id="driver-license-upload"
         className="hidden"
       />
-      
+
       {isUploading ? (
         <div className="flex flex-col items-center justify-center py-4">
           <Loader2 className="h-10 w-10 animate-spin text-primary mb-2" />
@@ -1627,6 +1850,7 @@ const uploadLicense = async (): Promise<string | null> => {
     </div>
   </div>
 </div>
+       )}
 
           <Button
             type="submit"

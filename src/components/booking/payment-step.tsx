@@ -48,7 +48,11 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
       bookingData.decorationDriverNeed && "Sjåfør ønskes",
     ].filter(Boolean) as string[]
   );
-  const contractReady = localStorage.getItem('signicat_access_token') !== null && localStorage.getItem('bankid_contract_document_id') !== null;
+  // Payment unlocks once BankID and driver-licence verification are done.
+  // (Contract signing was replaced by the Vegvesen licence check.)
+  const bankIdVerified = localStorage.getItem('bankid_verified') === 'true';
+  const licenseVerified = customerData.licenseVerified === true;
+  const canPay = bankIdVerified && licenseVerified;
 
   const linkCustomerToBankIdVerification = async (resolvedCustomerId: string) => {
     if (!resolvedCustomerId) return;
@@ -347,7 +351,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Button
               onClick={() => handlePayment("stripe")}
-              disabled={!contractReady || isProcessing}
+              disabled={!canPay || isProcessing}
               variant="outline"
               size="lg"
               className="h-20 rounded-md border border-[#46555d] bg-[#1b2529] py-12 transition-premium hover:cursor-pointer hover:border-[#E3C08D] hover:bg-[#2c3b40]"
@@ -384,9 +388,11 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
             </Button>
           </div>
 
-          {!contractReady && (
-            <p className="text-sm text-red-300 text-center ">
-              Fullfør BankID og kontrakt i forrige steg før betaling
+          {!canPay && (
+            <p className="text-sm text-red-300 text-center">
+              {!bankIdVerified
+                ? "Fullfør BankID i forrige steg før betaling."
+                : "Verifiser førerkort i forrige steg før betaling."}
             </p>
           )}
         </CardContent>

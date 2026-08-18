@@ -74,6 +74,11 @@ export default function AuthSuccessPage() {
   useEffect(() => {
     if (!isSuccessfulSession || !claims) return;
 
+    console.log("[Idura] BankID authentication successful");
+    console.log("[Idura] result:", result);
+    console.log("[Idura] claims:", claims);
+    console.log("[Idura] extracted user data:", extractedUser);
+
     try {
       localStorage.setItem(STORAGE_KEYS.verified, "true");
       localStorage.setItem(STORAGE_KEYS.status, "success");
@@ -123,6 +128,8 @@ export default function AuthSuccessPage() {
           console.error("Failed to persist Idura verification on server:", tokenError);
           return;
         }
+
+        console.log("[Idura] bankid-verification-token server response:", serverData);
 
         if (serverData?.verificationId) {
           localStorage.setItem(STORAGE_KEYS.verificationRowId, serverData.verificationId);

@@ -17,6 +17,9 @@ const supabase = createClient(
   { auth: { persistSession: false } }
 );
 
+console.log('env vars', Deno.env.get('FROM_EMAIL'), Deno.env.get('SMTP_HOST'), 
+Deno.env.get('SMTP_USER'), Deno.env.get('SMTP_PASS'));
+
 serve(async (req)=>{
   if (req.method === "OPTIONS") {
     return new Response(null, {

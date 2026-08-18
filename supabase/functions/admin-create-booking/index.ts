@@ -68,9 +68,6 @@ type Payload = {
   pickupLocation: string;
   deliveryLocation?: string | null;
   deliveryFee?: number;
-  bookingForCompany?: boolean;
-  orgName?: string | null;
-  orgNo?: string | null;
   withDriver?: boolean;
   decorationRequired?: boolean;
   basePrice: number;
@@ -108,9 +105,6 @@ function validate(p: unknown): { ok: true; value: Payload } | { ok: false; error
       pickupLocation: (b.pickupLocation as string).trim(),
       deliveryLocation: typeof b.deliveryLocation === "string" && b.deliveryLocation.trim() ? b.deliveryLocation.trim() : null,
       deliveryFee: typeof b.deliveryFee === "number" && b.deliveryFee >= 0 ? b.deliveryFee : 0,
-      bookingForCompany: b.bookingForCompany === true,
-      orgName: typeof b.orgName === "string" && b.orgName.trim() ? b.orgName.trim() : null,
-      orgNo: typeof b.orgNo === "string" && b.orgNo.trim() ? b.orgNo.trim() : null,
       withDriver: b.withDriver === true,
       decorationRequired: b.decorationRequired === true,
       basePrice: b.basePrice as number,
@@ -214,12 +208,6 @@ serve(async (req: Request): Promise<Response> => {
     log("booking_created", { bookingId: booking.id, bookingNumber: booking.booking_number });
     await applyWithDriverFlag(admin, String(booking.id), p.withDriver === true);
     await applyDecorationRequireFlag(admin, String(booking.id), p.decorationRequired === true);
-    await applyOrganizationFields(
-      admin,
-      String(booking.id),
-      p.bookingForCompany === true ? p.orgName ?? null : null,
-      p.bookingForCompany === true ? p.orgNo ?? null : null
-    );
 
     // 4. Load customer + car (needed for Stripe + email)
     const [{ data: customer }, { data: car }] = await Promise.all([
@@ -430,35 +418,6 @@ async function applyDecorationRequireFlag(
 
   if (missingColumn) {
     log("decoration_require_column_missing_skip", { bookingId });
-    return;
-  }
-
-  throw error;
-}
-
-async function applyOrganizationFields(
-  admin: ReturnType<typeof createClient>,
-  bookingId: string,
-  orgName: string | null,
-  orgNo: string | null
-): Promise<void> {
-  const { error } = await admin
-    .from("bookings")
-    .update({ org_name: orgName, org_no: orgNo })
-    .eq("id", bookingId);
-
-  if (!error) return;
-
-  const code = String((error as { code?: string }).code ?? "");
-  const msg = String((error as { message?: string }).message ?? "").toLowerCase();
-  const missingColumn =
-    code === "42703" ||
-    msg.includes("org_name") ||
-    msg.includes("org_no") ||
-    msg.includes("schema cache");
-
-  if (missingColumn) {
-    log("org_columns_missing_skip", { bookingId });
     return;
   }
 

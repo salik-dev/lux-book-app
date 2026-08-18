@@ -63,6 +63,8 @@ export interface BookingData {
 
 export interface CustomerData {
   fullName: string;
+  lastName: string;
+  nin: string;
   email: string;
   phone: string;
   bookingForCompany?: boolean;
@@ -78,6 +80,10 @@ export interface CustomerData {
   contractSignedAt?: string;
   contractFilePath?: string;
   contractDocumentId?: string;
+  /** Statens vegvesen driver-licence verification result. */
+  licenseVerified?: boolean;
+  licenseCategories?: string[];
+  licenseVerifiedAt?: string;
 }
 
 export interface PaymentStepProps {
