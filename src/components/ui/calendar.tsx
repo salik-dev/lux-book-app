@@ -10,7 +10,7 @@ import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { nb } from "date-fns/locale"
+import { enUS } from "date-fns/locale"
 
 function Calendar({
   className,
@@ -20,7 +20,7 @@ function Calendar({
   buttonVariant = "ghost",
   formatters,
   components,
-  locale = nb,
+  locale = enUS,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
@@ -40,7 +40,7 @@ function Calendar({
       captionLayout={captionLayout}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("nb-NO", { month: "short" }),
+          date.toLocaleString("en-US", { month: "short" }),
         ...formatters,
       }}
       classNames={{
@@ -204,7 +204,7 @@ function CalendarDayButton({
       data-range-end={modifiers.range_end}
       data-range-middle={modifiers.range_middle}
       className={cn(
-        "data-[selected-single=true]:bg-[#334047] data-[selected-single=true]:text-[#E3C08D] data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground dark:hover:text-accent-foreground flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10  data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md [&>span]:text-xs [&>span]:opacity-70 hover:bg-[#2b3940] hover:text-[#E3C08D] hover:cursor-pointer",
+        "data-[selected-single=true]:bg-[#E3C08D] data-[selected-single=true]:text-black data-[range-middle=true]:bg-[#E3C08D]/30 data-[range-middle=true]:text-black data-[range-start=true]:bg-[#E3C08D] data-[range-start=true]:text-black data-[range-end=true]:bg-[#E3C08D] data-[range-end=true]:text-black dark:hover:text-black flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10  data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md [&>span]:text-xs [&>span]:opacity-70 hover:bg-[#E3C08D] hover:text-black hover:cursor-pointer",
         defaultClassNames.day,
         className
       )}

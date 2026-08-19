@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Search, Edit, Trash2, Image, Loader2, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft } from 'lucide-react';
@@ -221,14 +222,12 @@ export const CarsManagement: React.FC = () => {
                           </Button>
                         }
                       />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleCarAvailability(car.id, car.is_available || false)}
-                        className='hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl'
-                      >
-                        {car.is_available ? 'Disable' : 'Enable'}
-                      </Button>
+                      <Switch
+                        checked={car.is_available ?? false}
+                        onCheckedChange={() => toggleCarAvailability(car.id, car.is_available || false)}
+                        title={car.is_available ? 'Disable this vehicle' : 'Enable this vehicle'}
+                        className="hover:cursor-pointer data-[state=checked]:bg-[#e3c08d] data-[state=unchecked]:bg-gray-300"
+                      />
                     </div>
                   </TableCell>
                 </TableRow>

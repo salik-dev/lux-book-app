@@ -10,6 +10,7 @@ import { GetStartedSection } from "../components/get-started-section";
 import { ContactSection } from "../components/contact-section";
 import { BookingDialog } from "@/components/booking/booking-dialog";
 import { BookingData, CarData, CustomerData } from "@/@types/data";
+import { BOOKING_FLOW_STORAGE_KEYS } from "@/lib/booking-storage-keys";
 // import { BookingDialog } from "../components/booking-dialog";
 
 const BOOKING_RESTORE_KEY = "booking_restore_state";
@@ -75,6 +76,9 @@ export default function HomePage() {
   };
 
   const openBookingDialog = () => {
+    // Starting a brand-new booking must never inherit BankID verification (or any other
+    // in-progress state) left over from a previous, abandoned booking attempt.
+    BOOKING_FLOW_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
     setIsBookingDialogOpen(true);
   };
 

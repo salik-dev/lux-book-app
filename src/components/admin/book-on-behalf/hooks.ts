@@ -1,82 +1,51 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type {
   AdminBookingPricing,
   AdminCarOption,
   CreateBookingPayload,
   CreateBookingResponse,
-  EligibleCustomer,
-  EligibleCustomerPage,
 } from "./types";
 
-/** Debounced search against the admin-search-customers edge function. */
-export function useEligibleCustomers(
-  query: string,
-  page = 0,
-  pageSize = 20,
-  enabled = true,
-  accessToken?: string | null
-) {
+/** Mutation wrapper for the vegvesen-license-check edge function. */
+export function useVerifyDriverLicense() {
   const [state, setState] = useState<{
-    data: EligibleCustomerPage | null;
     loading: boolean;
     error: string | null;
-  }>({ data: null, loading: false, error: null });
+  }>({ loading: false, error: null });
 
-  const debouncedQ = useDebouncedValue(query, 300);
-  const reqIdRef = useRef(0);
-
-  useEffect(() => {
-    if (!enabled) {
-      setState({ data: null, loading: false, error: null });
-      return;
-    }
-    if (!accessToken) {
-      setState({ data: null, loading: false, error: null });
-      return;
-    }
-
-    const id = ++reqIdRef.current;
-    setState((s) => ({ ...s, loading: true, error: null }));
-
-    (async () => {
-      try {
-        let res = await supabase.functions.invoke("admin-search-customers", {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          body: { q: debouncedQ, page, pageSize },
-        });
-        const unauthorized =
-          !!res.error &&
-          String(
-            (res.data as Record<string, unknown> | null)?.error ??
-              (res.error as { message?: string } | null)?.message ??
-              ""
-          ).toLowerCase().includes("unauthorized");
-        if (unauthorized) {
-          const { data: refreshed } = await supabase.auth.refreshSession();
-          const refreshedToken = refreshed.session?.access_token;
-          if (refreshedToken) {
-            res = await supabase.functions.invoke("admin-search-customers", {
-              headers: { Authorization: `Bearer ${refreshedToken}` },
-              body: { q: debouncedQ, page, pageSize },
-            });
-          }
+  const verify = useCallback(async (nin: string, lastName: string) => {
+    setState({ loading: true, error: null });
+    try {
+      const { data, error } = await supabase.functions.invoke("vegvesen-license-check", {
+        body: { nin, lastName },
+      });
+      if (error) {
+        let message = error.message || "Driver's licence verification failed.";
+        try {
+          const ctxBody = await (error as { context?: Response }).context?.json?.();
+          if (ctxBody?.error) message = String(ctxBody.error);
+        } catch {
+          /* keep default message */
         }
-        if (id !== reqIdRef.current) return; // stale
-        if (res.error) throw await extractEdgeError(res.error, res.data);
-        setState({ data: res.data as EligibleCustomerPage, loading: false, error: null });
-      } catch (err) {
-        if (id !== reqIdRef.current) return;
-        setState({
-          data: null,
-          loading: false,
-          error: err instanceof Error ? err.message : String(err),
-        });
+        throw new Error(message);
       }
-    })();
-  }, [debouncedQ, page, pageSize, enabled, accessToken]);
+      if (!data?.verified) {
+        throw new Error(data?.message || "Driver's licence could not be verified.");
+      }
+      setState({ loading: false, error: null });
+      return {
+        categories: Array.isArray(data.categories) ? (data.categories as string[]) : [],
+        fullName: typeof data.fullName === "string" ? data.fullName : "",
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setState({ loading: false, error: msg });
+      throw err instanceof Error ? err : new Error(msg);
+    }
+  }, []);
 
-  return state;
+  return { ...state, verify };
 }
 
 /** Fetches available cars once when the wizard opens. */
@@ -192,15 +161,17 @@ export function computePricing(
   end: Date | null,
   car: AdminCarOption | null,
   deliveryFee: number,
-  withDriver = false
+  withDriver = false,
+  pricingMode?: "flat-rate" | "daily-basis"
 ): AdminBookingPricing | null {
   if (!start || !end || !car) return null;
   const ms = end.getTime() - start.getTime();
   if (ms <= 0) return null;
   const hours = Math.max(1, Math.ceil(ms / (1000 * 60 * 60)));
 
+  const useDaily = pricingMode ? pricingMode === "daily-basis" : hours >= 24;
   let basePrice: number;
-  if (hours >= 24) {
+  if (useDaily) {
     const days = Math.ceil(hours / 24);
     basePrice = days * Number(car.base_price_per_day);
   } else {
@@ -227,15 +198,6 @@ export function computePricing(
 
 function round2(n: number) {
   return Math.round(n * 100) / 100;
-}
-
-function useDebouncedValue<T>(value: T, delay: number): T {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setV(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return v;
 }
 
 export function formatNOK(amount: number) {
@@ -306,6 +268,4 @@ export type {
   AdminCarOption,
   CreateBookingPayload,
   CreateBookingResponse,
-  EligibleCustomer,
-  EligibleCustomerPage,
 };

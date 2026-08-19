@@ -4,6 +4,7 @@ import { XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/auth-context';
+import { BOOKING_FLOW_STORAGE_KEYS } from '@/lib/booking-storage-keys';
 
 export default function BookingCancelled() {
   const [searchParams] = useSearchParams();
@@ -13,6 +14,12 @@ export default function BookingCancelled() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const bookingId = searchParams.get('booking_id');
+
+  useEffect(() => {
+    // Booking is now cancelled — clear any in-progress booking/BankID state so the
+    // home page doesn't reopen the booking dialog on next visit.
+    BOOKING_FLOW_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+  }, []);
 
   useEffect(() => {
     const handleCancelledBooking = async () => {

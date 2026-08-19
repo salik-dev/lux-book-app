@@ -67,7 +67,7 @@ serve(async (req) => {
     logStep("Retrieved booking details", { bookingNumber: booking.booking_number });
 
     const formatPrice = (price: number) => {
-      return new Intl.NumberFormat('no-NO', {
+      return new Intl.NumberFormat(language === 'no' ? 'no-NO' : 'en-US', {
         style: 'currency',
         currency: 'NOK',
         minimumFractionDigits: 0,
@@ -80,6 +80,23 @@ serve(async (req) => {
         dateStyle: 'full',
         timeStyle: 'short',
       });
+    };
+
+    /** Human-readable list of the preferences selected in the booking form's "Your preferences" step. */
+    const getPreferencesList = (isNoLang: boolean): string[] => {
+      const items: string[] = [];
+      if (booking.decoration_flowers) items.push(isNoLang ? 'Blomster' : 'Flowers');
+      if (booking.decoration_ribbon) items.push(isNoLang ? 'Bånd' : 'Ribbon');
+      if (booking.decoration_red_carpets) items.push(isNoLang ? 'Røde løpere' : 'Red carpets');
+      if (booking.decoration_driver_need ?? booking.with_driver) {
+        items.push(isNoLang ? 'Sjåfør ønsket' : 'Driver requested');
+      }
+      if (booking.seat_pricing_mode === 'daily-basis') {
+        items.push(isNoLang ? 'Prismodell: per dag' : 'Rental pricing: per day');
+      } else if (booking.seat_pricing_mode === 'flat-rate') {
+        items.push(isNoLang ? 'Prismodell: per time' : 'Rental pricing: per hour');
+      }
+      return items;
     };
 
     let subject, htmlContent;
@@ -111,6 +128,9 @@ serve(async (req) => {
               <p><strong>${language === 'no' ? 'Retur' : 'Return'}:</strong> ${formatDateTime(booking.end_datetime)}</p>
               <p><strong>${language === 'no' ? 'Hentested' : 'Pickup Location'}:</strong> ${booking.pickup_location}</p>
               ${booking.delivery_location ? `<p><strong>${language === 'no' ? 'Leveringssted' : 'Delivery Location'}:</strong> ${booking.delivery_location}</p>` : ''}
+              ${getPreferencesList(language === 'no').length
+                ? `<p><strong>${language === 'no' ? 'Preferanser' : 'Preferences'}:</strong> ${getPreferencesList(language === 'no').join(', ')}</p>`
+                : ''}
               <p><strong>${language === 'no' ? 'Total pris' : 'Total Price'}:</strong> ${formatPrice(booking.total_price)}</p>
             </div>
           </div>
@@ -186,6 +206,10 @@ serve(async (req) => {
                     ? `<tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Leveringssted' : 'Delivery location'}</td>
                            <td style="padding:4px 0; text-align:right;">${booking.delivery_location}</td></tr>`
                     : ''}
+                  ${getPreferencesList(isNo).length
+                    ? `<tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Preferanser' : 'Preferences'}</td>
+                           <td style="padding:4px 0; text-align:right;">${getPreferencesList(isNo).join(', ')}</td></tr>`
+                    : ''}
                 </tbody>
               </table>
             </div>
@@ -227,6 +251,74 @@ serve(async (req) => {
             ${adminNotes
               ? `<div style="background:#fef3c7; border:1px solid #f59e0b; padding:16px; border-radius:8px; margin-bottom:24px;">
                    <p style="margin:0; color:#92400e; font-size:14px;"><strong>${isNo ? 'Melding fra Primecar' : 'Note from Primecar'}:</strong> ${adminNotes}</p>
+                 </div>`
+              : ''}
+          </div>
+        </div>
+      `;
+    } else if (emailType === 'extra_km_charge') {
+      // Extra-kilometer overage charge, deducted from the deposit, with a direct
+      // Stripe Checkout link so the customer can pay it right away.
+      const isNo = language === 'no';
+      subject = isNo
+        ? `Ekstra kilometer-gebyr - ${booking.booking_number}`
+        : `Extra kilometer charge - ${booking.booking_number}`;
+
+      const chargeAmount = Number(booking.booking_deposit ?? booking.extra_km_price ?? 0);
+      const extraKmDriven = booking.extra_km_driven ?? null;
+      const depositAmount = Number(booking.car?.deposit_amount ?? 0);
+
+      htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; background:#ffffff;">
+          <div style="background: linear-gradient(135deg, #1e40af, #0ea5e9); padding: 32px 24px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 26px;">Prime Car Rental</h1>
+          </div>
+
+          <div style="padding: 32px 24px;">
+            <h2 style="color: #1e40af; margin: 0 0 8px 0;">
+              ${isNo ? 'Ekstra kilometer-gebyr for din leiebil' : 'Extra kilometer charge for your rental'}
+            </h2>
+            <p style="color:#475569; margin: 0 0 24px 0; line-height:1.5;">
+              ${isNo
+                ? `Hei ${booking.customer.full_name}, kjøretøyet ble kjørt ${extraKmDriven ?? ''} km utover inkludert kilometergrense. Dette beløpet trekkes fra depositumet ditt på NOK ${depositAmount}.`
+                : `Hi ${booking.customer.full_name}, the vehicle was driven ${extraKmDriven ?? ''} km over the included kilometer limit. This amount is deducted from your NOK ${depositAmount} deposit.`}
+            </p>
+
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+              <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                <tbody>
+                  <tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Bestillingsnr.' : 'Booking #'}</td>
+                      <td style="padding:4px 0; text-align:right; font-weight:600;">${booking.booking_number}</td></tr>
+                  <tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Bil' : 'Vehicle'}</td>
+                      <td style="padding:4px 0; text-align:right;">${booking.car.name}</td></tr>
+                  ${extraKmDriven !== null
+                    ? `<tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Ekstra kilometer' : 'Extra kilometers'}</td>
+                           <td style="padding:4px 0; text-align:right;">${extraKmDriven} km</td></tr>`
+                    : ''}
+                  <tr>
+                    <td style="padding: 12px 0 0 0; border-top:1px solid #e2e8f0; font-weight:700; color:#0f172a;">
+                      ${isNo ? 'Å betale' : 'Amount due'}
+                    </td>
+                    <td style="padding: 12px 0 0 0; border-top:1px solid #e2e8f0; text-align:right; font-weight:700; font-size:16px; color:#0f172a;">
+                      ${formatPrice(chargeAmount)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            ${checkoutUrl
+              ? `<div style="text-align:center; margin: 8px 0 8px 0;">
+                   <a href="${checkoutUrl}"
+                      style="display:inline-block; background:#0ea5e9; color:#ffffff; text-decoration:none;
+                             padding:14px 28px; border-radius:8px; font-weight:600; font-size:16px;">
+                     ${isNo ? 'Betal nå' : 'Pay now'}
+                   </a>
+                   <p style="color:#64748b; font-size:12px; margin-top:10px;">
+                     ${isNo
+                       ? 'Sikker betaling med kort via Stripe. Lenken utløper innen 24 timer.'
+                       : 'Secure card payment via Stripe. This link expires within 24 hours.'}
+                   </p>
                  </div>`
               : ''}
           </div>

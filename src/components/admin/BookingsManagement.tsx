@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,10 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, Filter, Download, Eye, Edit, Mail, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft, UserPlus, Building2 } from 'lucide-react';
+import { Search, Filter, Download, Eye, Edit, Gauge, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft, UserPlus, Building2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { BookingDetailsDialog } from './BookingDetailsDialog';
 import { AdminBookOnBehalfDialog } from './book-on-behalf/AdminBookOnBehalfDialog';
+import { AdminExtraKmChargeSheet } from './extra-km-charge/AdminExtraKmChargeSheet';
 
 interface Booking {
   id: string;
@@ -26,6 +27,12 @@ interface Booking {
   org_name?: string | null;
   org_no?: string | null;
   created_at: string;
+  extra_km_driven?: number | null;
+  extra_km_price?: number | null;
+  extra_km_charge_status?: string | null;
+  extra_km_checkout_url?: string | null;
+  booking_deposit?: number | null;
+  deposit_amount_status?: boolean | null;
   car: {
     name: string;
     brand: string;
@@ -34,6 +41,7 @@ interface Booking {
     base_price_per_day: number;
     included_km_per_day: number;
     extra_km_rate: number;
+    deposit_amount?: number | null;
   } | null;
   customer: {
     full_name: string;
@@ -49,7 +57,6 @@ interface Booking {
 }
 
 export const BookingsManagement: React.FC = () => {
-  const { t } = useTranslation();
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +67,7 @@ export const BookingsManagement: React.FC = () => {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isBookOnBehalfOpen, setIsBookOnBehalfOpen] = useState(false);
+  const [extraKmChargeBooking, setExtraKmChargeBooking] = useState<Booking | null>(null);
 
   const handleViewDetails = (booking: Booking) => {
     setSelectedBooking(booking);
@@ -95,7 +103,7 @@ export const BookingsManagement: React.FC = () => {
         .from('bookings')
         .select(`
           *,
-          car:cars(name, brand, model, base_price_per_hour, base_price_per_day, included_km_per_day, extra_km_rate),
+          car:cars(name, brand, model, base_price_per_hour, base_price_per_day, included_km_per_day, extra_km_rate, deposit_amount),
           customer:customers(full_name, email, phone),
           payment:payments(status, method, amount, created_at)
         `)
@@ -135,32 +143,6 @@ export const BookingsManagement: React.FC = () => {
       toast({
         title: 'Error',
         description: 'Failed to update booking status',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const sendEmailReminder = async (bookingId: string) => {
-    try {
-      const { error } = await supabase.functions.invoke('send-booking-email', {
-        body: {
-          bookingId,
-          emailType: 'reminder',
-          language: 'en',
-        },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Reminder email sent successfully',
-      });
-    } catch (error) {
-      console.error('Error sending email:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to send reminder email',
         variant: 'destructive',
       });
     }
@@ -225,11 +207,12 @@ export const BookingsManagement: React.FC = () => {
   }
 
   return (
+    <TooltipProvider>
     <>
       <Card className="card-premium bg-white">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>{t('admin.bookings')} Management</span>
+            <span>Bookings Management</span>
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
@@ -277,7 +260,7 @@ export const BookingsManagement: React.FC = () => {
         </div>
 
         {/* Bookings Table */}
-        <div className="rounded-md border border-gray-200">
+        <div className="rounded-md border border-gray-200 overflow-x-auto">
           <Table className='bg-white rounded-lg'>
             <TableHeader>
               <TableRow className="text-gray-500 border-gray-200">
@@ -317,6 +300,16 @@ export const BookingsManagement: React.FC = () => {
                     {booking.decoration_require && (
                       <div className="text-[11px] font-medium text-amber-700 mt-0.5">Decoration</div>
                     )}
+                    {booking.extra_km_charge_status && booking.extra_km_charge_status !== 'none' && (
+                      <div
+                        className={`text-[11px] font-medium mt-0.5 ${
+                          booking.extra_km_charge_status === 'paid' ? 'text-emerald-700' : 'text-amber-700'
+                        }`}
+                      >
+                        Extra KM: {formatPrice(Number(booking.booking_deposit ?? booking.extra_km_price ?? 0))}
+                        {' '}({booking.extra_km_charge_status === 'paid' ? 'Confirmed' : 'Pending'})
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="text-xs leading-3">
@@ -334,22 +327,28 @@ export const BookingsManagement: React.FC = () => {
                     {formatPrice(booking.total_price)}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className='hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl'
-                        onClick={() => handleViewDetails(booking)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                    <div className="flex flex-nowrap items-center gap-2 whitespace-nowrap">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className='hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl'
+                            onClick={() => handleViewDetails(booking)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>View booking details</TooltipContent>
+                      </Tooltip>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => sendEmailReminder(booking.id)}
-                        className='hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl'
+                        title="Extra kilometer charge"
+                        onClick={() => setExtraKmChargeBooking(booking)}
+                        className='border border-[#e3c08d]/50 text-[#8b6b3e] hover:bg-[#e3c08d] hover:text-black hover:cursor-pointer transition-colors duration-500 rounded-xl shrink-0'
                       >
-                        <Mail className="h-4 w-4" />
+                        <Gauge className="h-4 w-4" />
                       </Button>
                       <Select
                         value={booking.status || ''}
@@ -493,6 +492,14 @@ export const BookingsManagement: React.FC = () => {
       onOpenChange={setIsBookOnBehalfOpen}
       onBookingCreated={() => loadBookings()}
     />
+
+    <AdminExtraKmChargeSheet
+      open={Boolean(extraKmChargeBooking)}
+      onOpenChange={(open) => { if (!open) setExtraKmChargeBooking(null); }}
+      booking={extraKmChargeBooking}
+      onCharged={() => loadBookings()}
+    />
     </>
+    </TooltipProvider>
   );
 };

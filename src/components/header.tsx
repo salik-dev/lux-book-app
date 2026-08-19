@@ -26,12 +26,12 @@ export function Header() {
   };
 
   const homeItems = [
-    { id: 1, title: "Hjem", path: "/" },
-    { id: 2, title: "Om oss", path: "/om-oss" },
-    { id: 3, title: "Arrangementer", path: "/arrangementer" },
-    { id: 4, title: "Galleriet vårt", path: "/galleriet-vart" },
-    { id: 5, title: "Våre bildetaljer", path: "/vare-bildetaljer" },
-    { id: 6, title: "Kontakt oss", path: "/kontakt-oss" },
+    { id: 1, title: "Home", path: "/" },
+    { id: 2, title: "About Us", path: "/om-oss" },
+    { id: 3, title: "Events", path: "/arrangementer" },
+    { id: 4, title: "Our Gallery", path: "/galleriet-vart" },
+    { id: 5, title: "Our Car Details", path: "/vare-bildetaljer" },
+    { id: 6, title: "Contact Us", path: "/kontakt-oss" },
   ];
 
   const loginItems = [
@@ -67,10 +67,10 @@ export function Header() {
               {user && (
                 <>
                   <Link to="/bookings" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
-                    Min booking
+                    My Booking
                   </Link>
                   {isAdmin && <Link to="/admin" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
-                    Oversikt
+                    Overview
                   </Link>}
                 </>
               )}
@@ -86,7 +86,7 @@ export function Header() {
                     size="sm"
                     className="px-5 text-[#E3C08D] hover:bg-[#E3C08D] hover:text-black bg-transparent shadow-none transition-colors duration-500 border-[#E3C08D] hover:cursor-pointer dark:bg-transparent dark:border-[#E3C08D] dark:hover:bg-[#E3C08D] dark:hover:text-black"
                   >
-                    Ring Oss
+                    Call Us
                   </Button>
                   <AuthDialog>
                     <Button
@@ -94,7 +94,7 @@ export function Header() {
                       size="sm"
                       className="px-5 text-black bg-[#E3C08D] hover:bg-white hover:text-black border-[#E3C08D] shadow-none hover:cursor-pointer transition-colors duration-500 dark:bg-[#E3C08D] dark:border-[#E3C08D] dark:hover:bg-white dark:hover:text-black"
                     >
-                      Logg inn
+                      Log In
                     </Button>
                   </AuthDialog>
                 </>
@@ -159,10 +159,10 @@ export function Header() {
               {user && (
                 <>
                   <Link to="/bookings" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
-                    Min booking
+                    My Booking
                   </Link>
                   {isAdmin && <Link to="/admin" className="text-gray-300 hover:text-[#e3c08d] tracking-wide text-[15px] transition-colors">
-                    Oversikt
+                    Overview
                   </Link>}
                 </>
               )}
@@ -174,7 +174,7 @@ export function Header() {
                       size="sm"
                       className="border-[#E3C08D] text-[#E3C08D] hover:bg-[#E3C08D] hover:text-black w-full bg-transparent shadow-none hover:cursor-pointer dark:bg-transparent dark:border-[#E3C08D] dark:hover:bg-[#E3C08D] dark:hover:text-black"
                     >
-                      Ring oss
+                      Call Us
                     </Button>
                     <AuthDialog>
                       <Button
@@ -182,7 +182,7 @@ export function Header() {
                         size="sm"
                         className="border-[#E3C08D] bg-[#E3C08D] text-black hover:bg-white hover:text-black w-full shadow-none hover:cursor-pointer dark:bg-[#E3C08D] dark:border-[#E3C08D] dark:hover:bg-white dark:hover:text-black"
                       >
-                        Logg inn
+                        Log In
                       </Button>
                     </AuthDialog>
                   </>
@@ -192,7 +192,7 @@ export function Header() {
                       onClick={handleSignOut}
                       className="border-[#E3C08D] text-[#E3C08D] hover:bg-[#E3C08D] hover:text-black w-full bg-transparent shadow-none hover:cursor-pointer dark:bg-transparent dark:border-[#E3C08D] dark:hover:bg-[#E3C08D] dark:hover:text-black"
                     >
-                      Logg ut
+                      Log Out
                     </Button>
                 }
               </div>

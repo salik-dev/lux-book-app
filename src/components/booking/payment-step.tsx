@@ -8,7 +8,7 @@ import { Card,
 import { Separator } from "../ui/separator";
 import { useToast } from "../../hooks/use-toast";
 import { format, differenceInHours } from "date-fns";
-import { nb } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 import {
   CreditCard,
   Smartphone,
@@ -37,15 +37,15 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
   const formatBookingDuration = (start: Date, end: Date) => {
     const totalHours = Math.max(1, differenceInHours(end, start));
     const totalDays = Math.ceil(totalHours / 24);
-    return `${totalDays} ${totalDays === 1 ? "dag" : "dager"} (${totalHours} timer)`;
+    return `${totalDays} ${totalDays === 1 ? "day" : "days"} (${totalHours} hours)`;
   };
 
   const decorationReview = (
     [
-      bookingData.decorationFlowers && "Blomster",
-      bookingData.decorationRibbon && "Bånd",
-      bookingData.decorationRedCarpets && "Røde løpere",
-      bookingData.decorationDriverNeed && "Sjåfør ønskes",
+      bookingData.decorationFlowers && "Flowers",
+      bookingData.decorationRibbon && "Ribbon",
+      bookingData.decorationRedCarpets && "Red carpets",
+      bookingData.decorationDriverNeed && "Driver requested",
     ].filter(Boolean) as string[]
   );
   // Payment unlocks once BankID and driver-licence verification are done.
@@ -156,6 +156,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
               bookingData.decorationRibbon ||
               bookingData.decorationRedCarpets
             ),
+          decoration_flowers: bookingData.decorationFlowers ?? false,
+          decoration_ribbon: bookingData.decorationRibbon ?? false,
+          decoration_red_carpets: bookingData.decorationRedCarpets ?? false,
+          decoration_driver_need: bookingData.decorationDriverNeed ?? false,
+          seat_pricing_mode: bookingData.seatPricingMode ?? 'flat-rate',
+          booking_deposit: bookingData.depositAmount ?? bookingData.car.deposit_amount ?? 0,
           status: 'active',
         })
         .select()
@@ -210,9 +216,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
       //   }
       // }
       toast({
-        title: "Fullført",
+        title: "Completed",
         description:
-          "Bestillingen er opprettet. Fullfør betaling i det nye vinduet.",
+          "The booking has been created. Complete payment in the new window.",
       });
 
       // Close the booking flow after a delay
@@ -222,13 +228,13 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
     } catch (error) {
       console.error("Payment error:", error);
       toast({
-        title: "Betaling feilet",
+        title: "Payment failed",
         description:
           error instanceof Error
             ? error.message
             : typeof error === "string"
               ? error
-              : "En uventet feil oppstod.",
+              : "An unexpected error occurred.",
         variant: "destructive",
       });
     } finally {
@@ -238,12 +244,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 rounded-xl border border-[#46555d] bg-[#1c262b] p-6">
       {/* Booking Review */}
       <Card className="border-[#334047] bg-[#232e33] text-[#b1bdc3] shadow-sm">
         <CardHeader>
           {/* <CardTitle>{t('payment.reviewBooking')}</CardTitle> */}
-          <CardTitle className="text-xl font-semibold">Gjennomgå bestilling</CardTitle>
+          <CardTitle className="text-xl font-semibold">Review booking</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex justify-between items-start">
@@ -252,29 +258,29 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
                 {bookingData.car.name}
               </h3>
               <p className="text-sm text-[#9eabb1]">
-                {format(new Date(bookingData.startDateTime), "PPP p", { locale: nb })} –{" "}
-                {format(new Date(bookingData.endDateTime), "PPP p", { locale: nb })}
+                {format(new Date(bookingData.startDateTime), "PPP p", { locale: enUS })} –{" "}
+                {format(new Date(bookingData.endDateTime), "PPP p", { locale: enUS })}
               </p>
               <p className="text-sm text-[#9eabb1]">
-                <strong>Varighet:</strong>{" "}
+                <strong>Duration:</strong>{" "}
                 {formatBookingDuration(
                   new Date(bookingData.startDateTime),
                   new Date(bookingData.endDateTime),
                 )}
               </p>
               <p className="text-sm text-[#9eabb1]">
-                <strong>Henting:</strong>{" "}
+                <strong>Pickup:</strong>{" "}
                 {bookingData.pickupLocation}
               </p>
               {bookingData.deliveryLocation && (
                 <p className="text-sm text-[#9eabb1]">
-                  <strong>Levering:</strong>{" "}
+                  <strong>Delivery:</strong>{" "}
                   {bookingData.deliveryLocation}
                 </p>
               )}
               {decorationReview.length > 0 && (
                 <p className="text-sm text-[#9eabb1]">
-                  <strong>Dekorasjon:</strong> {decorationReview.join(", ")}
+                  <strong>Decoration:</strong> {decorationReview.join(", ")}
                 </p>
               )}
             </div>
@@ -284,12 +290,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
 
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span>Grunnpris:</span>
+              <span>Base price:</span>
               <span>{formatPrice(bookingData.basePrice)}</span>
             </div>
             {bookingData.deliveryFee > 0 && (
               <div className="flex justify-between text-sm">
-                <span>Leveringsgebyr:</span>
+                <span>Delivery fee:</span>
                 <span>
                   {formatPrice(bookingData.deliveryFee)}
                 </span>
@@ -297,19 +303,19 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
             )}
             {(bookingData.depositAmount ?? 0) > 0 && (
               <div className="flex justify-between text-sm">
-                <span>Depositum:</span>
+                <span>Deposit:</span>
                 <span>{formatPrice(bookingData.depositAmount ?? 0)}</span>
               </div>
             )}
             {(bookingData.driverSurcharge ?? 0) > 0 && (
               <div className="flex justify-between text-sm">
-                <span>Sjåførtillegg (25%):</span>
+                <span>Driver surcharge (25%):</span>
                 <span>{formatPrice(bookingData.driverSurcharge ?? 0)}</span>
               </div>
             )}
             <Separator className="bg-[#46555d]" />
             <div className="flex justify-between text-lg font-bold">
-              <span>Totalt:</span>
+              <span>Total:</span>
               <span className="text-primary">
                 {formatPrice(bookingData.totalPrice)}
               </span>
@@ -320,20 +326,20 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
 
           <div>
             <h4 className="font-semibold mb-2 text-[14px]">
-              Kundeinformasjon:
+              Customer information:
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs tracking-wide">
               <div>
-                <strong>Navn:</strong> {customerData.fullName}
+                <strong>Name:</strong> {customerData.fullName}
               </div>
               <div>
-                <strong>E-post:</strong> {customerData.email}
+                <strong>Email:</strong> {customerData.email}
               </div>
               <div>
-                <strong>Telefon:</strong> {customerData.phone}
+                <strong>Phone:</strong> {customerData.phone}
               </div>
               <div>
-                <strong>Adresse:</strong> {customerData.address}
+                <strong>Address:</strong> {customerData.address}
                 , {customerData.postalCode} {customerData.city}
               </div>
             </div>
@@ -345,7 +351,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
       <Card className="border-[#334047] bg-[#232e33] text-[#b1bdc3] shadow-sm">
         <CardHeader>
           {/* <CardTitle>{t('payment.paymentMethod')}</CardTitle> */}
-          <CardTitle>Betalingsmetode</CardTitle>
+          <CardTitle>Payment method</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -354,7 +360,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
               disabled={!canPay || isProcessing}
               variant="outline"
               size="lg"
-              className="h-20 rounded-md border border-[#46555d] bg-[#1b2529] py-12 transition-premium hover:cursor-pointer hover:border-[#E3C08D] hover:bg-[#2c3b40]"
+              className="h-auto flex-col gap-1 rounded-md border-2 border-[#E3C08D]/50 bg-[#1b2529] px-4 py-3 shadow-[0_0_0_1px_rgba(227,192,141,0.15)] transition-premium hover:cursor-pointer hover:border-[#E3C08D] hover:bg-[#2c3b40] hover:shadow-[0_0_16px_rgba(227,192,141,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E3C08D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#232e33] disabled:opacity-50"
             >
               {isProcessing && paymentMethod === "stripe" ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -362,9 +368,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
                 <CreditCard className="h-6 w-6" />
               )}
               {/* <span>{t('payment.payWithStripe')}</span> */}
-              <span>Betal med Stripe</span>
+              <span>Pay with Stripe</span>
               <span className="text-xs text-[#9eabb1]">
-                Visa, Mastercard osv.
+                Visa, Mastercard etc.
               </span>
             </Button>
 
@@ -373,7 +379,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
               disabled={true}
               variant="outline"
               size="lg"
-              className="h-20 rounded-md border border-[#46555d] bg-[#1b2529] py-12 transition-premium hover:cursor-pointer hover:border-[#E3C08D] hover:bg-[#2c3b40]"
+              className="h-auto flex-col gap-1 rounded-md border border-[#3a464c] bg-[#1b2529]/60 px-4 py-3 opacity-60 transition-premium"
             >
               {isProcessing && paymentMethod === "vipps" ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -381,9 +387,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
                 <Smartphone className="h-6 w-6" />
               )}
               {/* <span>{t('payment.payWithVipps')}</span> */}
-              <span>Vipps er foreløpig utilgjengelig</span>
+              <span>Vipps is currently unavailable</span>
               <span className="text-xs text-[#9eabb1]">
-                Norsk mobilbetaling
+                Norwegian mobile payment
               </span>
             </Button>
           </div>
@@ -391,8 +397,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
           {!canPay && (
             <p className="text-sm text-red-300 text-center">
               {!bankIdVerified
-                ? "Fullfør BankID i forrige steg før betaling."
-                : "Verifiser førerkort i forrige steg før betaling."}
+                ? "Complete BankID in the previous step before payment."
+                : "Verify your driver's licence in the previous step before payment."}
             </p>
           )}
         </CardContent>

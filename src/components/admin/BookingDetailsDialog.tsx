@@ -20,6 +20,18 @@ interface BookingDetailsDialogProps {
     delivery_location?: string | null;
     total_price: number;
     created_at: string;
+    decoration_require?: boolean | null;
+    decoration_flowers?: boolean | null;
+    decoration_ribbon?: boolean | null;
+    decoration_red_carpets?: boolean | null;
+    decoration_driver_need?: boolean | null;
+    with_driver?: boolean | null;
+    seat_pricing_mode?: string | null;
+    extra_km_driven?: number | null;
+    extra_km_price?: number | null;
+    extra_km_charge_status?: string | null;
+    booking_deposit?: number | null;
+    deposit_amount_status?: boolean | null;
     car: {
       id: string;
       name: string;
@@ -195,6 +207,29 @@ export const BookingDetailsDialog: React.FC<BookingDetailsDialogProps> = ({
                   </div>
                 </div>
 
+                {(() => {
+                  const preferences = [
+                    booking.decoration_flowers && "Flowers",
+                    booking.decoration_ribbon && "Ribbon",
+                    booking.decoration_red_carpets && "Red carpets",
+                    (booking.decoration_driver_need ?? booking.with_driver) && "Driver requested",
+                    booking.seat_pricing_mode === "daily-basis"
+                      ? "Rental pricing: per day"
+                      : booking.seat_pricing_mode === "flat-rate"
+                        ? "Rental pricing: per hour"
+                        : false,
+                  ].filter(Boolean) as string[];
+
+                  if (preferences.length === 0) return null;
+
+                  return (
+                    <div className="mt-6 border-t border-gray-200 pt-4">
+                      <h4 className="font-medium mb-2 text-gray-700">Preferences</h4>
+                      <p className="text-sm text-gray-700">{preferences.join(", ")}</p>
+                    </div>
+                  );
+                })()}
+
                 <div className="mt-6 border-t border-gray-200 pt-4">
                   <h4 className="font-medium mb-2 text-gray-700">Pricing Summary</h4>
                   <div className="space-y-2">
@@ -232,6 +267,11 @@ export const BookingDetailsDialog: React.FC<BookingDetailsDialogProps> = ({
                   <div>
                     <p className="text-[13px] text-gray-600">Amount</p>
                     <p className="font-medium text-gray-600">{payment.currency} {payment.amount.toFixed(2)}</p>
+                    {booking.extra_km_charge_status && booking.extra_km_charge_status !== 'none' && (
+                      <p className="text-[11px] text-amber-700 mt-0.5">
+                        + NOK {Number(booking.booking_deposit ?? booking.extra_km_price ?? 0).toFixed(2)} extra km charge
+                      </p>
+                    )}
                   </div>
                   <div>
                     <p className="text-[13px] text-gray-600">Payment Date</p>
@@ -242,6 +282,35 @@ export const BookingDetailsDialog: React.FC<BookingDetailsDialogProps> = ({
               </div>
             ) : (
               <p className="text-gray-500">No payment information available</p>
+            )}
+
+            {booking.extra_km_charge_status && booking.extra_km_charge_status !== 'none' && (
+              <div className="mt-4 space-y-4 bg-[#f9fafb] rounded-lg p-4">
+                <h4 className="font-medium text-gray-700">Extra Kilometer Charge</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[13px] text-gray-600">Deposit Status</p>
+                    <Badge
+                      variant="outline"
+                      className={`capitalize text-xs ${
+                        booking.deposit_amount_status ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      {booking.deposit_amount_status ? 'Confirmed' : 'Pending'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-[13px] text-gray-600">Extra Kilometers</p>
+                    <p className="font-medium text-gray-600">{booking.extra_km_driven ?? 0} km</p>
+                  </div>
+                  <div>
+                    <p className="text-[13px] text-gray-600">Charge Amount</p>
+                    <p className="font-medium text-gray-600">
+                      NOK {Number(booking.booking_deposit ?? booking.extra_km_price ?? 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
           </TabsContent>
         </Tabs>

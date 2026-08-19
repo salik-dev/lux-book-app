@@ -9,8 +9,8 @@ export function WhyChooseSection() {
       <div className="container mx-auto">
         
         <div className="text-center mb-12">
-          <HeroHeading title="Hvorfor velge Prime Norge?" />
-          <HeroDescription description="Vi skiller oss ut med vår eksepsjonelle service og premium kjøretøy" />
+          <HeroHeading title="Why Choose Prime Norge?" />
+          <HeroDescription description="We stand out with our exceptional service and premium vehicles" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">

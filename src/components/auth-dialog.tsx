@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Loader2, Mail, Lock, Eye, EyeOff, X } from 'lucide-react';
+import { Dialog, DialogPortal, DialogOverlay, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/auth-context';
@@ -95,7 +96,16 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="top-0 right-0 left-auto h-screen w-full max-w-[440px] translate-x-0 translate-y-0 overflow-y-auto border-l border-[#334047] bg-[#232e33] p-0 text-[#b1bdc3] shadow-2xl data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right data-[state=open]:duration-300 data-[state=closed]:duration-200">
+      <DialogPortal>
+        <DialogOverlay />
+        <DialogPrimitive.Content
+          data-booking-sheet
+          className="fixed top-0 right-0 left-auto z-50 h-screen w-full max-w-[440px] overflow-y-auto border-l border-[#334047] bg-[#232e33] p-0 text-[#b1bdc3] shadow-2xl"
+        >
+        <DialogPrimitive.Close className="absolute top-4 right-4 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+          <X className="h-4 w-4 text-[#b1bdc3]" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
         <div className="p-4 sm:px-8 sm:pb-0">
           <span className="flex justify-center">
             <img src={logo} alt="Logo" className="h-40 w-40 object-contain p-2" />
@@ -308,7 +318,8 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
             </form>
           </Form>
         </div>
-      </DialogContent>
+        </DialogPrimitive.Content>
+      </DialogPortal>
     </Dialog>
   );
 }

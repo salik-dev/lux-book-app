@@ -7,7 +7,7 @@ export default function AuthErrorPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const params = new URLSearchParams(location.search);
-  const message = params.get("message") || "Signicat returnerte en feil under BankID-innlogging.";
+  const message = params.get("message") || "Signicat returned an error during BankID login.";
 
   useEffect(() => {
     localStorage.setItem("bankid_auth_status", "failed");
@@ -28,14 +28,14 @@ export default function AuthErrorPage() {
       <div className="w-full max-w-lg rounded-xl border border-[#334047] bg-[#232e33] p-6 text-[#b1bdc3] shadow-xl">
         <div className="mb-2 flex items-center gap-2 text-red-300">
           <AlertTriangle className="h-5 w-5" />
-          <h1 className="text-xl font-semibold">BankID-feil</h1>
+          <h1 className="text-xl font-semibold">BankID Error</h1>
         </div>
         <p className="text-sm text-[#9eabb1]">{message}</p>
         <Button
           className="mt-4 w-full bg-[#334047] text-[#b1bdc3] hover:bg-[#3d4b53]"
           onClick={() => navigate("/", { replace: true })}
         >
-          Til forsiden
+          Back to Home
         </Button>
       </div>
     </div>

@@ -117,11 +117,23 @@ export type Database = {
           created_at: string
           customer_id: string | null
           decoration_require: boolean | null
+          decoration_flowers: boolean | null
+          decoration_ribbon: boolean | null
+          decoration_red_carpets: boolean | null
+          decoration_driver_need: boolean | null
+          seat_pricing_mode: string | null
           delivery_distance_km: number | null
           delivery_fee: number | null
           delivery_location: string | null
           end_datetime: string
           extra_km_price: number | null
+          extra_km_driven: number | null
+          extra_km_charge_status: string | null
+          extra_km_checkout_url: string | null
+          extra_km_session_id: string | null
+          extra_km_charged_at: string | null
+          booking_deposit: number | null
+          deposit_amount_status: boolean | null
           id: string
           notes: string | null
           org_name: string | null
@@ -142,11 +154,23 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           decoration_require?: boolean | null
+          decoration_flowers?: boolean | null
+          decoration_ribbon?: boolean | null
+          decoration_red_carpets?: boolean | null
+          decoration_driver_need?: boolean | null
+          seat_pricing_mode?: string | null
           delivery_distance_km?: number | null
           delivery_fee?: number | null
           delivery_location?: string | null
           end_datetime: string
           extra_km_price?: number | null
+          extra_km_driven?: number | null
+          extra_km_charge_status?: string | null
+          extra_km_checkout_url?: string | null
+          extra_km_session_id?: string | null
+          extra_km_charged_at?: string | null
+          booking_deposit?: number | null
+          deposit_amount_status?: boolean | null
           id?: string
           notes?: string | null
           org_name?: string | null
@@ -167,11 +191,23 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           decoration_require?: boolean | null
+          decoration_flowers?: boolean | null
+          decoration_ribbon?: boolean | null
+          decoration_red_carpets?: boolean | null
+          decoration_driver_need?: boolean | null
+          seat_pricing_mode?: string | null
           delivery_distance_km?: number | null
           delivery_fee?: number | null
           delivery_location?: string | null
           end_datetime?: string
           extra_km_price?: number | null
+          extra_km_driven?: number | null
+          extra_km_charge_status?: string | null
+          extra_km_checkout_url?: string | null
+          extra_km_session_id?: string | null
+          extra_km_charged_at?: string | null
+          booking_deposit?: number | null
+          deposit_amount_status?: boolean | null
           id?: string
           notes?: string | null
           org_name?: string | null

@@ -16,7 +16,7 @@ export default function GallerietVartPage() {
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [activeFilter, setActiveFilter] = useState("ALLE BILER")
+  const [activeFilter, setActiveFilter] = useState("ALL CARS")
   const imagesPerPage = 8
 
   // Fetch cars data
@@ -34,7 +34,7 @@ export default function GallerietVartPage() {
   }, [])
 
   // Filter cars based on active filter
-  const filteredCars = activeFilter === "ALLE BILER" 
+  const filteredCars = activeFilter === "ALL CARS"
     ? cars 
     : cars.filter(car => car.name.includes(activeFilter))
 
@@ -69,9 +69,9 @@ export default function GallerietVartPage() {
       >
         <div className="absolute inset-0 bg-black/60" />
         <div className="relative z-10 text-center p-4">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">VÅRT GALLERI</h1>
+          <h1 className="text-4xl md:text-6xl font-bold mb-6">OUR GALLERY</h1>
           <p className="text-xl md:text-2xl max-w-3xl mx-auto">
-            Utforsk vårt eksklusive utvalg av luksusbiler
+            Explore our exclusive selection of luxury cars
           </p>
         </div>
       </section>
@@ -81,7 +81,7 @@ export default function GallerietVartPage() {
         <div className="container mx-auto">
           {/* Filter Buttons */}
           <div className="flex flex-wrap justify-center gap-2 mb-12">
-            {["ALLE BILER", "AUDI", "BMW", "MERCEDES", "PORSCHE"].map((filter) => (
+            {["ALL CARS", "AUDI", "BMW", "MERCEDES", "PORSCHE"].map((filter) => (
               <Button
                 key={filter}
                 variant={activeFilter === filter ? "default" : "outline"}
@@ -120,7 +120,7 @@ export default function GallerietVartPage() {
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
                   <h3 className="text-white font-bold text-lg">{car.name}</h3>
-                  <p className="text-[#E3C08D]">{car.base_price_per_day} / døgn</p>
+                  <p className="text-[#E3C08D]">{car.base_price_per_day} / day</p>
                 </div>
               </div>
             ))}
@@ -194,7 +194,7 @@ export default function GallerietVartPage() {
                 {filteredCars[selectedImage]?.name}
               </h3>
               <p className="text-[#E3C08D] text-xl font-medium mb-4">
-                {filteredCars[selectedImage]?.base_price_per_day} / døgn
+                {filteredCars[selectedImage]?.base_price_per_day} / day
               </p>
             </div>
 

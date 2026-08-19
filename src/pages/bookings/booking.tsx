@@ -67,14 +67,14 @@ const Bookings = () => {
   };
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('no-NO', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'NOK',
     }).format(price);
   };
 
   const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('no-NO', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',

@@ -36,8 +36,8 @@ export function FleetSection({ onNavigateToBooking, onCarSelect }: CardProps) {
       <div className="container mx-auto">
 
         <div className="text-center mb-16">
-          <HeroHeading title="Eksklusive tilbud i dag på våre leiebiler!" />
-          <HeroDescription description="Oppdag vårt håndplukkede utvalg av verdens fineste luksusbiler, hver vedlikeholdt til de høyeste standarder for fortreffelighet." className="text-center max-w-4xl mx-auto" />
+          <HeroHeading title="Exclusive offers today on our rental cars!" />
+          <HeroDescription description="Discover our handpicked selection of the world's finest luxury cars, each maintained to the highest standards of excellence." className="text-center max-w-4xl mx-auto" />
         </div>
 
         {loading ? <CarLoader /> : <>
@@ -56,7 +56,7 @@ export function FleetSection({ onNavigateToBooking, onCarSelect }: CardProps) {
               variant="outline"
               size="lg"
               className="text-lg tracking-wide p-7 border-[#E3C08D] text-black bg-[#E3C08D] shadow-none hover:bg-[#E3C08D]/90 hover:cursor-pointer transition-all duration-300 hover:text-white dark:bg-[#E3C08D] dark:border-[#E3C08D] dark:hover:bg-[#E3C08D]/90 dark:hover:text-white"
-            >{sliceCar ? 'Bla gjennom alle kjøretøy' : 'Vis mindre'} </Button>
+            >{sliceCar ? 'Browse all vehicles' : 'Show less'} </Button>
           </div>
         </>}
 

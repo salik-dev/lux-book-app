@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/auth-context';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/header';
@@ -16,8 +15,6 @@ import { AdminHeader } from '@/components/admin/AdminHeader';
 import { CarCalendarContainer } from '@/pages/admin/schedule/calendar/components/car-calendar-container';
 
 const Admin = () => {
-  const { t } = useTranslation();
-
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('bookings');
@@ -135,7 +132,7 @@ const Admin = () => {
             <TabsContent value="settings" className="space-y-6">
               <Card className="card-premium bg-white">
                 <CardHeader>
-                  <CardTitle>{t('admin.settings')}</CardTitle>
+                  <CardTitle>Settings</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">

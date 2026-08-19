@@ -15,8 +15,6 @@ const STORAGE_KEYS = {
   pendingSessionId: "bankid_pending_session_id",
   accessToken: "signicat_access_token",
   userData: "signicat_user_data",
-  jwtToken: "bankid_jwt_access_token",
-  jwtExpiresAt: "bankid_jwt_expires_at",
   verificationRowId: "bankid_verification_row_id",
   contractStatus: "bankid_contract_status",
   contractFileUrl: "bankid_contract_file_url",
@@ -134,12 +132,6 @@ export default function AuthSuccessPage() {
         if (serverData?.verificationId) {
           localStorage.setItem(STORAGE_KEYS.verificationRowId, serverData.verificationId);
         }
-        if (serverData?.jwtAccessToken) {
-          localStorage.setItem(STORAGE_KEYS.jwtToken, serverData.jwtAccessToken);
-        }
-        if (serverData?.expiresAt) {
-          localStorage.setItem(STORAGE_KEYS.jwtExpiresAt, serverData.expiresAt);
-        }
 
         const contractIsSigned = Boolean(serverData?.contractStatus);
         if (contractIsSigned) {
@@ -187,12 +179,12 @@ export default function AuthSuccessPage() {
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-4">
       <div className="w-full max-w-lg rounded-xl border border-[#334047] bg-[#232e33] p-6 text-[#b1bdc3] shadow-xl">
-        <h1 className="mb-2 text-xl font-semibold text-[#E3C08D]">BankID-verifisering</h1>
+        <h1 className="mb-2 text-xl font-semibold text-[#E3C08D]">BankID Verification</h1>
 
         {isLoading && (
           <div className="flex items-center gap-2 text-sm">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Henter autentiseringsresultat ...
+            Retrieving authentication result...
           </div>
         )}
 
@@ -200,16 +192,16 @@ export default function AuthSuccessPage() {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-green-300">
               <CheckCircle2 className="h-5 w-5" />
-              <span>Innlogging med BankID er fullført.</span>
+              <span>BankID login completed.</span>
             </div>
             <p className="text-sm text-[#9eabb1]">
-              Du kan nå gå tilbake til bestillingen og fortsette til betaling.
+              You can now return to your booking and continue to payment.
             </p>
             <Button
               className="mt-2 w-full bg-[#E3C08D] text-black hover:bg-[#E3C08D]/90"
               onClick={() => navigate("/", { replace: true })}
             >
-              Gå til forsiden
+              Go to Homepage
             </Button>
           </div>
         )}
@@ -218,16 +210,16 @@ export default function AuthSuccessPage() {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-red-300">
               <XCircle className="h-5 w-5" />
-              <span>BankID-verifisering mislyktes.</span>
+              <span>BankID verification failed.</span>
             </div>
             <p className="text-sm text-[#9eabb1]">
-              {finalError || error?.message || "Ukjent feil fra Idura."}
+              {finalError || error?.message || "Unknown error from Idura."}
             </p>
             <Button
               className="mt-2 w-full bg-[#334047] text-[#b1bdc3] hover:bg-[#3d4b53]"
               onClick={() => navigate("/", { replace: true })}
             >
-              Tilbake
+              Back
             </Button>
           </div>
         )}
@@ -235,13 +227,13 @@ export default function AuthSuccessPage() {
         {!isLoading && !isSuccess && !hasError && (
           <div className="space-y-3">
             <p className="text-sm text-[#9eabb1]">
-              Fant ikke gyldig autentiseringsresultat i callbacken. Prøv BankID på nytt.
+              No valid authentication result was found in the callback. Please try BankID again.
             </p>
             <Button
               className="mt-2 w-full bg-[#334047] text-[#b1bdc3] hover:bg-[#3d4b53]"
-              onClick={() => setFinalError("Mangler autentiseringsresultat i callback-URL.")}
+              onClick={() => setFinalError("Missing authentication result in the callback URL.")}
             >
-              Vis feildetalj
+              Show Error Details
             </Button>
           </div>
         )}

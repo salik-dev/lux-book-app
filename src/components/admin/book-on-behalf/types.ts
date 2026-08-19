@@ -1,25 +1,3 @@
-export interface EligibleCustomer {
-  customer_id: string;
-  full_name: string;
-  email: string;
-  phone: string | null;
-  city: string | null;
-  driver_license_number: string | null;
-  nin_last4: string | null;
-  verification_id: string;
-  contract_signed_at: string | null;
-  total_bookings: number;
-  customer_created_at: string;
-}
-
-export interface EligibleCustomerPage {
-  items: EligibleCustomer[];
-  page: number;
-  pageSize: number;
-  total: number;
-  hasMore: boolean;
-}
-
 export interface AdminCarOption {
   id: string;
   name: string;
@@ -43,7 +21,16 @@ export interface AdminBookingPricing {
 }
 
 export interface CreateBookingPayload {
-  customerId: string;
+  customerFullName: string;
+  customerLastName: string;
+  customerNin: string;
+  customerEmail: string;
+  customerPhone: string;
+  customerAddress?: string | null;
+  customerPostalCode?: string | null;
+  customerCity?: string | null;
+  licenseVerified: boolean;
+  licenseCategories?: string[];
   carId: string;
   startDateTime: string;
   endDateTime: string;

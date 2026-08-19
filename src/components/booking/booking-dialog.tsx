@@ -37,15 +37,15 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
   const steps = [
     {
       number: 1,
-      title: "Velg dato og sted",
+      title: "Choose date and location",
     },
     {
       number: 2,
-      title: "Dine opplysninger",
+      title: "Your details",
     },
     {
       number: 3,
-      title: "Kontrakt og betaling",
+      title: "Contract and payment",
     },
   ];
 
@@ -93,7 +93,7 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
                 className="ml-4 flex items-center gap-2 text-[#b1bdc3] hover:cursor-pointer hover:bg-transparent hover:text-[#E3C08D]"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Tilbake
+                Back
               </Button>
             )}
 

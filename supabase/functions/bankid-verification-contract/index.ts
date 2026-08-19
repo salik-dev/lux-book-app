@@ -16,15 +16,6 @@ const getAdminClient = () => {
   return createClient(url, serviceRole, { auth: { persistSession: false } });
 };
 
-const cleanupExpiredTokens = async (admin: ReturnType<typeof getAdminClient>) => {
-  const nowIso = new Date().toISOString();
-  await admin
-    .from("bankid_verifications")
-    .update({ jwt_access_token: null, bankid_access_token: null })
-    .not("jwt_access_token", "is", null)
-    .lte("contract_end_at", nowIso);
-};
-
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -39,8 +30,6 @@ serve(async (req: Request): Promise<Response> => {
 
   try {
     const admin = getAdminClient();
-    await cleanupExpiredTokens(admin);
-
     const body = await req.json().catch(() => ({}));
     const verificationId = body.verificationId || null;
     const sessionId = body.sessionId || null;

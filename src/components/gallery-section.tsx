@@ -45,7 +45,7 @@ export function GallerySection() {
       <section className="px-20 py-20 bg-[#0d1518] max-[550px]:px-0">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-           <HeroHeading title="Galleriet vårt" />
+           <HeroHeading title="Our Gallery" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">

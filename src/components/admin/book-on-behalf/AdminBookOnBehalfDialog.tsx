@@ -14,7 +14,6 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/auth-context";
 import {
   ArrowLeft,
   ArrowRight,
@@ -24,8 +23,8 @@ import {
   ChevronDown,
   Clock,
   Copy,
+  IdCard,
   Loader2,
-  Search,
   ShieldCheck,
   User,
   Mail as MailIcon,
@@ -42,12 +41,11 @@ import {
   toDateTimeLocalInputValue,
   useAdminCreateBooking,
   useAvailableCars,
-  useEligibleCustomers,
+  useVerifyDriverLicense,
 } from "./hooks";
 import type {
   AdminCarOption,
   CreateBookingResponse,
-  EligibleCustomer,
 } from "./types";
 
 // ─── Brand tokens ─────────────────────────────────────────────────────────────
@@ -217,21 +215,57 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
   prefillEnd,
 }) => {
   const { toast } = useToast();
-  const { isAdmin, loading: authLoading, session } = useAuth();
   const [step, setStep] = useState<Step>(1);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
 
-  // Step 1
-  const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(0);
-  const [selectedCustomer, setSelectedCustomer] = useState<EligibleCustomer | null>(null);
+  // Step 1 — manually-entered customer details, verified via driver's licence.
+  const [customerFullName, setCustomerFullName] = useState("");
+  const [customerLastName, setCustomerLastName] = useState("");
+  const [customerNin, setCustomerNin] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
+  const [customerPostalCode, setCustomerPostalCode] = useState("");
+  const [customerCity, setCustomerCity] = useState("");
+  const [licenseStatus, setLicenseStatus] = useState<"idle" | "checking" | "verified" | "failed">("idle");
+  const [licenseCategories, setLicenseCategories] = useState<string[]>([]);
+  const [licenseFullName, setLicenseFullName] = useState("");
+  const [licenseError, setLicenseError] = useState("");
+  const { verify: verifyLicense } = useVerifyDriverLicense();
   const [bookingForCompany, setBookingForCompany] = useState(false);
   const [orgNo, setOrgNo] = useState("");
   const [orgName, setOrgName] = useState("");
-  const customerSearchEnabled = open && isAdmin && !authLoading && !!session?.access_token;
-  const { data: customersPage, loading: customersLoading, error: customersError } =
-    useEligibleCustomers(searchQuery, page, 10, customerSearchEnabled, session?.access_token);
+
+  const handleVerifyLicense = async () => {
+    if (!/^\d{11}$/.test(customerNin)) {
+      toast({ title: "Invalid national ID number", description: "National ID number must be 11 digits.", variant: "destructive" });
+      return;
+    }
+    if (!customerLastName.trim()) {
+      toast({ title: "Last name required", description: "Enter the customer's last name before verifying.", variant: "destructive" });
+      return;
+    }
+    setLicenseStatus("checking");
+    setLicenseError("");
+    try {
+      const result = await verifyLicense(customerNin, customerLastName.trim());
+      setLicenseCategories(result.categories);
+      setLicenseFullName(result.fullName);
+      setLicenseStatus("verified");
+      toast({
+        title: "Driver's licence verified",
+        description: result.categories.length ? `Licence categories: ${result.categories.join(", ")}` : "No active driver's licence categories found.",
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error during driver's licence verification.";
+      setLicenseStatus("failed");
+      setLicenseError(message);
+      setLicenseCategories([]);
+      setLicenseFullName("");
+      toast({ title: "Verification failed", description: message, variant: "destructive" });
+    }
+  };
 
   // Step 2
   const { cars, loading: carsLoading } = useAvailableCars(open);
@@ -259,6 +293,8 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
   const [deliveryFeeInput, setDeliveryFeeInput] = useState("0");
   const [decorationRequired, setDecorationRequired] = useState(false);
   const [withDriver, setWithDriver] = useState(false);
+  const [pricingMode, setPricingMode] = useState<"flat-rate" | "daily-basis">("flat-rate");
+  const [pricingModeTouched, setPricingModeTouched] = useState(false);
 
   // Step 3
   const [language, setLanguage] = useState<"en" | "no">("en");
@@ -270,9 +306,18 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
     if (!open) {
       setTimeout(() => {
         setStep(1);
-        setSearchQuery("");
-        setPage(0);
-        setSelectedCustomer(null);
+        setCustomerFullName("");
+        setCustomerLastName("");
+        setCustomerNin("");
+        setCustomerEmail("");
+        setCustomerPhone("");
+        setCustomerAddress("");
+        setCustomerPostalCode("");
+        setCustomerCity("");
+        setLicenseStatus("idle");
+        setLicenseCategories([]);
+        setLicenseFullName("");
+        setLicenseError("");
         setBookingForCompany(false);
         setOrgNo("");
         setOrgName("");
@@ -285,11 +330,24 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
         setDeliveryFeeInput("0");
         setDecorationRequired(false);
         setWithDriver(false);
+        setPricingMode("flat-rate");
+        setPricingModeTouched(false);
         setLanguage("en");
         resetMutation();
       }, 350);
     }
   }, [open, defaultStart, defaultEnd, resetMutation]);
+
+  // Until the admin picks a pricing mode explicitly, keep it in sync with the
+  // duration-based rule (<=24h => hourly, otherwise daily).
+  useEffect(() => {
+    if (pricingModeTouched) return;
+    const s = parseDateTimeLocal(startLocal);
+    const e = parseDateTimeLocal(endLocal);
+    if (!s || !e || e <= s) return;
+    const hours = Math.max(1, Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60)));
+    setPricingMode(hours >= 24 ? "daily-basis" : "flat-rate");
+  }, [startLocal, endLocal, pricingModeTouched]);
 
   // Apply calendar prefill (car + date range) whenever the dialog opens.
   useEffect(() => {
@@ -302,12 +360,22 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
   const start = parseDateTimeLocal(startLocal);
   const end = parseDateTimeLocal(endLocal);
   const pricing = useMemo(
-    () => computePricing(start, end, selectedCar, deliveryFee, withDriver),
-    [start, end, selectedCar, deliveryFee, withDriver]
+    () => computePricing(start, end, selectedCar, deliveryFee, withDriver, pricingMode),
+    [start, end, selectedCar, deliveryFee, withDriver, pricingMode]
   );
 
+  const ninValid = /^\d{11}$/.test(customerNin);
+  const customerDetailsFilled =
+    customerFullName.trim().length > 0 &&
+    customerLastName.trim().length > 0 &&
+    ninValid &&
+    customerEmail.trim().length > 0 &&
+    customerPhone.trim().length > 0 &&
+    customerAddress.trim().length > 0 &&
+    customerPostalCode.trim().length > 0;
   const canAdvanceFrom1 =
-    !!selectedCustomer &&
+    customerDetailsFilled &&
+    licenseStatus === "verified" &&
     (!bookingForCompany || (orgNo.trim().length > 0 && orgName.trim().length > 0));
   const canAdvanceFrom2 =
     !!selectedCar && !!start && !!end && end > start &&
@@ -360,10 +428,19 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
   }
 
   async function handleSubmit() {
-    if (!selectedCustomer || !selectedCar || !start || !end || !pricing) return;
+    if (!canAdvanceFrom1 || !selectedCar || !start || !end || !pricing) return;
     try {
       const res = await createBooking({
-        customerId: selectedCustomer.customer_id,
+        customerFullName: customerFullName.trim(),
+        customerLastName: customerLastName.trim(),
+        customerNin,
+        customerEmail: customerEmail.trim(),
+        customerPhone: customerPhone.trim(),
+        customerAddress: customerAddress.trim(),
+        customerPostalCode: customerPostalCode.trim(),
+        customerCity: customerCity.trim() || null,
+        licenseVerified: licenseStatus === "verified",
+        licenseCategories,
         carId: selectedCar.id,
         startDateTime: start.toISOString(),
         endDateTime: end.toISOString(),
@@ -396,7 +473,7 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
 
       toast({
         title: "Booking created",
-        description: `${res.bookingNumber} • invoice email sent to ${selectedCustomer.email}`,
+        description: `${res.bookingNumber} • invoice email sent to ${customerEmail.trim()}`,
       });
       onBookingCreated?.(res);
       setStep(4);
@@ -436,7 +513,7 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                 Book on behalf of customer
               </DialogPrimitive.Title>
               <DialogPrimitive.Description className="mt-0.5 text-xs text-gray-400">
-                Only BankID-verified customers with a signed contract are shown.
+                Enter the customer's details and verify their driver's licence to continue.
               </DialogPrimitive.Description>
             </div>
             <DialogPrimitive.Close asChild>
@@ -459,18 +536,22 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
             {/* key=step remounts the div on each step change → triggers CSS animation */}
             <div key={step} className={direction === "forward" ? "step-enter-forward" : "step-enter-back"}>
               {step === 1 && (
-                <CustomerPickerStep
-                  query={searchQuery}
-                  setQuery={(q) => { setSearchQuery(q); setPage(0); }}
-                  loading={customersLoading}
-                  error={customersError}
-                  items={customersPage?.items ?? []}
-                  total={customersPage?.total ?? 0}
-                  hasMore={!!customersPage?.hasMore}
-                  page={page}
-                  onPageChange={setPage}
-                  selected={selectedCustomer}
-                  onSelect={(c) => setSelectedCustomer(c)}
+                <CustomerDetailsStep
+                  fullName={customerFullName} setFullName={setCustomerFullName}
+                  lastName={customerLastName}
+                  setLastName={(v) => { setCustomerLastName(v); setLicenseStatus("idle"); }}
+                  nin={customerNin}
+                  setNin={(v) => { setCustomerNin(v); setLicenseStatus("idle"); }}
+                  email={customerEmail} setEmail={setCustomerEmail}
+                  phone={customerPhone} setPhone={setCustomerPhone}
+                  address={customerAddress} setAddress={setCustomerAddress}
+                  postalCode={customerPostalCode} setPostalCode={setCustomerPostalCode}
+                  city={customerCity} setCity={setCustomerCity}
+                  licenseStatus={licenseStatus}
+                  licenseCategories={licenseCategories}
+                  licenseFullName={licenseFullName}
+                  licenseError={licenseError}
+                  onVerifyLicense={handleVerifyLicense}
                   bookingForCompany={bookingForCompany}
                   setBookingForCompany={setBookingForCompany}
                   orgNo={orgNo}
@@ -501,12 +582,18 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                   setDecorationRequired={setDecorationRequired}
                   withDriver={withDriver}
                   setWithDriver={setWithDriver}
+                  pricingMode={pricingMode}
+                  setPricingMode={(v) => { setPricingModeTouched(true); setPricingMode(v); }}
                   pricing={pricing}
                 />
               )}
-              {step === 3 && selectedCustomer && selectedCar && start && end && pricing && (
+              {step === 3 && selectedCar && start && end && pricing && (
                 <ReviewStep
-                  customer={selectedCustomer}
+                  customerFullName={customerFullName}
+                  customerLastName={customerLastName}
+                  customerEmail={customerEmail}
+                  customerPhone={customerPhone}
+                  licenseCategories={licenseCategories}
                   car={selectedCar}
                   start={start}
                   end={end}
@@ -522,7 +609,8 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
               {step === 4 && createdBooking && (
                 <SuccessStep
                   booking={createdBooking}
-                  customerEmail={selectedCustomer?.email ?? ""}
+                  customerEmail={customerEmail}
+                  language={language}
                 />
               )}
             </div>
@@ -680,20 +768,25 @@ const StepIndicator: React.FC<{ step: Step }> = ({ step }) => (
   </div>
 );
 
-// ─── Step 1: Customer picker ──────────────────────────────────────────────────
+// ─── Step 1: Customer details (manual entry + driver's-licence verification) ──
 
-interface CustomerPickerStepProps {
-  query: string;
-  setQuery: (q: string) => void;
-  loading: boolean;
-  error: string | null;
-  items: EligibleCustomer[];
-  total: number;
-  hasMore: boolean;
-  page: number;
-  onPageChange: (p: number) => void;
-  selected: EligibleCustomer | null;
-  onSelect: (c: EligibleCustomer) => void;
+const fieldInputClass =
+  "w-full px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white transition-colors";
+
+interface CustomerDetailsStepProps {
+  fullName: string; setFullName: (v: string) => void;
+  lastName: string; setLastName: (v: string) => void;
+  nin: string; setNin: (v: string) => void;
+  email: string; setEmail: (v: string) => void;
+  phone: string; setPhone: (v: string) => void;
+  address: string; setAddress: (v: string) => void;
+  postalCode: string; setPostalCode: (v: string) => void;
+  city: string; setCity: (v: string) => void;
+  licenseStatus: "idle" | "checking" | "verified" | "failed";
+  licenseCategories: string[];
+  licenseFullName: string;
+  licenseError: string;
+  onVerifyLicense: () => void;
   bookingForCompany: boolean;
   setBookingForCompany: (v: boolean) => void;
   orgNo: string;
@@ -702,135 +795,98 @@ interface CustomerPickerStepProps {
   setOrgName: (v: string) => void;
 }
 
-const CustomerPickerStep: React.FC<CustomerPickerStepProps> = ({
-  query, setQuery, loading, error, items, total, hasMore, page, onPageChange, selected, onSelect,
+const CustomerDetailsStep: React.FC<CustomerDetailsStepProps> = ({
+  fullName, setFullName, lastName, setLastName, nin, setNin, email, setEmail,
+  phone, setPhone, address, setAddress, postalCode, setPostalCode, city, setCity,
+  licenseStatus, licenseCategories, licenseFullName, licenseError, onVerifyLicense,
   bookingForCompany, setBookingForCompany, orgNo, setOrgNo, orgName, setOrgName,
 }) => (
-  <div className="space-y-3">
-    {/* Search */}
-    <div className="relative">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-      <input
-        autoFocus
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search by name or email"
-        className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white transition-colors"
-        style={{ "--tw-ring-color": GOLD } as React.CSSProperties}
-      />
-      {loading && (
-        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
-      )}
+  <div className="space-y-4">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3 min-h-[300px]">
+      <div className="flex items-center gap-2">
+        <User className="h-3.5 w-3.5 text-gray-500" />
+        <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Customer details</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <FieldLabel>First name</FieldLabel>
+          <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="First name" className={fieldInputClass} />
+        </div>
+        <div>
+          <FieldLabel>Last name</FieldLabel>
+          <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" className={fieldInputClass} />
+        </div>
+        <div>
+          <FieldLabel>National ID number (NIN)</FieldLabel>
+          <input
+            value={nin}
+            onChange={(e) => setNin(e.target.value.replace(/\D/g, "").slice(0, 11))}
+            placeholder="11 digits"
+            inputMode="numeric"
+            className={fieldInputClass}
+          />
+        </div>
+        <div>
+          <FieldLabel>Phone</FieldLabel>
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" className={fieldInputClass} />
+        </div>
+        <div>
+          <FieldLabel>Email</FieldLabel>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" className={fieldInputClass} />
+        </div>
+        <div>
+          <FieldLabel>City</FieldLabel>
+          <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" className={fieldInputClass} />
+        </div>
+        <div>
+          <FieldLabel>Address</FieldLabel>
+          <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" className={fieldInputClass} />
+        </div>
+        <div>
+          <FieldLabel>Postal code</FieldLabel>
+          <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} placeholder="Postal code" className={fieldInputClass} />
+        </div>
+      </div>
     </div>
 
-    {error && (
-      <div className="px-3 py-2.5 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg">
-        {error}
-      </div>
-    )}
-
-    {/* Selected banner */}
-    {selected && (
-      <div
-        className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border text-sm font-medium"
-        style={{ backgroundColor: GOLD_LIGHT, borderColor: GOLD_BORDER, color: "#6b4c14" }}
-      >
-        <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
-        <span className="truncate flex-1">Selected: {selected.full_name}</span>
-        <span className="text-xs text-gray-500 shrink-0">Click Next to continue →</span>
-      </div>
-    )}
-
-    {/* List */}
-    <div className="rounded-xl border border-gray-200 overflow-hidden">
-      {loading && items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-12 text-sm text-gray-500">
-          <Loader2 className="h-5 w-5 animate-spin" style={{ color: GOLD }} />
-          Loading eligible customers…
+    {/* Driver's licence verification */}
+    <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <IdCard className="h-3.5 w-3.5 text-gray-500" />
+          <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Driver's licence verification</span>
         </div>
-      ) : items.length === 0 ? (
-        <div className="py-12 text-center text-sm text-gray-400">
-          No eligible customers found.
+        <button
+          type="button"
+          onClick={onVerifyLicense}
+          disabled={licenseStatus === "checking" || licenseStatus === "verified"}
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 disabled:opacity-60 disabled:pointer-events-none hover:opacity-90"
+          style={{ backgroundColor: GOLD, color: "#1a1208" }}
+        >
+          {licenseStatus === "checking" ? (
+            <><Loader2 className="h-3.5 w-3.5 animate-spin" />Verifying…</>
+          ) : licenseStatus === "verified" ? (
+            <><CheckCircle2 className="h-3.5 w-3.5" />Verified</>
+          ) : (
+            "Verify licence"
+          )}
+        </button>
+      </div>
+      <p className="text-xs text-gray-500">
+        Verifies against Statens Vegvesen using the national ID number and last name above.
+      </p>
+      {licenseStatus === "verified" && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+          <span className="font-semibold">{licenseFullName || "Licence verified"}</span>
+          {licenseCategories.length > 0 && <span> — categories: {licenseCategories.join(", ")}</span>}
         </div>
-      ) : (
-        <ul className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
-          {items.map((c) => {
-            const isSel = selected?.customer_id === c.customer_id;
-            return (
-              <li key={c.customer_id}>
-                <button
-                  type="button"
-                  onClick={() => onSelect(c)}
-                  className="w-full text-left px-4 py-3.5 flex items-start gap-3 transition-colors duration-100 hover:bg-gray-50"
-                  style={isSel ? { backgroundColor: GOLD_LIGHT } : {}}
-                >
-                  <div
-                    className="h-9 w-9 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                    style={{ backgroundColor: GOLD_LIGHT }}
-                  >
-                    <User className="h-4 w-4" style={{ color: GOLD }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-gray-900 truncate">
-                        {c.full_name}
-                      </span>
-                      <span
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
-                        style={{ backgroundColor: "#dcfce7", color: "#166534" }}
-                      >
-                        <ShieldCheck className="h-2.5 w-2.5" />
-                        BankID
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-0.5 truncate">
-                      {c.email}{c.phone ? ` • ${c.phone}` : ""}{c.nin_last4 ? ` • NIN ****${c.nin_last4}` : ""}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      {c.total_bookings} past booking{c.total_bookings !== 1 ? "s" : ""}
-                      {c.contract_signed_at ? ` • contract signed ${new Date(c.contract_signed_at).toLocaleDateString()}` : ""}
-                    </div>
-                  </div>
-                  {isSel && (
-                    <div
-                      className="h-5 w-5 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                      style={{ backgroundColor: GOLD }}
-                    >
-                      <CheckCircle2 className="h-3 w-3 text-white" />
-                    </div>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+      )}
+      {licenseStatus === "failed" && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {licenseError || "Driver's licence could not be verified."}
+        </div>
       )}
     </div>
-
-    {/* Pagination */}
-    {(page > 0 || hasMore) && (
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <span>Page {page + 1} • {total} customer{total !== 1 ? "s" : ""}</span>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            disabled={page === 0}
-            onClick={() => onPageChange(Math.max(0, page - 1))}
-            className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium disabled:opacity-40 hover:bg-gray-50 transition-colors"
-          >
-            ← Prev
-          </button>
-          <button
-            type="button"
-            disabled={!hasMore}
-            onClick={() => onPageChange(page + 1)}
-            className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium disabled:opacity-40 hover:bg-gray-50 transition-colors"
-          >
-            Next →
-          </button>
-        </div>
-      </div>
-    )}
 
     <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-3">
       <label className="flex items-center gap-2">
@@ -839,8 +895,9 @@ const CustomerPickerStep: React.FC<CustomerPickerStepProps> = ({
           checked={bookingForCompany}
           onChange={(e) => setBookingForCompany(e.target.checked)}
           className="h-4 w-4 rounded border-gray-300"
+          style={{ accentColor: GOLD }}
         />
-        <span className="text-sm text-gray-700">Booking for company</span>
+        <span className="text-xs text-gray-700">Booking for company</span>
       </label>
 
       {bookingForCompany && (
@@ -851,7 +908,7 @@ const CustomerPickerStep: React.FC<CustomerPickerStepProps> = ({
               value={orgNo}
               onChange={(e) => setOrgNo(e.target.value)}
               placeholder="e.g. 999999999"
-              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white transition-colors"
+              className={fieldInputClass}
             />
           </div>
           <div>
@@ -860,7 +917,7 @@ const CustomerPickerStep: React.FC<CustomerPickerStepProps> = ({
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
               placeholder="Company AS"
-              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white transition-colors"
+              className={fieldInputClass}
             />
           </div>
         </div>
@@ -1006,6 +1063,8 @@ interface BookingDetailsStepProps {
   setDecorationRequired: (v: boolean) => void;
   withDriver: boolean;
   setWithDriver: (v: boolean) => void;
+  pricingMode: "flat-rate" | "daily-basis";
+  setPricingMode: (v: "flat-rate" | "daily-basis") => void;
   pricing: ReturnType<typeof computePricing>;
 }
 
@@ -1017,6 +1076,7 @@ const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
   deliveryFee, setDeliveryFee, deliveryFeeInput, setDeliveryFeeInput,
   decorationRequired, setDecorationRequired,
   withDriver, setWithDriver,
+  pricingMode, setPricingMode,
   pricing,
 }) => {
   const startDate = parseLocalDateTimeValue(startLocal);
@@ -1034,8 +1094,8 @@ const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
     {/* Dates (same functional style as customer booking form) */}
     <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <Clock className="h-4 w-4 text-gray-500" />
-        <span className="text-sm font-semibold text-gray-700">Select date and time</span>
+        <Clock className="h-3.5 w-3.5 text-gray-500" />
+        <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Select date and time</span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <DateTimePickerField
@@ -1062,14 +1122,40 @@ const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
       )}
     </div>
 
-    {/* Pickup location — static */}
-    <div>
-      <FieldLabel>Pickup location</FieldLabel>
-      <StaticField value={pickupLocation} placeholder="Not set" />
+    {/* Rental pricing preference */}
+    <div className="rounded-xl border border-gray-200 bg-white p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Clock className="h-3.5 w-3.5 text-gray-500" />
+        <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Rental pricing</span>
+      </div>
+      <div className="flex items-center gap-6">
+        {(
+          [
+            { value: "flat-rate" as const, label: "Per hour" },
+            { value: "daily-basis" as const, label: "Per day" },
+          ] as const
+        ).map((option) => (
+          <label key={option.value} className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="admin-pricing-mode"
+              checked={pricingMode === option.value}
+              onChange={() => setPricingMode(option.value)}
+              className="h-3.5 w-3.5"
+              style={{ accentColor: GOLD }}
+            />
+            <span className="text-xs text-gray-700">{option.label}</span>
+          </label>
+        ))}
+      </div>
     </div>
 
-    {/* Delivery */}
-    <div className="grid grid-cols-[1fr_160px] gap-3">
+    {/* Pickup + delivery location — same row */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <FieldLabel>Pickup location</FieldLabel>
+        <StaticField value={pickupLocation} placeholder="Not set" />
+      </div>
       <div>
         <FieldLabel>Delivery location</FieldLabel>
         <StaticField value={deliveryLocation || defaultDelivery} placeholder="No delivery — customer picks up" />
@@ -1077,24 +1163,26 @@ const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
     </div>
 
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <label className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5">
+      <label className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 cursor-pointer">
         <input
           type="checkbox"
           checked={decorationRequired}
           onChange={(e) => setDecorationRequired(e.target.checked)}
           className="h-4 w-4 rounded border-gray-300"
+          style={{ accentColor: GOLD }}
         />
-        <span className="text-sm text-gray-700">Decoration required</span>
+        <span className="text-xs text-gray-700">Decoration required</span>
       </label>
 
-      <label className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5">
+      <label className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 cursor-pointer">
         <input
           type="checkbox"
           checked={withDriver}
           onChange={(e) => setWithDriver(e.target.checked)}
           className="h-4 w-4 rounded border-gray-300"
+          style={{ accentColor: GOLD }}
         />
-        <span className="text-sm text-gray-700">With driver (+25% on booking amount)</span>
+        <span className="text-xs text-gray-700">With driver (+25% on booking amount)</span>
       </label>
     </div>
 
@@ -1125,7 +1213,11 @@ const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
 // ─── Step 3: Review ───────────────────────────────────────────────────────────
 
 interface ReviewStepProps {
-  customer: EligibleCustomer;
+  customerFullName: string;
+  customerLastName: string;
+  customerEmail: string;
+  customerPhone: string;
+  licenseCategories: string[];
   car: AdminCarOption;
   start: Date;
   end: Date;
@@ -1139,7 +1231,8 @@ interface ReviewStepProps {
 }
 
 const ReviewStep: React.FC<ReviewStepProps> = ({
-  customer, car, start, end, pickupLocation, deliveryLocation, decorationRequired, withDriver, pricing, language, setLanguage,
+  customerFullName, customerLastName, customerEmail, customerPhone, licenseCategories,
+  car, start, end, pickupLocation, deliveryLocation, decorationRequired, withDriver, pricing, language, setLanguage,
 }) => (
   <div className="space-y-3">
 
@@ -1159,14 +1252,15 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
             <User className="h-4 w-4" style={{ color: GOLD }} />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate">{customer.full_name}</p>
-            <p className="text-xs text-gray-500 truncate mt-0.5">{customer.email}</p>
-            {customer.phone && <p className="text-xs text-gray-400">{customer.phone}</p>}
+            <p className="text-sm font-semibold text-gray-900 truncate">{customerFullName} {customerLastName}</p>
+            <p className="text-xs text-gray-500 truncate mt-0.5">{customerEmail}</p>
+            {customerPhone && <p className="text-xs text-gray-400">{customerPhone}</p>}
             <span
               className="inline-flex items-center gap-1 mt-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
               style={{ backgroundColor: "#dcfce7", color: "#166534" }}
             >
-              <ShieldCheck className="h-2.5 w-2.5" />BankID
+              <ShieldCheck className="h-2.5 w-2.5" />
+              Licence verified{licenseCategories.length > 0 ? ` (${licenseCategories.join(", ")})` : ""}
             </span>
           </div>
         </div>
@@ -1228,7 +1322,7 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
         className="flex-1 px-3 py-2.5 rounded-xl text-xs text-gray-500 leading-relaxed"
         style={{ backgroundColor: "#f0f9ff", border: "1px solid #bae6fd" }}
       >
-        Invoice email → <strong className="text-gray-700">{customer.email}</strong>
+        Invoice email → <strong className="text-gray-700">{customerEmail}</strong>
         &nbsp;· booking status: <strong className="text-gray-700">pending</strong>
         &nbsp;· Stripe link valid 24 h
       </div>
@@ -1250,10 +1344,37 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
 
 // ─── Step 4: Success ──────────────────────────────────────────────────────────
 
-const SuccessStep: React.FC<{ booking: CreateBookingResponse; customerEmail: string }> = ({
-  booking, customerEmail,
+const SuccessStep: React.FC<{ booking: CreateBookingResponse; customerEmail: string; language: "en" | "no" }> = ({
+  booking, customerEmail, language,
 }) => {
   const { toast } = useToast();
+  const [resending, setResending] = useState(false);
+
+  const handleResend = async () => {
+    if (!booking.checkoutUrl) return;
+    setResending(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-booking-email", {
+        body: {
+          bookingId: booking.bookingId,
+          emailType: "admin_invoice",
+          language,
+          checkoutUrl: booking.checkoutUrl,
+        },
+      });
+      if (error) throw error;
+      toast({ title: "Email sent", description: `Invoice resent to ${customerEmail}` });
+    } catch (err) {
+      toast({
+        title: "Could not resend email",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setResending(false);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center gap-5 py-8">
       <div className="h-16 w-16 rounded-full flex items-center justify-center"
@@ -1285,6 +1406,19 @@ const SuccessStep: React.FC<{ booking: CreateBookingResponse; customerEmail: str
             </button>
           </div>
           <p className="text-xs text-gray-400 mt-2">Expires in 24 hours.</p>
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resending}
+            className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 disabled:opacity-60 disabled:pointer-events-none hover:opacity-90"
+            style={{ backgroundColor: GOLD, color: "#1a1208" }}
+          >
+            {resending ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" />Resending…</>
+            ) : (
+              <><MailIcon className="h-3.5 w-3.5" />Resend invoice email</>
+            )}
+          </button>
         </div>
       )}
     </div>
@@ -1294,11 +1428,11 @@ const SuccessStep: React.FC<{ booking: CreateBookingResponse; customerEmail: str
 // ─── Micro helpers ────────────────────────────────────────────────────────────
 
 const FieldLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{children}</label>
+  <label className="block text-[11px] font-semibold text-gray-500 mb-1">{children}</label>
 );
 
 const StaticField: React.FC<{ value: string; placeholder?: string }> = ({ value, placeholder }) => (
-  <div className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm min-h-[42px] flex items-center">
+  <div className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-xs min-h-[38px] flex items-center">
     {value
       ? <span className="text-gray-800">{value}</span>
       : <span className="text-gray-400 italic">{placeholder}</span>}

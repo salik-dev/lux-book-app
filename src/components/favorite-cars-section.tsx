@@ -15,13 +15,13 @@ export function FavoriteCarsSection() {
       <div className="relative z-10 container mx-auto text-center">
         <div className="max-w-3xl mx-auto mt-8 max-[656px]:mt-0">
           
-          <HeroHeading title="Dine favorittbiler" />
-          <HeroDescription description="Opplev luksus på hjul med Prime Norge flåte av BMW, Porsche, Audi og Mercedes-biler. Kjør med stil og komfort, enten du trenger en bybil som Porsche Taycan eller en sporty AUDI RS6. Eller, ta turen inn i ulendt terreng med en Mercedes G Wagon eller cruise med stil i en BMW I7. Uansett hva du velger, vil du nyte en smidig kjøreopplevelse med Prime Norge." className="text-xl text-gray-300 mb-8 tracking-wide max-[656px]:text-md max-[500px]:text-[16px]" />
-          
+          <HeroHeading title="Your Favorite Cars" />
+          <HeroDescription description="Experience luxury on wheels with Prime Norge's fleet of BMW, Porsche, Audi and Mercedes cars. Drive with style and comfort, whether you need a city car like the Porsche Taycan or a sporty Audi RS6. Or head into rugged terrain with a Mercedes G-Wagon, or cruise in style in a BMW i7. Whatever you choose, you'll enjoy a smooth driving experience with Prime Norge." className="text-xl text-gray-300 mb-8 tracking-wide max-[656px]:text-md max-[500px]:text-[16px]" />
+
           <div className="flex gap-8 justify-center items-center">
             <Button size="lg" className="bg-[#e3c08d] text-black hover:bg-[#e3c08d]/90 group">
               <Heart className="mr-2 h-5 w-5" />
-              Se favoritter
+              View Favorites
             </Button>
             <Button
               variant="outline"
@@ -29,7 +29,7 @@ export function FavoriteCarsSection() {
               style={{ borderColor: "white" }}
               className="text-white bg-transparent"
             >
-              Utforsk flåten
+              Explore the Fleet
             </Button>
           </div>
           

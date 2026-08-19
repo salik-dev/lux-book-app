@@ -5,7 +5,7 @@ import { Button } from "../ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { Input } from "../ui/input";
 import { format } from "date-fns";
-import { nb } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 import { Upload, User, FileText, MapPin, Truck, Loader2, X, CheckCircle } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { BookingData, CustomerData } from "@/@types/data";
@@ -22,7 +22,7 @@ const HIDDEN_CUSTOMER_DEFAULTS = {
   city: "Oslo",
 } as const;
 
-const STORAGE_KEYS = {
+export const STORAGE_KEYS = {
   bankIdVerified: "bankid_verified",
   bankIdVerifiedAt: "bankid_verified_at",
   bankIdStatus: "bankid_auth_status",
@@ -41,9 +41,11 @@ const STORAGE_KEYS = {
   signicatExternalReference: "signicat_external_reference",
   signicatSessionMapping: "signicat_session_mapping",
   verificationRowId: "bankid_verification_row_id",
-  jwtToken: "bankid_jwt_access_token",
-  jwtExpiresAt: "bankid_jwt_expires_at",
   bankContractStatus: "bank_contract_status",
+  licenseStatus: "license_status",
+  licenseCategories: "license_categories",
+  licenseFullName: "license_full_name",
+  licenseVerifiedAt: "license_verified_at",
 } as const;
 
 const SIGNED_STATUS_VALUES = ["signed", "completed", "complete", "success", "approved"];
@@ -69,13 +71,6 @@ const parseSignicatDocumentUrl = (
   } catch {
     return {};
   }
-};
-
-const isJwtMissingOrExpired = (): boolean => {
-  const token = localStorage.getItem(STORAGE_KEYS.jwtToken);
-  const exp = localStorage.getItem(STORAGE_KEYS.jwtExpiresAt);
-  if (!token || !exp) return true;
-  return new Date(exp).getTime() <= Date.now();
 };
 
 const toSafeISOString = (value: unknown, fallback: Date): string => {
@@ -109,7 +104,6 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
   const [hasHandledContractReturn, setHasHandledContractReturn] = useState(false);
   /** Mirrors `bankid_verifications.contract_status` from the server (null = not loaded yet). */
   const [serverContractSigned, setServerContractSigned] = useState<boolean | null>(null);
-  const [jwtUiTick, setJwtUiTick] = useState(0);
   // Statens vegvesen driver-licence verification
   const [licenseStatus, setLicenseStatus] = useState<"idle" | "checking" | "verified" | "failed">("idle");
   const [licenseCategories, setLicenseCategories] = useState<string[]>([]);
@@ -118,29 +112,6 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
   const [licenseError, setLicenseError] = useState("");
   const { toast } = useToast();
   const { loginWithRedirect, isLoading: isBankIDPending, isInitializing } = useCriiptoVerify();
-
-  /** Only clear app JWT; keep BankID + contract state so signicat-document still works after JWT expiry. */
-  const clearExpiredJwtLocalState = () => {
-    localStorage.removeItem(STORAGE_KEYS.jwtToken);
-    localStorage.removeItem(STORAGE_KEYS.jwtExpiresAt);
-  };
-
-  const clearExpiredJwtOnServer = async () => {
-    try {
-      const verificationId = localStorage.getItem(STORAGE_KEYS.verificationRowId);
-      const sessionId = localStorage.getItem(STORAGE_KEYS.bankIdSessionId);
-      const verificationClient = supabase as any;
-      await verificationClient.functions.invoke("bankid-verification-token", {
-        body: {
-          action: "cleanup_expired_jwt",
-          verificationId: verificationId || null,
-          sessionId: sessionId || null,
-        },
-      });
-    } catch (error) {
-      console.error("Failed to clear expired JWT in bankid_verifications:", error);
-    }
-  };
 
   const form = useForm<CustomerData>({
     defaultValues: {
@@ -314,16 +285,6 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
 
   useEffect(() => {
     try {
-      const hasJwtExpired = () => {
-        const jwtExpiryRaw = localStorage.getItem(STORAGE_KEYS.jwtExpiresAt);
-        return Boolean(jwtExpiryRaw && new Date(jwtExpiryRaw).getTime() <= Date.now());
-      };
-
-      if (hasJwtExpired()) {
-        void clearExpiredJwtOnServer();
-        clearExpiredJwtLocalState();
-      }
-
       const verified = localStorage.getItem(STORAGE_KEYS.bankIdVerified) === "true";
       const status = (localStorage.getItem(STORAGE_KEYS.bankIdStatus) ??
         (verified ? "success" : "idle")) as
@@ -376,19 +337,23 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       if (savedSignedAt) setContractSignedAt(savedSignedAt);
       if (savedContractError) setContractError(savedContractError);
 
-      const expiryWatcher = window.setInterval(() => {
-        setJwtUiTick((t) => t + 1);
-        if (hasJwtExpired()) {
-          void clearExpiredJwtOnServer();
-          clearExpiredJwtLocalState();
-          void syncVerificationFromServer();
+      // License verification is only meaningful against an already-verified BankID identity,
+      // so only restore it alongside a still-verified BankID session.
+      if (verified && localStorage.getItem(STORAGE_KEYS.licenseStatus) === "verified") {
+        setLicenseStatus("verified");
+        setLicenseFullName(localStorage.getItem(STORAGE_KEYS.licenseFullName) ?? "");
+        setLicenseVerifiedAt(localStorage.getItem(STORAGE_KEYS.licenseVerifiedAt));
+        try {
+          const savedCategoriesRaw = localStorage.getItem(STORAGE_KEYS.licenseCategories);
+          setLicenseCategories(savedCategoriesRaw ? JSON.parse(savedCategoriesRaw) : []);
+        } catch {
+          setLicenseCategories([]);
         }
-      }, 30000);
-      return () => window.clearInterval(expiryWatcher);
+      }
     } catch (error) {
       console.error("Failed to restore BankID/contract state:", error);
     }
-  }, [syncVerificationFromServer]);
+  }, []);
 
   useEffect(() => {
     if (!bankIdVerified) {
@@ -408,8 +373,6 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
 
   const watchedEmail = form.watch("email");
   const bookingForCompany = form.watch("bookingForCompany");
-  void jwtUiTick;
-  const bankIdReauthNeeded = bankIdVerified && isJwtMissingOrExpired();
   const pdfActionsAllowed =
     serverContractSigned === true && Boolean(contractDocumentId || contractFileUrl);
 
@@ -525,19 +488,19 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
 
     if (!bankIdVerified) {
       toast({
-        title: "BankID kreves",
-        description: "Fullfør BankID-verifisering før du verifiserer førerkort.",
+        title: "BankID required",
+        description: "Complete BankID verification before verifying your driver's licence.",
         variant: "destructive",
       });
       return;
     }
     if (!/^\d{11}$/.test(nin)) {
-      form.setError("nin", { type: "manual", message: "Fødselsnummer må være 11 siffer" });
-      toast({ title: "Ugyldig fødselsnummer", description: "Fødselsnummer må være 11 siffer.", variant: "destructive" });
+      form.setError("nin", { type: "manual", message: "National ID number must be 11 digits" });
+      toast({ title: "Invalid national ID number", description: "National ID number must be 11 digits.", variant: "destructive" });
       return;
     }
     if (!lastName) {
-      form.setError("lastName", { type: "manual", message: "Etternavn er påkrevd" });
+      form.setError("lastName", { type: "manual", message: "Last name is required" });
       return;
     }
 
@@ -551,7 +514,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
 
       // A non-2xx response (400/403/500) surfaces as `error`; read the JSON body for the message.
       if (error) {
-        let message = error.message || "Førerkortverifisering feilet.";
+        let message = error.message || "Driver's licence verification failed.";
         try {
           const ctxBody = await (error as { context?: Response }).context?.json?.();
           if (ctxBody?.error) message = String(ctxBody.error);
@@ -562,34 +525,64 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       }
 
       if (!data?.verified) {
-        const message = data?.message || "Førerkort kunne ikke verifiseres. Kontroller opplysningene.";
+        const message = data?.message || "Driver's licence could not be verified. Please check the details.";
         setLicenseStatus("failed");
         setLicenseError(message);
         setLicenseCategories([]);
         setLicenseFullName("");
-        toast({ title: "Førerkort ikke verifisert", description: message, variant: "destructive" });
+        localStorage.removeItem(STORAGE_KEYS.licenseStatus);
+        localStorage.removeItem(STORAGE_KEYS.licenseCategories);
+        localStorage.removeItem(STORAGE_KEYS.licenseFullName);
+        localStorage.removeItem(STORAGE_KEYS.licenseVerifiedAt);
+        toast({ title: "Driver's licence not verified", description: message, variant: "destructive" });
         return;
       }
 
       const categories: string[] = Array.isArray(data.categories) ? data.categories : [];
+
+      // A car rental requires a valid class B (passenger car) licence. A successful
+      // lookup with no B (or no categories at all) means no valid car licence.
+      const REQUIRED_CATEGORY = "B";
+      if (!categories.includes(REQUIRED_CATEGORY)) {
+        const message = categories.length
+          ? `Found licence categories (${categories.join(", ")}) but no class ${REQUIRED_CATEGORY} (passenger car). Cannot rent a car.`
+          : "No valid driver's licence registered for this person.";
+        setLicenseCategories(categories);
+        setLicenseFullName(data.fullName || "");
+        setLicenseStatus("failed");
+        setLicenseError(message);
+        localStorage.removeItem(STORAGE_KEYS.licenseStatus);
+        localStorage.removeItem(STORAGE_KEYS.licenseCategories);
+        localStorage.removeItem(STORAGE_KEYS.licenseFullName);
+        localStorage.removeItem(STORAGE_KEYS.licenseVerifiedAt);
+        toast({ title: "No valid driver's licence", description: message, variant: "destructive" });
+        return;
+      }
+
       const at = new Date().toISOString();
       setLicenseCategories(categories);
       setLicenseFullName(data.fullName || "");
       setLicenseVerifiedAt(at);
       setLicenseStatus("verified");
+      localStorage.setItem(STORAGE_KEYS.licenseStatus, "verified");
+      localStorage.setItem(STORAGE_KEYS.licenseCategories, JSON.stringify(categories));
+      localStorage.setItem(STORAGE_KEYS.licenseFullName, data.fullName || "");
+      localStorage.setItem(STORAGE_KEYS.licenseVerifiedAt, at);
       toast({
-        title: "Førerkort verifisert",
-        description: categories.length
-          ? `Førerkortklasser: ${categories.join(", ")}`
-          : "Fant ingen aktive førerkortklasser for denne personen.",
+        title: "Driver's licence verified",
+        description: `Valid driver's licence. Categories: ${categories.join(", ")}`,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Ukjent feil ved førerkortverifisering.";
+      const message = err instanceof Error ? err.message : "Unknown error during driver's licence verification.";
       setLicenseStatus("failed");
       setLicenseError(message);
       setLicenseCategories([]);
       setLicenseFullName("");
-      toast({ title: "Verifisering feilet", description: message, variant: "destructive" });
+      localStorage.removeItem(STORAGE_KEYS.licenseStatus);
+      localStorage.removeItem(STORAGE_KEYS.licenseCategories);
+      localStorage.removeItem(STORAGE_KEYS.licenseFullName);
+      localStorage.removeItem(STORAGE_KEYS.licenseVerifiedAt);
+      toast({ title: "Verification failed", description: message, variant: "destructive" });
     }
   };
 
@@ -641,8 +634,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       const preSync = await syncVerificationFromServer();
       if (preSync === true) {
         toast({
-          title: "Kontrakt allerede signert",
-          description: "Bruk «Vis PDF» / «Last ned PDF» nedenfor.",
+          title: "Contract already signed",
+          description: "Use \"View PDF\" / \"Download PDF\" below.",
         });
         return;
       }
@@ -684,11 +677,11 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       const signatureUrl = result.signatureUrl ?? result.signingUrl;
 
       if (!signatureUrl) {
-        throw new Error("Ufullstendig kontraktsvar fra Signicat.");
+        throw new Error("Incomplete contract response from Signicat.");
       }
 
       if (!result.documentId) {
-        throw new Error("Mangler documentId fra Signicat.");
+        throw new Error("Missing documentId from Signicat.");
       }
 
       const statusTrackingId = result.sessionId || result.documentId;
@@ -713,12 +706,12 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
 
       window.location.href = signatureUrl;
       toast({
-        title: "Kontrakt startet",
-        description: "Fullfør signering i det nye vinduet, og sjekk deretter status.",
+        title: "Contract started",
+        description: "Complete signing in the new window, then check the status.",
       });
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Kunne ikke starte kontraktssignering.";
+        error instanceof Error ? error.message : "Could not start contract signing.";
       setContractStatus("failed");
       setContractError(message);
       localStorage.setItem(STORAGE_KEYS.contractStatus, "failed");
@@ -729,7 +722,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
         contract_file_path: null,
       });
       toast({
-        title: "Kontraktfeil",
+        title: "Contract error",
         description: message,
         variant: "destructive",
       });
@@ -742,8 +735,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
     const statusTrackingId = contractSessionId || contractDocumentId;
     if (!statusTrackingId) {
       toast({
-        title: "Mangler dokument",
-        description: "Start kontraktssignering først.",
+        title: "Missing document",
+        description: "Start contract signing first.",
         variant: "destructive",
       });
       return;
@@ -774,19 +767,19 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
           contract_file_path: status.fileUrl ?? previewUrl ?? null,
         });
         toast({
-          title: "Kontrakt signert",
-          description: "Kontrakten er signert og klar.",
+          title: "Contract signed",
+          description: "The contract is signed and ready.",
         });
       } else {
         setContractStatus("pending");
         toast({
-          title: "Kontrakt ikke fullført ennå",
-          description: `Nåværende status: ${status.status}`,
+          title: "Contract not yet completed",
+          description: `Current status: ${status.status}`,
         });
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Kunne ikke hente kontraktstatus.";
+        error instanceof Error ? error.message : "Could not fetch contract status.";
       setContractStatus("failed");
       setContractError(message);
       localStorage.setItem(STORAGE_KEYS.contractStatus, "failed");
@@ -797,7 +790,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
         contract_file_path: null,
       });
       toast({
-        title: "Kontraktfeil",
+        title: "Contract error",
         description: message,
         variant: "destructive",
       });
@@ -816,7 +809,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
     const sessionId = overrides?.sessionId ?? contractSessionId ?? parsed.sessionId ?? null;
 
     if (!documentId) {
-      throw new Error("Mangler dokument-ID for kontrakt.");
+      throw new Error("Missing document ID for contract.");
     }
 
     const params = new URLSearchParams({
@@ -839,7 +832,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
     );
 
     if (!response.ok) {
-      let message = "Kunne ikke hente signert dokument.";
+      let message = "Could not fetch signed document.";
       try {
         const payload = await response.json();
         if (payload?.error) message = String(payload.error);
@@ -861,8 +854,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       }
       if (!allowed) {
         toast({
-          title: "Kontrakt ikke signert",
-          description: "Kontrakten er ikke registrert som signert i systemet.",
+          title: "Contract not signed",
+          description: "The contract is not registered as signed in the system.",
           variant: "destructive",
         });
         return;
@@ -885,11 +878,11 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
         return;
       }
 
-      throw new Error("Mangler dokument-ID for kontrakt.");
+      throw new Error("Missing document ID for contract.");
     } catch (error) {
       toast({
-        title: "Kunne ikke vise PDF",
-        description: error instanceof Error ? error.message : "Ukjent feil.",
+        title: "Could not display PDF",
+        description: error instanceof Error ? error.message : "Unknown error.",
         variant: "destructive",
       });
     }
@@ -904,8 +897,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       }
       if (!allowed) {
         toast({
-          title: "Kontrakt ikke signert",
-          description: "Kontrakten er ikke registrert som signert i systemet.",
+          title: "Contract not signed",
+          description: "The contract is not registered as signed in the system.",
           variant: "destructive",
         });
         return;
@@ -938,11 +931,11 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
         return;
       }
 
-      throw new Error("Mangler dokument-ID for kontrakt.");
+      throw new Error("Missing document ID for contract.");
     } catch (error) {
       toast({
-        title: "Kunne ikke laste ned PDF",
-        description: error instanceof Error ? error.message : "Ukjent feil.",
+        title: "Could not download PDF",
+        description: error instanceof Error ? error.message : "Unknown error.",
         variant: "destructive",
       });
     }
@@ -965,18 +958,18 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
 
     if (contractSignType === "cancel") {
       setContractStatus("failed");
-      setContractError("Kontraktssignering ble avbrutt.");
+      setContractError("Contract signing was cancelled.");
       localStorage.setItem(STORAGE_KEYS.contractStatus, "failed");
-      localStorage.setItem(STORAGE_KEYS.contractError, "Kontraktssignering ble avbrutt.");
+      localStorage.setItem(STORAGE_KEYS.contractError, "Contract signing was cancelled.");
       clearContractQueryParams();
       return;
     }
 
     if (contractSignType === "error") {
       setContractStatus("failed");
-      setContractError("Signicat rapporterte en feil ved signering.");
+      setContractError("Signicat reported an error during signing.");
       localStorage.setItem(STORAGE_KEYS.contractStatus, "failed");
-      localStorage.setItem(STORAGE_KEYS.contractError, "Signicat rapporterte en feil ved signering.");
+      localStorage.setItem(STORAGE_KEYS.contractError, "Signicat reported an error during signing.");
       clearContractQueryParams();
       return;
     }
@@ -1052,8 +1045,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
               contract_file_path: status.fileUrl ?? previewUrl ?? null,
             });
             toast({
-              title: "Kontrakt signert",
-              description: "Kontrakten er signert og oppdatert i bestillingsskjemaet.",
+              title: "Contract signed",
+              description: "The contract is signed and updated in the booking form.",
             });
             return;
           }
@@ -1063,12 +1056,12 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
 
         setContractStatus("pending");
         toast({
-          title: "Signering registreres fortsatt",
-          description: "Trykk 'Sjekk kontraktstatus' om noen sekunder.",
+          title: "Signing is still being registered",
+          description: "Click 'Check contract status' in a few seconds.",
         });
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Kunne ikke hente kontraktstatus etter retur.";
+          error instanceof Error ? error.message : "Could not fetch contract status after returning.";
         // Keep signed state from callback; polling can fail transiently.
         setContractError(message);
         localStorage.setItem(STORAGE_KEYS.contractError, message);
@@ -1089,8 +1082,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
   const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
   if (!validTypes.includes(file.type)) {
     toast({
-      title: "Ugyldig filtype",
-      description: "Last opp en gyldig fil (JPEG, PNG eller PDF)",
+      title: "Invalid file type",
+      description: "Please upload a valid file (JPEG, PNG or PDF)",
       variant: "destructive",
     });
     return;
@@ -1099,8 +1092,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
   // Validate file size (max 5MB)
   if (file.size > 5 * 1024 * 1024) {
     toast({
-      title: "Filen er for stor",
-      description: "Last opp en fil mindre enn 5 MB",
+      title: "File is too large",
+      description: "Please upload a file smaller than 5 MB",
       variant: "destructive",
     });
     return;
@@ -1164,8 +1157,8 @@ const uploadLicense = async (): Promise<string | null> => {
   } catch (error) {
     console.error('Error uploading license:', error);
     toast({
-      title: "Opplasting feilet",
-      description: "Kunne ikke laste opp førerkort. Prøv igjen.",
+      title: "Upload failed",
+      description: "Could not upload driver's licence. Please try again.",
       variant: "destructive",
     });
     return null;
@@ -1184,8 +1177,8 @@ const uploadLicense = async (): Promise<string | null> => {
     try {
       if (!bankIdVerified) {
         toast({
-          title: "BankID kreves",
-          description: "Fullfør BankID-verifisering før du går videre.",
+          title: "BankID required",
+          description: "Complete BankID verification before continuing.",
           variant: "destructive",
         });
         return;
@@ -1193,8 +1186,8 @@ const uploadLicense = async (): Promise<string | null> => {
 
       if (licenseStatus !== "verified") {
         toast({
-          title: "Førerkort kreves",
-          description: "Verifiser førerkort før du går videre til betaling.",
+          title: "Driver's licence required",
+          description: "Verify your driver's licence before continuing to payment.",
           variant: "destructive",
         });
         return;
@@ -1208,8 +1201,8 @@ const uploadLicense = async (): Promise<string | null> => {
         }
         if (!contractOk) {
           toast({
-            title: "Kontrakt kreves",
-            description: "Signer kontrakten før du går videre til neste steg.",
+            title: "Contract required",
+            description: "Sign the contract before continuing to the next step.",
             variant: "destructive",
           });
           return;
@@ -1218,8 +1211,8 @@ const uploadLicense = async (): Promise<string | null> => {
 
       if (SHOW_DRIVER_LICENSE_UPLOAD && !licenseFile) {
         toast({
-          title: "Feil",
-          description: "Last opp et gyldig førerkort",
+          title: "Error",
+          description: "Please upload a valid driver's licence",
           variant: "destructive",
         });
         return;
@@ -1231,8 +1224,8 @@ const uploadLicense = async (): Promise<string | null> => {
         licenseUrl = await uploadLicense();
         if (!licenseUrl) {
           toast({
-            title: "Feil",
-            description: "Kunne ikke laste opp førerkort. Prøv igjen.",
+            title: "Error",
+            description: "Could not upload driver's licence. Please try again.",
             variant: "destructive",
           });
           return;
@@ -1265,8 +1258,8 @@ const uploadLicense = async (): Promise<string | null> => {
     } catch (error) {
       console.error('Error submitting form:', error);
       toast({
-        title: "Feil",
-        description: "Kunne ikke sende skjemaet. Prøv igjen.",
+        title: "Error",
+        description: "Could not submit the form. Please try again.",
         variant: "destructive",
       });
     }
@@ -1274,10 +1267,10 @@ const uploadLicense = async (): Promise<string | null> => {
 
   const decorationSummary = (
     [
-      bookingData.decorationFlowers && "Blomster",
-      bookingData.decorationRibbon && "Bånd",
-      bookingData.decorationRedCarpets && "Røde løpere",
-      bookingData.decorationDriverNeed && "Sjåfør ønskes",
+      bookingData.decorationFlowers && "Flowers",
+      bookingData.decorationRibbon && "Ribbon",
+      bookingData.decorationRedCarpets && "Red carpets",
+      bookingData.decorationDriverNeed && "Driver requested",
     ].filter(Boolean) as string[]
   );
   
@@ -1285,14 +1278,14 @@ const uploadLicense = async (): Promise<string | null> => {
     <div className="space-y-6">
       {/* Booking Summary */}
       <div className="rounded-xl border border-[#334047] bg-[#232e33] p-6 text-[#b1bdc3]">
-        <h3 className="mb-4 text-lg font-semibold text-[#E3C08D]">Oppsummering</h3>
+        <h3 className="mb-4 text-lg font-semibold text-[#E3C08D]">Summary</h3>
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-1 space-y-3">
             <div>
               <h4 className="font-medium text-[#b1bdc3]">{bookingData.car.name}</h4>
               <p className="text-sm text-[#9eabb1]">
-                {format(new Date(bookingData.startDateTime), "PPP p", { locale: nb })} –{" "}
-                {format(new Date(bookingData.endDateTime), "PPP p", { locale: nb })}
+                {format(new Date(bookingData.startDateTime), "PPP p", { locale: enUS })} –{" "}
+                {format(new Date(bookingData.endDateTime), "PPP p", { locale: enUS })}
               </p>
             </div>
 
@@ -1304,14 +1297,14 @@ const uploadLicense = async (): Promise<string | null> => {
               {bookingData.deliveryLocation && (
                 <div className="flex items-center gap-2 text-sm">
                   <Truck className="h-4 w-4 text-[#9eabb1]" />
-                  <span className="text-[#b1bdc3]">Levering: {bookingData.deliveryLocation}</span>
+                  <span className="text-[#b1bdc3]">Delivery: {bookingData.deliveryLocation}</span>
                 </div>
               )}
               <div className="border-t border-[#46555d] pt-3 text-xs leading-relaxed text-[#9eabb1]">
                 {decorationSummary.length > 0 && (
                   <>
                     {" · "}
-                    <span className="font-medium text-[#b1bdc3]">Dekorasjon: </span>
+                    <span className="font-medium text-[#b1bdc3]">Decoration: </span>
                     {decorationSummary.join(", ")}
                   </>
                 )}
@@ -1324,69 +1317,59 @@ const uploadLicense = async (): Promise<string | null> => {
               {formatPrice(bookingData.totalPrice)}
             </div>
             <div className="text-sm text-[#9eabb1]">
-              Estimert total
+              Estimated total
             </div>
             <div className="mt-1 text-xs text-[#9eabb1]">
-              {Math.ceil((new Date(bookingData.endDateTime).getTime() - new Date(bookingData.startDateTime).getTime()) / (1000 * 60 * 60 * 24))} dager
+              {Math.ceil((new Date(bookingData.endDateTime).getTime() - new Date(bookingData.startDateTime).getTime()) / (1000 * 60 * 60 * 24))} days
             </div>
           </div>
         </div>
       </div>
 
       <div className="rounded-xl border border-[#334047] bg-[#232e33] p-6 text-[#b1bdc3]">
-        <h3 className="mb-4 text-lg font-semibold text-[#E3C08D]">BankID-verifisering</h3>
+        <h3 className="mb-4 text-lg font-semibold text-[#E3C08D]">BankID verification</h3>
         <div className="space-y-4 rounded-md border border-[#3f4d54] bg-[#1b2529] p-4">
           <div>
-            <p className="text-sm font-semibold text-[#d0d9dd]">Identifiser deg med BankID</p>
+            <p className="text-sm font-semibold text-[#d0d9dd]">Identify yourself with BankID</p>
             <p className="mt-1 text-xs text-[#9eabb1]">
-              Fullfør BankID for å hente navn/telefon og gå videre til kontrakt.
+              Complete BankID to retrieve your name/phone number and continue to the contract.
             </p>
           </div>
 
           <button
             type="button"
             onClick={handleBankIDLogin}
-            disabled={isBankIDPending || isInitializing || (bankIdVerified && !bankIdReauthNeeded)}
+            disabled={isBankIDPending || isInitializing || bankIdVerified}
             className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-[#4e1f67] bg-gradient-to-r from-[#39134C] to-[#4A1A60] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(57,19,76,0.35)] transition-all hover:from-[#470D70] hover:to-[#5a1d7a] focus:outline-none focus:ring-2 focus:ring-[#6d2b8f]/60 focus:ring-offset-2 focus:ring-offset-[#232e33] disabled:cursor-not-allowed disabled:opacity-60 active:translate-y-[1px]"
           >
             {isBankIDPending || bankIdStatus === "pending" ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Starter BankID ...
+                Starting BankID ...
               </>
-            ) : bankIdVerified && !bankIdReauthNeeded ? (
+            ) : bankIdVerified ? (
               <>
                 <CheckCircle className="h-4 w-4" />
-                BankID bekreftet
-              </>
-            ) : bankIdVerified && bankIdReauthNeeded ? (
-              <>
-                <CheckCircle className="h-4 w-4" />
-                Forny BankID (JWT utløpt)
+                BankID confirmed
               </>
             ) : (
               "Login with BankID"
             )}
           </button>
 
-          {bankIdVerified && !bankIdReauthNeeded && (
+          {bankIdVerified && (
             <div className="rounded-md border border-emerald-300/30 bg-emerald-100/95 px-3 py-1.5 text-center text-sm font-semibold text-emerald-800">
-              BankID er verifisert
-            </div>
-          )}
-          {bankIdVerified && bankIdReauthNeeded && (
-            <div className="rounded-md border border-amber-300/40 bg-amber-500/15 px-3 py-1.5 text-center text-xs font-medium text-amber-100">
-              Innloggingstoken har utløpt. Trykk knappen over for å bekrefte BankID på nytt.
+              BankID is verified
             </div>
           )}
           {!bankIdVerified && bankIdStatus === "failed" && (
             <div className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-center text-xs text-red-200">
-              {bankIdError || "BankID-verifisering feilet. Prøv igjen."}
+              {bankIdError || "BankID verification failed. Please try again."}
             </div>
           )}
           {!bankIdVerified && bankIdStatus === "aborted" && (
             <div className="rounded-md border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-200">
-              BankID ble avbrutt. Start verifisering på nytt.
+              BankID was cancelled. Please restart verification.
             </div>
           )}
         </div>
@@ -1395,9 +1378,9 @@ const uploadLicense = async (): Promise<string | null> => {
           <div className="mt-4 space-y-3 rounded-md border border-[#3f4d54] bg-[#1b2529] p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-[#d0d9dd]">Kontrakt</p>
+                <p className="text-sm font-semibold text-[#d0d9dd]">Contract</p>
                 <p className="mt-1 text-xs text-[#9eabb1]">
-                  Etter BankID må kontrakten signeres før betaling.
+                  After BankID, the contract must be signed before payment.
                 </p>
               </div>
               {isCheckingContract && <Loader2 className="h-4 w-4 animate-spin text-[#9eabb1]" />}
@@ -1419,10 +1402,10 @@ const uploadLicense = async (): Promise<string | null> => {
                 {isStartingContract ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Starter kontrakt ...
+                    Starting contract ...
                   </>
                 ) : (
-                  "Start kontrakt"
+                  "Start contract"
                 )}
               </Button>
               {pdfActionsAllowed && (
@@ -1433,7 +1416,7 @@ const uploadLicense = async (): Promise<string | null> => {
                     onClick={handlePreviewSignedDocument}
                     className="border-[#46555d] bg-[#232e33] text-[#b1bdc3] hover:bg-[#2d3a40]"
                   >
-                    Vis PDF
+                    View PDF
                   </Button>
                   <Button
                     type="button"
@@ -1441,7 +1424,7 @@ const uploadLicense = async (): Promise<string | null> => {
                     onClick={handleDownloadSignedDocument}
                     className="inline-flex h-9 items-center justify-center rounded-md border border-[#46555d] bg-[#232e33] px-4 text-sm text-[#b1bdc3] hover:bg-[#2d3a40]"
                   >
-                    Last ned PDF
+                    Download PDF
                   </Button>
                 </>
               )}
@@ -1450,13 +1433,13 @@ const uploadLicense = async (): Promise<string | null> => {
             {serverContractSigned === true && (
               <div className="rounded-md border border-emerald-300/30 bg-emerald-100/95 px-3 py-1.5 text-center text-sm font-semibold text-emerald-800">
                 {contractStatus === "existing"
-                  ? "Tidligere signert kontrakt funnet - ny signering er ikke nødvendig."
-                  : "Kontrakt er signert."}
+                  ? "A previously signed contract was found - signing again is not necessary."
+                  : "Contract is signed."}
               </div>
             )}
             {contractStatus === "failed" && (
               <div className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-center text-xs text-red-200">
-                {contractError || "Kontraktssignering feilet. Prøv igjen."}
+                {contractError || "Contract signing failed. Please try again."}
               </div>
             )}
           </div>
@@ -1477,25 +1460,25 @@ const uploadLicense = async (): Promise<string | null> => {
             <div className="mb-6">
               <h3 className="flex items-center gap-2 text-lg font-semibold text-[#E3C08D]">
                 <User className="h-5 w-5 text-primary" />
-                Personopplysninger
+                Personal information
               </h3>
-              <p className="mt-1 text-sm text-[#9eabb1]">Fyll inn opplysningene dine for å fullføre bestillingen</p>
+              <p className="mt-1 text-sm text-[#9eabb1]">Fill in your details to complete the booking</p>
             </div>
             <div className="space-y-3">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
                 <FormField
                   control={form.control}
                   name="lastName"
-                  rules={{ required: "Etternavn er påkrevd" }}
+                  rules={{ required: "Last name is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Etternavn <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Last name <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             {...field}
                             className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
-                            placeholder="Etternavn ..."
+                            placeholder="Last name ..."
                           />
                         </div>
                       </FormControl>
@@ -1507,21 +1490,21 @@ const uploadLicense = async (): Promise<string | null> => {
                   control={form.control}
                   name="nin"
                   rules={{
-                    required: "Fødselsnummer er påkrevd",
+                    required: "National ID number is required",
                     pattern: {
                       value: /^\d+$/,
-                      message: "Fødselsnummer kan kun inneholde tall",
+                      message: "National ID number may only contain digits",
                     },
                   }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Fødselsnummer <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">National ID number <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             {...field}
                             className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
-                            placeholder="11-sifret fødselsnummer"
+                            placeholder="11-digit national ID number"
                           />
                         </div>
                       </FormControl>
@@ -1536,23 +1519,23 @@ const uploadLicense = async (): Promise<string | null> => {
                   control={form.control}
                   name="email"
                   rules={{
-                    required: "E-post er påkrevd",
+                    required: "Email is required",
                     pattern: {
                       value:
                         /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: "Ugyldig e-postadresse",
+                      message: "Invalid email address",
                     },
                   }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">E-post <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Email <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             type="email"
                             {...field}
                             className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
-                            placeholder="navn@eksempel.no"
+                            placeholder="name@example.com"
                           />
                         </div>
                       </FormControl>
@@ -1563,16 +1546,16 @@ const uploadLicense = async (): Promise<string | null> => {
                 <FormField
                   control={form.control}
                   name="address"
-                  rules={{ required: "Adresse er påkrevd" }}
+                  rules={{ required: "Address is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Adresse <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Address <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             {...field}
                             className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
-                            placeholder="Gateadresse ..."
+                            placeholder="Street address ..."
                           />
                         </div>
                       </FormControl>
@@ -1587,11 +1570,11 @@ const uploadLicense = async (): Promise<string | null> => {
                   control={form.control}
                   name="postalCode"
                   rules={{
-                    required: "Postnummer er påkrevd",
+                    required: "Postal code is required",
                   }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Postnummer <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Postal code <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
@@ -1608,16 +1591,16 @@ const uploadLicense = async (): Promise<string | null> => {
                 <FormField
                   control={form.control}
                   name="driverLicenseNumber"
-                  rules={{ required: "Førerkortnummer er påkrevd" }}
+                  rules={{ required: "Driver's licence number is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Førerkortnummer <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Driver's licence number <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             {...field}
                             className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
-                            placeholder="Ditt førerkortnummer ..."
+                            placeholder="Your driver's licence number ..."
                           />
                         </div>
                       </FormControl>
@@ -1633,56 +1616,56 @@ const uploadLicense = async (): Promise<string | null> => {
                   <div>
                     <p className="flex items-center gap-2 text-sm font-semibold text-[#d0d9dd]">
                       <FileText className="h-4 w-4" />
-                      Førerkortverifisering
+                      Driver's licence verification
                     </p>
-                    <p className="mt-0.5 text-xs text-[#9eabb1]">
-                      Verifiser førerkort mot Statens vegvesen med fødselsnummer og etternavn.
+                    <p className="mt-0.5 text-[12px] tracking-wide text-[#9eabb1]">
+                      Verify your driver's licence against Statens vegvesen using your national ID number and last name.
                     </p>
                   </div>
                   <Button
                     type="button"
                     onClick={handleVerifyLicense}
-                    disabled={licenseStatus === "checking" || !bankIdVerified}
+                    disabled={licenseStatus === "checking" || licenseStatus === "verified" || !bankIdVerified}
                     className="shrink-0 bg-[#E3C08D] text-black hover:bg-[#E3C08D]/90"
                   >
                     {licenseStatus === "checking" ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Verifiserer ...
+                        Verifying ...
                       </>
                     ) : licenseStatus === "verified" ? (
                       <>
                         <CheckCircle className="mr-2 h-4 w-4" />
-                        Verifisert
+                        Verified
                       </>
                     ) : (
-                      "Verifiser førerkort"
+                      "Verify driver's licence"
                     )}
                   </Button>
                 </div>
 
                 {!bankIdVerified && (
-                  <p className="text-xs text-amber-200/80">
-                    Fullfør BankID-verifisering før du kan verifisere førerkort.
+                  <p className="text-[12px] tracking-wide text-amber-200/80">
+                    Complete BankID verification before you can verify your driver's licence.
                   </p>
                 )}
 
                 {licenseStatus === "verified" && (
                   <div className="rounded-md border border-emerald-300/30 bg-emerald-100/95 px-3 py-2 text-sm text-emerald-900">
-                    <p className="font-semibold">{licenseFullName || "Førerkort verifisert"}</p>
+                    <p className="font-semibold">{licenseFullName || "Driver's licence verified"}</p>
                     {licenseCategories.length > 0 ? (
                       <p className="mt-0.5">
-                        Førerkortklasser: <span className="font-medium">{licenseCategories.join(", ")}</span>
+                        Licence categories: <span className="font-medium">{licenseCategories.join(", ")}</span>
                       </p>
                     ) : (
-                      <p className="mt-0.5">Ingen aktive førerkortklasser registrert.</p>
+                      <p className="mt-0.5">No active driver's licence categories registered.</p>
                     )}
                   </div>
                 )}
 
                 {licenseStatus === "failed" && (
                   <div className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-                    {licenseError || "Førerkort kunne ikke verifiseres."}
+                    {licenseError || "Driver's licence could not be verified."}
                   </div>
                 )}
               </div>
@@ -1773,10 +1756,10 @@ const uploadLicense = async (): Promise<string | null> => {
   <div className="mb-6">
     <h3 className="flex items-center gap-2 text-lg font-semibold text-[#E3C08D]">
       <FileText className="h-5 w-5 text-primary" />
-      Førerkort
+      Driver's licence
     </h3>
     <p className="mt-1 text-sm text-[#9eabb1]">
-      Last opp gyldig førerkort (JPEG, PNG eller PDF, maks 5 MB)
+      Upload a valid driver's licence (JPEG, PNG or PDF, max 5 MB)
     </p>
   </div>
 
@@ -1799,14 +1782,14 @@ const uploadLicense = async (): Promise<string | null> => {
       {isUploading ? (
         <div className="flex flex-col items-center justify-center py-4">
           <Loader2 className="h-10 w-10 animate-spin text-primary mb-2" />
-          <p className="text-[#9eabb1]">Laster opp …</p>
+          <p className="text-[#9eabb1]">Uploading …</p>
         </div>
       ) : licensePreview ? (
         <div className="relative">
           {licenseFile?.type.startsWith('image/') ? (
             <img
               src={licensePreview}
-              alt="Forhåndsvisning av førerkort"
+              alt="Driver's licence preview"
               className="max-h-48 mx-auto mb-2 rounded-md"
             />
           ) : (
@@ -1831,7 +1814,7 @@ const uploadLicense = async (): Promise<string | null> => {
             }}
           >
             <X className="h-3 w-3" />
-            <span className="sr-only">Fjern fil</span>
+            <span className="sr-only">Remove file</span>
           </Button>
         </div>
       ) : (
@@ -1839,11 +1822,11 @@ const uploadLicense = async (): Promise<string | null> => {
           <Upload className="mx-auto h-10 w-10 text-[#9eabb1]" />
           <p className="text-[#9eabb1]">
             {isDragActive
-              ? "Slipp filen her …"
-              : "Dra og slipp førerkortet her, eller klikk for å velge"}
+              ? "Drop the file here …"
+              : "Drag and drop your driver's licence here, or click to select"}
           </p>
           <p className="text-sm text-[#9eabb1]">
-            Støttet: JPEG, PNG, PDF (maks 5 MB)
+            Supported: JPEG, PNG, PDF (max 5 MB)
           </p>
         </div>
       )}
@@ -1854,10 +1837,30 @@ const uploadLicense = async (): Promise<string | null> => {
 
           <Button
             type="submit"
-            className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-5 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 hover:cursor-pointer"
+            disabled={
+              isBankIDPending ||
+              bankIdStatus === "pending" ||
+              licenseStatus === "checking" ||
+              !bankIdVerified ||
+              licenseStatus !== "verified" ||
+              !form.formState.isValid
+            }
+            className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-5 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             size="lg"
           >
-            Fortsett
+            {isBankIDPending || bankIdStatus === "pending" ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Verifying BankID ...
+              </>
+            ) : licenseStatus === "checking" ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Verifying driver's licence ...
+              </>
+            ) : (
+              "Continue"
+            )}
           </Button>
         </form>
       </FormProvider>

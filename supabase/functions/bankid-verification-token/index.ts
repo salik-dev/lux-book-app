@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { create } from "https://deno.land/x/djwt@v3.0.2/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,57 +14,6 @@ const getAdminClient = () => {
     throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
   }
   return createClient(url, serviceRole, { auth: { persistSession: false } });
-};
-
-const cleanupExpiredTokens = async (admin: ReturnType<typeof getAdminClient>) => {
-  const nowIso = new Date().toISOString();
-  await admin
-    .from("bankid_verifications")
-    .update({ jwt_access_token: null, bankid_access_token: null })
-    .not("jwt_access_token", "is", null)
-    .lte("contract_end_at", nowIso);
-};
-
-const createJwtToken = async (payload: {
-  verificationId: string;
-  sessionId: string;
-  subjectId?: string | null;
-  nin?: string | null;
-  provider?: string | null;
-}) => {
-  const secret = Deno.env.get("BANKID_JWT_SECRET");
-  if (!secret) {
-    throw new Error("Missing BANKID_JWT_SECRET.");
-  }
-
-  const nowSec = Math.floor(Date.now() / 1000);
-  const expSec = nowSec + 7 * 24 * 60 * 60;
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-
-  const token = await create(
-    { alg: "HS256", typ: "JWT" },
-    {
-      sub: payload.subjectId || payload.nin || payload.sessionId,
-      vid: payload.verificationId,
-      sid: payload.sessionId,
-      nin: payload.nin || undefined,
-      provider: payload.provider || "nbid",
-      iat: nowSec,
-      exp: expSec,
-    },
-    key
-  );
-
-  return {
-    token,
-    expiresAt: new Date(expSec * 1000).toISOString(),
-  };
 };
 
 serve(async (req: Request): Promise<Response> => {
@@ -83,34 +31,7 @@ serve(async (req: Request): Promise<Response> => {
   try {
     const admin = getAdminClient();
     const body = await req.json().catch(() => ({}));
-    await cleanupExpiredTokens(admin);
     const action = body.action || "issue_token";
-    if (action === "cleanup_expired_jwt") {
-      const nowIso = new Date().toISOString();
-      const verificationId = body.verificationId || null;
-      const sessionId = body.sessionId || null;
-
-      if (verificationId || sessionId) {
-        let query = admin
-          .from("bankid_verifications")
-          .update({ jwt_access_token: null, bankid_access_token: null })
-          .not("jwt_access_token", "is", null)
-          .lte("contract_end_at", nowIso);
-
-        if (verificationId) {
-          query = query.eq("id", verificationId);
-        } else if (sessionId) {
-          query = query.eq("session_id", sessionId);
-        }
-
-        await query;
-      }
-
-      return new Response(JSON.stringify({ ok: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    }
 
     if (action === "sync_verification_state") {
       const nin = body.nin || null;
@@ -275,23 +196,6 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("Could not resolve bankid_verifications id.");
     }
 
-    const { token, expiresAt } = await createJwtToken({
-      verificationId,
-      sessionId,
-      subjectId,
-      nin,
-      provider,
-    });
-
-    const { error: jwtUpdateError } = await admin
-      .from("bankid_verifications")
-      .update({
-        jwt_access_token: token,
-        contract_end_at: expiresAt,
-      })
-      .eq("id", verificationId);
-    if (jwtUpdateError) throw jwtUpdateError;
-
     const { data: contractRow } = await admin
       .from("bankid_verifications")
       .select("contract_status, contract_signed_at, contract_file_path")
@@ -301,8 +205,6 @@ serve(async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         verificationId,
-        jwtAccessToken: token,
-        expiresAt,
         contractStatus: Boolean(contractRow?.contract_status),
         contractSignedAt: contractRow?.contract_signed_at ?? null,
         contractFilePath: contractRow?.contract_file_path ?? null,

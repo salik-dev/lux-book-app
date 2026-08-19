@@ -8,7 +8,7 @@ export default function AuthAbortPage() {
 
   useEffect(() => {
     localStorage.setItem("bankid_auth_status", "aborted");
-    localStorage.setItem("bankid_auth_error", "BankID-innlogging ble avbrutt.");
+    localStorage.setItem("bankid_auth_error", "BankID login was cancelled.");
     localStorage.removeItem("bankid_verified");
     localStorage.removeItem("bankid_verified_at");
   }, []);
@@ -25,16 +25,16 @@ export default function AuthAbortPage() {
       <div className="w-full max-w-lg rounded-xl border border-[#334047] bg-[#232e33] p-6 text-[#b1bdc3] shadow-xl">
         <div className="mb-2 flex items-center gap-2 text-amber-300">
           <AlertCircle className="h-5 w-5" />
-          <h1 className="text-xl font-semibold">BankID avbrutt</h1>
+          <h1 className="text-xl font-semibold">BankID Cancelled</h1>
         </div>
         <p className="text-sm text-[#9eabb1]">
-          Du avbrøt BankID-innloggingen. Start på nytt når du er klar.
+          You cancelled the BankID login. Start again when you're ready.
         </p>
         <Button
           className="mt-4 w-full bg-[#334047] text-[#b1bdc3] hover:bg-[#3d4b53]"
           onClick={() => navigate("/", { replace: true })}
         >
-          Til forsiden
+          Back to Home
         </Button>
       </div>
     </div>

@@ -23,7 +23,7 @@ export function Footer() {
                 <Phone className="h-5 w-5 text-[#E3C08D]" />
               </div>
               <div>
-                <h4 className="font-semibold">Telefon</h4>
+                <h4 className="font-semibold">Phone</h4>
                 <p className="text-gray-400">+47 92 92 07 71</p>
               </div>
             </div>
@@ -33,7 +33,7 @@ export function Footer() {
                 <Mail className="h-5 w-5 text-[#E3C08D]" />
               </div>
               <div>
-                <h4 className="font-semibold">E-post</h4>
+                <h4 className="font-semibold">Email</h4>
                 <p className="text-gray-400">post@primenorge.no</p>
               </div>
             </div>
@@ -43,7 +43,7 @@ export function Footer() {
                 <MapPin className="h-5 w-5 text-[#E3C08D]" />
               </div>
               <div>
-                <h4 className="font-semibold">Adresse</h4>
+                <h4 className="font-semibold">Address</h4>
                 <p className="text-gray-400">Heggedalsveien 23, 1389 Heggedal</p>
               </div>
             </div>
@@ -53,39 +53,39 @@ export function Footer() {
                 <Clock className="h-5 w-5 text-[#E3C08D]" />
               </div>
               <div>
-                <h4 className="font-semibold">Åpningstider</h4>
-                <p className="text-gray-400">Man - Søn: 09:00 - 22:00</p>
+                <h4 className="font-semibold">Opening Hours</h4>
+                <p className="text-gray-400">Mon - Sun: 09:00 - 22:00</p>
               </div>
             </div>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-2xl font-bold text-[#E3C08D] mb-6">Hurtiglenker</h3>
+            <h3 className="text-2xl font-bold text-[#E3C08D] mb-6">Quick Links</h3>
             <ul className="space-y-4">
               <li>
                 <a href="#" className="text-gray-400 hover:text-[#E3C08D] transition-colors">
-                  Hjem
+                  Home
                 </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-[#E3C08D] transition-colors">
-                  Våre biler
+                  Our Cars
                 </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-[#E3C08D] transition-colors">
-                  Tjenester
+                  Services
                 </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-[#E3C08D] transition-colors">
-                  Om oss
+                  About Us
                 </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-[#E3C08D] transition-colors">
-                  Kontakt oss
+                  Contact Us
                 </a>
               </li>
             </ul>
@@ -93,24 +93,24 @@ export function Footer() {
 
           {/* Newsletter */}
           <div className="lg:col-span-2">
-            <h3 className="text-2xl font-bold text-[#E3C08D] mb-6">Nyhetsbrev</h3>
+            <h3 className="text-2xl font-bold text-[#E3C08D] mb-6">Newsletter</h3>
             <p className="text-gray-400 mb-6">
-              Meld deg på vårt nyhetsbrev for å motta tilbud og oppdateringer om våre tjenester.
+              Sign up for our newsletter to receive offers and updates about our services.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Input
                 type="email"
-                placeholder="Din e-postadresse"
+                placeholder="Your email address"
                 className="bg-gray-900 border-gray-700 text-white placeholder-gray-500 focus:ring-2 focus:ring-[#E3C08D] focus:border-transparent"
               />
               <Button className="bg-[#E3C08D] text-black hover:bg-[#d4b382] font-medium whitespace-nowrap">
                 <Send className="mr-2 h-4 w-4" />
-                Abonner
+                Subscribe
               </Button>
             </div>
 
             <div className="mt-8">
-              <h4 className="font-semibold mb-4">Følg oss</h4>
+              <h4 className="font-semibold mb-4">Follow Us</h4>
               <div className="flex space-x-4">
                 <a href="#" className="text-gray-400 hover:text-[#E3C08D] transition-colors">
                   <Facebook className="h-6 w-6" />

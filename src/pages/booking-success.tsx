@@ -4,6 +4,7 @@ import { CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/auth-context';
+import { BOOKING_FLOW_STORAGE_KEYS } from '@/lib/booking-storage-keys';
 
 export default function BookingSuccess() {
   const [searchParams] = useSearchParams();
@@ -12,6 +13,12 @@ export default function BookingSuccess() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const sessionId = searchParams.get('session_id');
+
+  useEffect(() => {
+    // Booking is now confirmed — clear any in-progress booking/BankID state so the
+    // home page doesn't reopen the booking dialog on next visit.
+    BOOKING_FLOW_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+  }, []);
 
 useEffect(() => {
   const fetchBookingDetails = async () => {

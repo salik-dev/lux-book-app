@@ -11,38 +11,38 @@ import bentleyImage from "../assets/luxury-bentley-sedan-in-premium-setting.jpg?
 export const leadingRentalList = [
     {
        id: 1,
-       details: 'Prime Norge er blant Norges ledende aktører innen luksusbilutle. Vi tilbyr deg en uforglemmelig kjøreopplevelse med våre premium kjøretøy.' 
+       details: 'Prime Norway is among Norway\'s leading players in luxury car rental. We offer you an unforgettable driving experience with our premium vehicles.'
     },
     {
         id: 2,
-        details: '  Vår flåte består av de nyeste og mest eksklusive bilene på markedet. Fra sportsbiler til luksuriøse sedaner - vi har det perfekte kjøretøyet for enhver anledning.'
+        details: '  Our fleet consists of the newest and most exclusive cars on the market. From sports cars to luxurious sedans - we have the perfect vehicle for every occasion.'
     },
     {
         id: 3,
-        details: '  Vi har også tilbud på langtidsleie og korttidsleie. Kontakt oss i dag for å få et tilbud som passer dine behov.'
+        details: '  We also offer long-term and short-term rentals. Contact us today to get an offer that suits your needs.'
     }
 ];
 
   export  const benefits = [
     {
       icon: Shield,
-      title: "Trygghet",
-      description: "Alle våre biler er forsikret og gjennomgår regelmessige sikkerhetskontroller",
+      title: "Safety",
+      description: "All our cars are insured and undergo regular safety inspections",
     },
     {
       icon: Clock,
       title: "24/7 Service",
-      description: "Vi er tilgjengelige døgnet rundt for å hjelpe deg med alle dine behov",
+      description: "We are available around the clock to help you with all your needs",
     },
     {
       icon: Award,
-      title: "Premium kvalitet",
-      description: "Kun de beste og nyeste luksusbilene i vår eksklusive flåte",
+      title: "Premium Quality",
+      description: "Only the best and newest luxury cars in our exclusive fleet",
     },
     {
       icon: Headphones,
-      title: "Kundeservice",
-      description: "Vårt dedikerte team sørger for en sømløs opplevelse fra start til slutt",
+      title: "Customer Service",
+      description: "Our dedicated team ensures a seamless experience from start to finish",
     },
   ];
 
@@ -125,18 +125,18 @@ export const leadingRentalList = [
   export const steps = [
     {
       icon:  React.createElement(Car, { className: "h-6 w-6" }),
-      title: "Så enkelt kommer du i gang",
-      description: "Velg din drømmebil fra vår eksklusive flåte"
+      title: "Getting started is this easy",
+      description: "Choose your dream car from our exclusive fleet"
     },
     {
       icon: React.createElement(Calendar, { className: "h-6 w-6" }),
-      title: "Reservasjonsprosess",
-      description: "Book online eller ring oss for personlig service"
+      title: "Reservation Process",
+      description: "Book online or call us for personal service"
     },
     {
       icon: React.createElement(CreditCard, { className: "h-6 w-6" }),
-      title: "Hent og kjør",
-      description: "Vi leverer bilen til deg eller du kan hente den hos oss"
+      title: "Pick Up and Drive",
+      description: "We deliver the car to you or you can pick it up from us"
     }
   ];
 
@@ -165,7 +165,7 @@ export const leadingRentalList = [
     {
       id: 1,
       icon: React.createElement(DollarSign, { className: "h-18 w-18 text-[#E3C08D]" }),
-      title: "Øyeblikkelig tilbud\npå nett",
+      title: "Instant offers\nonline",
       description: "",
       customClass: "mx-auto"
     },
@@ -179,7 +179,7 @@ export const leadingRentalList = [
     {
       id: 3,
       icon: React.createElement(MessageCircle, { className: "h-18 w-18 text-[#E3C08D]" }),
-      title: "24 timers online",
+      title: "24 hours online",
       description: "support",
       customClass: ""
     },

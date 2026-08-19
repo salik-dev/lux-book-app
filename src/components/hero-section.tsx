@@ -17,18 +17,18 @@ export function HeroSection({ handleBookingClick }: { handleBookingClick: () => 
 
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl px-44 mt-12 max-[1030px]:px-6">
-          <h1 className="text-4xl sm:text-4xl lg:text-[50px] font-bold text-[#E3C08D] tracking-wide mb-6 text-alance">Premium<br /> luksusbilutle</h1>
+          <h1 className="text-4xl sm:text-4xl lg:text-[50px] font-bold text-[#E3C08D] tracking-wide mb-6 text-alance">Premium<br /> luxury car rental</h1>
 
-          <p className="text-2xl pl-1 sm:text-3xl text-white mb-8 max-w-2xl text-pretty">Lei en eksklusiv opplevelse</p>
+          <p className="text-2xl pl-1 sm:text-3xl text-white mb-8 max-w-2xl text-pretty">Rent an exclusive experience</p>
 
           <p className="text-lg text-white pl-1 mb-8 tracking-wide">
-            Opplev luksus og komfort med våre eksklusive biler. Vi tilbyr deg en uforglemmelig kjøreopplevelse med våre
-            premium kjøretøy.
+            Experience luxury and comfort with our exclusive cars. We offer you an unforgettable driving experience with our
+            premium vehicles.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 pl-1 ">
             <Button onClick={handleBookingClick} size="lg" className="text-[#E3C08D] py-8 text-2xl tracking-wide border-2 border-[#E3C08D] group hover:bg-[#E3C08D] hover:text-black transition-colors hover:cursor-pointer">
-              Finn din bil
+              Find your car
               <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Button>
           </div>

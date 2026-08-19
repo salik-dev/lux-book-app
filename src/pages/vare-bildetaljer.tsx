@@ -41,7 +41,7 @@ export default function VareBildetaljerPage() {
           <div className="absolute inset-0 bg-black/60" />
         </div>
         <div className="relative z-10 text-center text-[#E3C08D]">
-          <h1 className="text-4xl md:text-6xl font-bold mb-4 text-balance">Våre bildetaljedr</h1>
+          <h1 className="text-4xl md:text-6xl font-bold mb-4 text-balance">Our Car Details</h1>
         </div>
       </section>
 
@@ -49,7 +49,7 @@ export default function VareBildetaljerPage() {
       <section className="py-16 px-4 md:px-8 pb-10">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-2xl md:text-4xl tracking-wide font-bold text-center mb-8 text-[#E3C08D]">
-            Eksklusive tilbud i dag på våre leiebiler!
+            Exclusive offers today on our rental cars!
           </h2>
           {loading ? <CarLoader /> :
             <>
@@ -72,7 +72,7 @@ export default function VareBildetaljerPage() {
           variant="outline"
           size="lg"
           className="text-lg tracking-wide p-7 border-[#E3C08D] text-black bg-[#E3C08D] shadow-none hover:bg-[#E3C08D]/90 hover:cursor-pointer transition-all duration-300 hover:text-white dark:bg-[#E3C08D] dark:border-[#E3C08D] dark:hover:bg-[#E3C08D]/90 dark:hover:text-white"
-        >{sliceCar ? 'Bla gjennom alle kjøretøy' : 'Vis mindre'} </Button>
+        >{sliceCar ? 'Browse all vehicles' : 'Show less'} </Button>
       </div>
     </main>
   )

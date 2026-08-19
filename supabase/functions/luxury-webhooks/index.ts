@@ -78,6 +78,22 @@ serve(async (req)=>{
           break;
         }
 
+        // An extra-km-charge checkout is a separate, later payment against an already
+        // confirmed/completed booking — it must not re-confirm the booking or resend the
+        // original booking-confirmation email.
+        if (session?.metadata?.purpose === "extra_km_charge") {
+          await supabase
+            .from("bookings")
+            .update({
+              extra_km_charge_status: "paid",
+              deposit_amount_status: true,
+              extra_km_charged_at: new Date().toISOString(),
+            })
+            .eq("id", bookingId);
+          console.log("[STRIPE-WEBHOOK] extra_km_charge marked paid", { bookingId, sessionId: session.id });
+          break;
+        }
+
         if (bookingId) {
           // Mark booking as confirmed when payment is settled.
           await supabase
@@ -110,6 +126,12 @@ serve(async (req)=>{
         await supabase.from("payments").update({
           status: "failed"
         }).eq("stripe_session_id", session.id);
+        if (session?.metadata?.purpose === "extra_km_charge") {
+          await supabase
+            .from("bookings")
+            .update({ extra_km_charge_status: "failed" })
+            .eq("extra_km_session_id", session.id);
+        }
         break;
       // 💸 Optional: handle refund
       case "charge.refunded":

@@ -240,6 +240,9 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
     }));
   };
 
+  const fieldClass =
+    'bg-white rounded-lg border-gray-300 h-9 transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-[#e3c08d]/50 focus-visible:border-[#e3c08d]';
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild className="rounded-lg border-gray-200 bg-[#e3c08d] hover:bg-[#e3c08d]/80 hover:cursor-pointer transition-colors duration-500">
@@ -250,249 +253,261 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white rounded-lg border-gray-200">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className="sheet-scroll sm:max-w-[640px] max-h-[85vh] overflow-y-auto bg-gray-50 rounded-2xl border-gray-200 shadow-2xl p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-200 bg-white rounded-t-2xl">
+          <DialogTitle className="text-xl font-semibold text-gray-900">
             {car?.id ? 'Edit Vehicle' : 'Add New Vehicle'}
           </DialogTitle>
+          <p className="text-sm text-gray-500">
+            {car?.id ? 'Update the details for this vehicle.' : 'Fill in the details to add a vehicle to the fleet.'}
+          </p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            {/* Image Upload */}
-            <div className="space-y-2">
-              <Label>Car Image</Label>
-              {formData.image_url ? (
-                <div className="relative group">
-                  <img
-                    src={formData.image_url}
-                    alt={formData.name || 'Car image'}
-                    className="h-48 w-full object-cover rounded-md border border-gray-700"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={handleRemoveImage}
+        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+          {/* Image Upload */}
+          <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <Label className="text-sm font-semibold text-gray-700">Car Image</Label>
+            {formData.image_url ? (
+              <div className="relative group">
+                <img
+                  src={formData.image_url}
+                  alt={formData.name || 'Car image'}
+                  className="h-48 w-full object-cover rounded-lg border border-gray-200"
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  onClick={handleRemoveImage}
+                  disabled={isUploading}
+                >
+                  Remove
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center w-full">
+                <label
+                  htmlFor="image-upload"
+                  className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 transition-colors duration-300 hover:bg-gray-100 hover:border-[#e3c08d] ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {isUploading ? (
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#e3c08d] mb-2"></div>
+                      <p className="text-sm text-gray-500">Uploading...</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <svg
+                        className="w-8 h-8 mb-2 text-gray-400"
+                        aria-hidden="true"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 20 16"
+                      >
+                        <path
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
+                        />
+                      </svg>
+                      <p className="text-sm text-gray-500">
+                        <span className="font-semibold">Click to upload</span> or drag and drop
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        PNG, JPG, SVG, or WEBP (MAX. 5MB)
+                      </p>
+                    </div>
+                  )}
+                  <input
+                    id="image-upload"
+                    name="image-upload"
+                    type="file"
+                    className="hidden"
+                    accept="image/jpeg, image/png, image/svg+xml, image/webp"
+                    onChange={handleImageUpload}
                     disabled={isUploading}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center w-full">
-                  <label
-                    htmlFor="image-upload"
-                    className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {isUploading ? (
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#e3c08d] mb-2"></div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Uploading...</p>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <svg
-                          className="w-8 h-8 mb-2 text-gray-500 dark:text-gray-400"
-                          aria-hidden="true"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 20 16"
-                        >
-                          <path
-                            stroke="currentColor"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
-                          />
-                        </svg>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          <span className="font-semibold">Click to upload</span> or drag and drop
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          PNG, JPG, SVG, or WEBP (MAX. 5MB)
-                        </p>
-                      </div>
-                    )}
-                    <input
-                      id="image-upload"
-                      name="image-upload"
-                      type="file"
-                      className="hidden"
-                      accept="image/jpeg, image/png, image/svg+xml, image/webp"
-                      onChange={handleImageUpload}
-                      disabled={isUploading}
-                    />
-                  </label>
-                </div>
-              )}
-            </div>
+                  />
+                </label>
+              </div>
+            )}
+          </div>
 
+          {/* Basic information */}
+          <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <Label className="text-sm font-semibold text-gray-700">Basic information</Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Vehicle Name <span className="text-red-500">*</span></Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="name" className="text-xs text-gray-600">Vehicle Name <span className="text-red-500">*</span></Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   placeholder="e.g., BMW X7 Luxury"
                   required
-                  className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
+                  className={fieldClass}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="brand">Brand <span className="text-red-500">*</span></Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="brand" className="text-xs text-gray-600">Brand <span className="text-red-500">*</span></Label>
                 <Input
                   id="brand"
                   value={formData.brand}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('brand', e.target.value)}
                   placeholder="e.g., BMW"
                   required
-                  className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
+                  className={fieldClass}
                 />
               </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="model">Model <span className="text-red-500">*</span></Label>
-              <Input
-                id="model"
-                value={formData.model}
-                onChange={(e) => handleInputChange('model', e.target.value)}
-                placeholder="e.g., X7"
-                required
-                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="year">Year <span className="text-red-500">*</span></Label>
-              <Input
-                id="year"
-                type="number"
-                value={formData.year}
-                onChange={(e) => handleInputChange('year', parseInt(e.target.value))}
-                min="2010"
-                max={new Date().getFullYear() + 1}
-                required
-                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="base_price_per_hour">Price per Hour (NOK) <span className="text-red-500">*</span></Label>
-              <Input
-                id="base_price_per_hour"
-                type="number"
-                value={formData.base_price_per_hour}
-                onChange={(e) => handleInputChange('base_price_per_hour', parseFloat(e.target.value))}
-                min="0"
-                step="0.01"
-                required
-                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="base_price_per_day">Price per Day (NOK) <span className="text-red-500">*</span></Label>
-              <Input
-                id="base_price_per_day"
-                type="number"
-                value={formData.base_price_per_day}
-                onChange={(e) => handleInputChange('base_price_per_day', parseFloat(e.target.value))}
-                min="0"
-                step="0.01"
-                required
-                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="deposit_amount">Deposit Amount (NOK)</Label>
-              <Input
-                id="deposit_amount"
-                type="number"
-                value={formData.deposit_amount ?? 0}
-                onChange={(e) =>
-                  handleInputChange(
-                    'deposit_amount',
-                    e.target.value ? parseFloat(e.target.value) : 0
-                  )
-                }
-                min="0"
-                step="0.01"
-                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="included_km_per_day">Included KM per Day <span className="text-red-500">*</span></Label>
-              <Input
-                id="included_km_per_day"
-                type="number"
-                value={formData.included_km_per_day ?? ''}
-                onChange={(e) => handleInputChange('included_km_per_day', e.target.value ? parseInt(e.target.value) : null)}
-                min="0"
-                required
-                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="extra_km_rate">Extra KM Rate (NOK) <span className="text-red-500">*</span></Label>
-              <Input
-                id="extra_km_rate"
-                type="number"
-                value={formData.extra_km_rate ?? ''}
-                onChange={(e) => handleInputChange('extra_km_rate', e.target.value ? parseFloat(e.target.value) : null)}
-                min="0"
-                step="0.01"
-                required
-                className="bg-[#fafafa] rounded-lg border-gray-200 h-9"
-              />
+              <div className="space-y-1.5">
+                <Label htmlFor="model" className="text-xs text-gray-600">Model <span className="text-red-500">*</span></Label>
+                <Input
+                  id="model"
+                  value={formData.model}
+                  onChange={(e) => handleInputChange('model', e.target.value)}
+                  placeholder="e.g., X7"
+                  required
+                  className={fieldClass}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="year" className="text-xs text-gray-600">Year <span className="text-red-500">*</span></Label>
+                <Input
+                  id="year"
+                  type="number"
+                  value={formData.year}
+                  onChange={(e) => handleInputChange('year', parseInt(e.target.value))}
+                  min="2010"
+                  max={new Date().getFullYear() + 1}
+                  required
+                  className={fieldClass}
+                />
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description <span className="text-red-500">*</span></Label>
+          {/* Pricing & policy */}
+          <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <Label className="text-sm font-semibold text-gray-700">Pricing &amp; policy</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="base_price_per_hour" className="text-xs text-gray-600">Price per Hour (NOK) <span className="text-red-500">*</span></Label>
+                <Input
+                  id="base_price_per_hour"
+                  type="number"
+                  value={formData.base_price_per_hour}
+                  onChange={(e) => handleInputChange('base_price_per_hour', parseFloat(e.target.value))}
+                  min="0"
+                  step="0.01"
+                  required
+                  className={fieldClass}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="base_price_per_day" className="text-xs text-gray-600">Price per Day (NOK) <span className="text-red-500">*</span></Label>
+                <Input
+                  id="base_price_per_day"
+                  type="number"
+                  value={formData.base_price_per_day}
+                  onChange={(e) => handleInputChange('base_price_per_day', parseFloat(e.target.value))}
+                  min="0"
+                  step="0.01"
+                  required
+                  className={fieldClass}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="deposit_amount" className="text-xs text-gray-600">Deposit Amount (NOK)</Label>
+                <Input
+                  id="deposit_amount"
+                  type="number"
+                  value={formData.deposit_amount ?? 0}
+                  onChange={(e) =>
+                    handleInputChange(
+                      'deposit_amount',
+                      e.target.value ? parseFloat(e.target.value) : 0
+                    )
+                  }
+                  min="0"
+                  step="0.01"
+                  className={fieldClass}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="included_km_per_day" className="text-xs text-gray-600">Included KM per Day <span className="text-red-500">*</span></Label>
+                <Input
+                  id="included_km_per_day"
+                  type="number"
+                  value={formData.included_km_per_day ?? ''}
+                  onChange={(e) => handleInputChange('included_km_per_day', e.target.value ? parseInt(e.target.value) : null)}
+                  min="0"
+                  required
+                  className={fieldClass}
+                />
+              </div>
+              <div className="space-y-1.5 md:col-span-2">
+                <Label htmlFor="extra_km_rate" className="text-xs text-gray-600">Extra KM Rate (NOK) <span className="text-red-500">*</span></Label>
+                <Input
+                  id="extra_km_rate"
+                  type="number"
+                  value={formData.extra_km_rate ?? ''}
+                  onChange={(e) => handleInputChange('extra_km_rate', e.target.value ? parseFloat(e.target.value) : null)}
+                  min="0"
+                  step="0.01"
+                  required
+                  className={fieldClass}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <Label htmlFor="description" className="text-sm font-semibold text-gray-700">
+              Description <span className="text-red-500">*</span>
+            </Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               placeholder="Vehicle description and features..."
               rows={3}
-              className="bg-[#fafafa] rounded-lg border-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-gray-400"
+              className="bg-white rounded-lg border-gray-300 transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-[#e3c08d]/50 focus-visible:border-[#e3c08d] focus-visible:ring-offset-0"
             />
           </div>
 
-          <div className="flex items-center space-x-2">
+          {/* Availability */}
+          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div>
+              <Label htmlFor="is_available" className="text-sm font-semibold text-gray-700 cursor-pointer">
+                Available for booking
+              </Label>
+              <p className="text-xs text-gray-500">Toggle off to hide this vehicle from customers.</p>
+            </div>
             <Switch
               id="is_available"
               checked={formData.is_available ?? false}
               onCheckedChange={(checked) => handleInputChange('is_available', checked)}
-              className="h-5 w-9 hover:cursor-pointer data-[state=checked]:bg-[#e3c08d] data-[state=unchecked]:bg-gray-200"
+              className="h-5 w-9 hover:cursor-pointer data-[state=checked]:bg-[#e3c08d] data-[state=unchecked]:bg-gray-300"
             />
-            <Label htmlFor="is_available" className="text-sm font-medium text-gray-700 ml-2 cursor-pointer">
-              Available for booking
-            </Label>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end gap-3 pt-1">
             <Button
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={loading}
-              className='rounded-lg border-gray-200 hover:cursor-pointer hover:bg-gray-100'
+              className='rounded-lg border-gray-300 bg-white hover:cursor-pointer hover:bg-gray-100 transition-colors duration-300'
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className='bg-[#e3c08d] hover:bg-[#e3c08d]/80 hover:cursor-pointer transition-colors duration-500 rounded-lg'>
+            <Button type="submit" disabled={loading} className='bg-[#e3c08d] text-black hover:bg-[#e3c08d]/80 hover:cursor-pointer transition-colors duration-300 rounded-lg shadow-sm'>
               {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {car?.id ? 'Update Vehicle' : 'Add Vehicle'}
             </Button>
-          </div>
           </div>
         </form>
       </DialogContent>

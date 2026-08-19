@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Search, Download, Eye, Mail, ChevronsRight, ChevronRight, ChevronLeft, ChevronsLeft } from 'lucide-react';
+import { Search, Download, ChevronsRight, ChevronRight, ChevronLeft, ChevronsLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Customer {
@@ -150,7 +150,6 @@ export const CustomersManagement: React.FC = () => {
                 <TableHead>Bookings</TableHead>
                 <TableHead>Total Spent</TableHead>
                 <TableHead>Registered</TableHead>
-                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -194,16 +193,6 @@ export const CustomersManagement: React.FC = () => {
                   <TableCell>
                     <div className="text-sm text-gray-500">
                       {format(new Date(customer.created_at), 'MMM dd, yyyy')}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" className="hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500 rounded-xl">
-                        <Mail className="h-4 w-4" />
-                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>

@@ -153,7 +153,7 @@ serve(async (req: Request): Promise<Response> => {
       return json({ error: "nin and lastName are required." }, 400);
     }
     if (!/^\d{11}$/.test(cleanNin)) {
-      return json({ error: "Fødselsnummer/D-nummer må være 11 siffer." }, 400);
+      return json({ error: "National ID/D-number must be 11 digits." }, 400);
     }
 
     // --- Access gate: NIN must have a verified BankID record ---
@@ -168,7 +168,7 @@ serve(async (req: Request): Promise<Response> => {
       if (gateError) throw new Error(`BankID gate lookup failed: ${gateError.message}`);
       if (!verifiedRows || verifiedRows.length === 0) {
         return json(
-          { error: "Førerkort kan bare verifiseres for en BankID-verifisert identitet. Fullfør BankID først." },
+          { error: "Driving licence can only be verified for a BankID-verified identity. Please complete BankID first." },
           403,
         );
       }
@@ -218,7 +218,7 @@ serve(async (req: Request): Promise<Response> => {
       code: body?.code ?? "LOOKUP_FAILED",
       message: body?.detail
         ? String(body.detail)
-        : "Førerkort kunne ikke verifiseres. Kontroller fødselsnummer og etternavn.",
+        : "Driving licence could not be verified. Please check the national ID number and last name.",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

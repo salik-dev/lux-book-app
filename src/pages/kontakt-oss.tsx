@@ -10,23 +10,23 @@ export default function KontaktOssPage() {
   const faqsList = [
     {
       id: 1,
-      title: 'Hva koster det for å leie en luksusbil fra PRIME?',
-      answer: 'For å leie en luksusbil fra PRIME, må du oppfylle følgende krav: Alder: Minimum 25 år for de fleste luksusbiler og sportsbiler. For utleie til personer over 21 år er det mulig, men det kan være 3 års gyldig førerkort krav.'
+      title: 'What does it cost to rent a luxury car from PRIME?',
+      answer: 'To rent a luxury car from PRIME, you must meet the following requirements: Age: Minimum 25 years for most luxury and sports cars. Rentals to persons over 21 years old are possible, but a 3-year valid driving license may be required.'
     },
     {
       id: 2,
-      title: 'Hvor lenge på forhånd bør jeg reservere en luksusbil?',
-      answer: 'For å sikre tilgjengelighet og få den beste opplevelsen med våre luksusbiler, anbefaler vi at du reserverer 5-10 dager i forveien. Dette gir oss mulighet til å forberede alt til din ankomst.'
+      title: 'How far in advance should I reserve a luxury car?',
+      answer: 'To ensure availability and get the best experience with our luxury cars, we recommend reserving 5-10 days in advance. This gives us the opportunity to prepare everything for your arrival.'
     },
     {
       id: 3,
-      title: 'Kan jeg leie en luksusbil samme dag som jeg bestiller?',
-      answer: 'Ja, det er mulig å leie bil samme dag, men vi anbefaler å bestille i forveien for å sikre tilgjengelighet. Kontakt oss direkte for å sjekke ledige biler på kort varsel.'
+      title: 'Can I rent a luxury car the same day I book?',
+      answer: 'Yes, it is possible to rent a car the same day, but we recommend booking in advance to ensure availability. Contact us directly to check available cars on short notice.'
     },
     {
       id: 4,
-      title: 'Hvor mange luksusbiler er tilgjengelige hos PRIME?',
-      answer: 'Vi har et bredt utvalg av over 20 luksusbiler i vår flåte, inkludert Mercedes, BMW, Audi og Porsche. Vårt utvalg varierer, så kontakt oss for å høre om tilgjengelige biler for din ønskede periode.'
+      title: 'How many luxury cars are available at PRIME?',
+      answer: 'We have a wide selection of over 20 luxury cars in our fleet, including Mercedes, BMW, Audi and Porsche. Our selection varies, so contact us to hear about available cars for your desired period.'
     }
   ]
   return (
@@ -36,14 +36,14 @@ export default function KontaktOssPage() {
         <div className="absolute inset-0">
           <img
             src={lamborghiniImage}
-            alt="Luksuriøst showroom"
+            alt="Luxurious showroom"
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-black/70" />
         </div>
         
         <div className="relative z-10 text-center text-white px-4 max-w-4xl mx-auto flex flex-col items-center gap-6">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 text-[#E3C08D]">Vi har åpent 24/7</h1>
+          <h1 className="text-4xl md:text-6xl font-bold mb-6 text-[#E3C08D]">We're open 24/7</h1>
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-8">92 92 07 71</h2>
           
           <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-8">
@@ -62,7 +62,7 @@ export default function KontaktOssPage() {
           </div>
           
           <Button className="bg-[#E3C08D] hover:cursor-pointer hover:bg-[#E3C08D]/90 text-black text-lg px-8 py-6">
-            Bestill din bil nå
+            Book your car now
           </Button>
         </div>
       </section>
@@ -70,7 +70,7 @@ export default function KontaktOssPage() {
       {/* FAQ Section */}
       <section className="py-20 px-4 md:px-8 bg-gray-800">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl md:text-5xl font-bold tracking-wider mb-12 text-[#E3C08D]">Ofte spurt</h2>
+          <h2 className="text-3xl md:text-5xl font-bold tracking-wider mb-12 text-[#E3C08D]">Frequently Asked Questions</h2>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {faqsList.map((faq) => (
@@ -80,13 +80,13 @@ export default function KontaktOssPage() {
                     <span className="text-sm">?</span>
                 </div>
                 <h3 className="text-xl font-semibold text-[#E3C08D]">
-                  Hva koster det for å leie en luksusbil fra PRIME?
+                  What does it cost to rent a luxury car from PRIME?
                 </h3>
               </div>
               <p className="text-gray-600 pl-12">
-                For å leie en luksusbil fra PRIME, må du oppfylle følgende krav: Alder: Minimum 25 år for de fleste
-                luksusbiler og sportsbiler. For utleie til personer over 21 år er det mulig, men det kan være 3 års
-                gyldig førerkort krav.
+                To rent a luxury car from PRIME, you must meet the following requirements: Age: Minimum 25 years for
+                most luxury and sports cars. Rentals to persons over 21 years old are possible, but a 3-year valid
+                driving license may be required.
               </p>
             </div>
           ))}
