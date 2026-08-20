@@ -13,22 +13,22 @@ const agendaEventCardVariants = cva(
     variants: {
       color: {
         // Colored variants with transparent backgrounds (light theme only)
-        blue: "border-blue-300 bg-blue-100/50 text-blue-700 [&_.event-dot]:fill-blue-600 hover:bg-blue-100/70",
-        green: "border-green-300 bg-green-100/50 text-green-700 [&_.event-dot]:fill-green-600 hover:bg-green-100/70",
-        red: "border-red-300 bg-red-100/50 text-red-700 [&_.event-dot]:fill-red-600 hover:bg-red-100/70",
-        yellow: "border-yellow-300 bg-yellow-100/50 text-yellow-700 [&_.event-dot]:fill-yellow-600 hover:bg-yellow-100/70",
-        purple: "border-purple-300 bg-purple-100/50 text-purple-700 [&_.event-dot]:fill-purple-600 hover:bg-purple-100/70",
-        orange: "border-orange-300 bg-orange-100/50 text-orange-700 [&_.event-dot]:fill-orange-600 hover:bg-orange-100/70",
-        gray: "border-neutral-300 bg-neutral-100/50 text-neutral-700 [&_.event-dot]:fill-neutral-600 hover:bg-neutral-100/70",
+        blue: "border-blue-300 bg-blue-100/50 text-blue-700 [&_.event-dot]:fill-blue-600 hover:bg-blue-200/90",
+        green: "border-green-300 bg-green-100/50 text-green-700 [&_.event-dot]:fill-green-600 hover:bg-green-200/90",
+        red: "border-red-300 bg-red-100/50 text-red-700 [&_.event-dot]:fill-red-600 hover:bg-red-200/90",
+        yellow: "border-yellow-300 bg-yellow-100/50 text-yellow-700 [&_.event-dot]:fill-yellow-600 hover:bg-yellow-200/90",
+        purple: "border-purple-300 bg-purple-100/50 text-purple-700 [&_.event-dot]:fill-purple-600 hover:bg-purple-200/90",
+        orange: "border-orange-300 bg-orange-100/50 text-orange-700 [&_.event-dot]:fill-orange-600 hover:bg-orange-200/90",
+        gray: "border-neutral-300 bg-neutral-100/50 text-neutral-700 [&_.event-dot]:fill-neutral-600 hover:bg-neutral-200/90",
 
         // Dot variants with transparent backgrounds (light theme only)
-        "blue-dot": "border-blue-200 bg-blue-100/40 text-blue-700 [&_.event-dot]:fill-blue-600 hover:bg-blue-100/60",
-        "green-dot": "border-green-200 bg-green-100/40 text-green-700 [&_.event-dot]:fill-green-600 hover:bg-green-100/60",
-        "red-dot": "border-red-200 bg-red-100/40 text-red-700 [&_.event-dot]:fill-red-600 hover:bg-red-100/60",
-        "orange-dot": "border-orange-200 bg-orange-100/40 text-orange-700 [&_.event-dot]:fill-orange-600 hover:bg-orange-100/60",
-        "purple-dot": "border-purple-200 bg-purple-100/40 text-purple-700 [&_.event-dot]:fill-purple-600 hover:bg-purple-100/60",
-        "yellow-dot": "border-yellow-200 bg-yellow-100/40 text-yellow-700 [&_.event-dot]:fill-yellow-600 hover:bg-yellow-100/60",
-        "gray-dot": "border-neutral-200 bg-neutral-100/40 text-neutral-700 [&_.event-dot]:fill-neutral-600 hover:bg-neutral-100/60",
+        "blue-dot": "border-blue-200 bg-blue-100/40 text-blue-700 [&_.event-dot]:fill-blue-600 hover:bg-blue-200/80",
+        "green-dot": "border-green-200 bg-green-100/40 text-green-700 [&_.event-dot]:fill-green-600 hover:bg-green-200/80",
+        "red-dot": "border-red-200 bg-red-100/40 text-red-700 [&_.event-dot]:fill-red-600 hover:bg-red-200/80",
+        "orange-dot": "border-orange-200 bg-orange-100/40 text-orange-700 [&_.event-dot]:fill-orange-600 hover:bg-orange-200/80",
+        "purple-dot": "border-purple-200 bg-purple-100/40 text-purple-700 [&_.event-dot]:fill-purple-600 hover:bg-purple-200/80",
+        "yellow-dot": "border-yellow-200 bg-yellow-100/40 text-yellow-700 [&_.event-dot]:fill-yellow-600 hover:bg-yellow-200/80",
+        "gray-dot": "border-neutral-200 bg-neutral-100/40 text-neutral-700 [&_.event-dot]:fill-neutral-600 hover:bg-neutral-200/80",
       },
     },
     defaultVariants: {

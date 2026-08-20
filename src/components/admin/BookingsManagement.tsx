@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useAdminHeaderSlot } from '@/context/admin-header-slot';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -63,7 +65,7 @@ export const BookingsManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(12);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isBookOnBehalfOpen, setIsBookOnBehalfOpen] = useState(false);
@@ -206,47 +208,46 @@ export const BookingsManagement: React.FC = () => {
     );
   }
 
+  const headerSlot = useAdminHeaderSlot();
+
   return (
     <TooltipProvider>
     <>
-      <Card className="card-premium bg-white">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Bookings Management</span>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                onClick={() => setIsBookOnBehalfOpen(true)}
-                className='rounded-lg bg-[#e3c08d] text-white hover:bg-[#d3b07d] hover:cursor-pointer transition-colors duration-500'
-              >
-                <UserPlus className="h-4 w-4 mr-2" />
-                Book on behalf
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className='rounded-lg border border-gray-200 bg-white text-gray-700 shadow-none hover:cursor-pointer hover:bg-[#e3c08d] hover:text-black transition-colors duration-300 dark:bg-white dark:text-gray-700 dark:border-gray-200 dark:hover:bg-[#e3c08d] dark:hover:text-black'
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search bookings..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 rounded-lg border-gray-200 bg-[#fafafa]"
-              />
-            </div>
+      {headerSlot && createPortal(
+        <>
+          <div className="relative flex-1 sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search bookings..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 rounded-lg border-gray-200 bg-[#fafafa] transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-[#e3c08d]/50 focus-visible:border-[#e3c08d] focus-visible:bg-white"
+            />
           </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => setIsBookOnBehalfOpen(true)}
+              className='rounded-lg bg-[#e3c08d] text-white hover:bg-[#d3b07d] hover:cursor-pointer transition-colors duration-500'
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Book on behalf
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className='rounded-lg border border-gray-200 bg-white text-gray-700 shadow-none hover:cursor-pointer hover:bg-[#e3c08d] hover:text-black transition-colors duration-300 dark:bg-white dark:text-gray-700 dark:border-gray-200 dark:hover:bg-[#e3c08d] dark:hover:text-black'
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+          </div>
+        </>,
+        headerSlot
+      )}
+      <Card className="card-premium bg-white flex flex-1 min-h-0 flex-col">
+        <CardHeader className="flex-row items-center justify-between space-y-0 px-5 py-4 shrink-0">
+          <CardTitle className="text-lg">Bookings Management</CardTitle>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[180px] bg-[#fafafa] border-gray-200 hover:cursor-pointer data-[size=default]:h-10">
               <Filter className="h-4 w-4 mr-2" />
@@ -261,12 +262,12 @@ export const BookingsManagement: React.FC = () => {
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-
+        </CardHeader>
+        <CardContent className="flex flex-1 min-h-0 flex-col space-y-4 px-5 pb-5 pt-0">
         {/* Bookings Table */}
-        <div className="rounded-md border border-gray-200 overflow-x-auto">
-          <Table className='bg-white rounded-lg'>
-            <TableHeader>
+        <div className="flex-1 min-h-0 overflow-hidden rounded-md border border-gray-200">
+          <Table className='bg-white rounded-lg' containerClassName="h-full overflow-auto table-scroll">
+            <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgba(0,0,0,0.06)]">
               <TableRow className="text-gray-500 border-gray-200">
                 <TableHead>Booking #</TableHead>
                 <TableHead>Customer</TableHead>
@@ -279,7 +280,7 @@ export const BookingsManagement: React.FC = () => {
             </TableHeader>
             <TableBody>
               {currentItems.map((booking) => (
-                <TableRow key={booking.id} className='hover:bg-[#fafafa] transition-colors duration-500 border-gray-200   '>
+                <TableRow key={booking.id} className='hover:bg-[#f7efe3] transition-colors duration-300 border-gray-200'>
                   <TableCell className="font-medium">
                     {booking.booking_number}
                   </TableCell>
@@ -289,12 +290,16 @@ export const BookingsManagement: React.FC = () => {
                       <div className="text-sm text-gray-500 flex items-center gap-2">
                         <span>{booking.customer?.email || ''}</span>
                         {(booking.org_name || booking.org_no) && (
-                          <span
-                            title={`Organization: ${booking.org_name || "-"} | Org no: ${booking.org_no || "-"}`}
-                            className="inline-flex items-center justify-center text-[#8b6b3e]"
-                          >
-                            <Building2 className="h-3.5 w-3.5" />
-                          </span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex items-center justify-center text-[#8b6b3e]">
+                                <Building2 className="h-3.5 w-3.5" />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Organization: {booking.org_name || "-"} | Org no: {booking.org_no || "-"}
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                       </div>
                     </div>
@@ -345,15 +350,19 @@ export const BookingsManagement: React.FC = () => {
                         </TooltipTrigger>
                         <TooltipContent>View booking details</TooltipContent>
                       </Tooltip>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        title="Extra kilometer charge"
-                        onClick={() => setExtraKmChargeBooking(booking)}
-                        className='border border-[#e3c08d]/50 text-[#8b6b3e] hover:bg-[#e3c08d] hover:text-black hover:cursor-pointer transition-colors duration-500 rounded-xl shrink-0'
-                      >
-                        <Gauge className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setExtraKmChargeBooking(booking)}
+                            className='border border-[#e3c08d]/50 text-[#8b6b3e] hover:bg-[#e3c08d] hover:text-black hover:cursor-pointer transition-colors duration-500 rounded-xl shrink-0'
+                          >
+                            <Gauge className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Extra kilometer charge</TooltipContent>
+                      </Tooltip>
                       <Select
                         value={booking.status || ''}
                         onValueChange={(value) => updateBookingStatus(booking.id, (value || 'pending') as 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled')}
@@ -379,7 +388,7 @@ export const BookingsManagement: React.FC = () => {
 
         {/* Pagination Rendering */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t bg-white rounded-b-lg border-gray-200">
+          <div className="shrink-0 flex items-center justify-between px-4 py-3 border-t bg-white rounded-b-lg border-gray-200">
             <div className="text-sm text-gray-500">
               Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, totalItems)} of {totalItems} bookings
             </div>

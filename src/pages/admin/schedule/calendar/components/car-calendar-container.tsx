@@ -110,9 +110,13 @@ export function CarCalendarContainer() {
       onCancelBooking={handleCancelBooking}
       onDeleteBlock={handleDeleteBlock}
     >
-      <div className="flex flex-col gap-4">
-        <AvailabilitySummary loading={loading} />
-        <ClientContainer />
+      <div className="flex h-full min-h-0 flex-col gap-4">
+        <div className="shrink-0">
+          <AvailabilitySummary loading={loading} />
+        </div>
+        <div className="min-h-0 flex-1">
+          <ClientContainer />
+        </div>
       </div>
 
       <BookCarDialog

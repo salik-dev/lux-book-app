@@ -90,19 +90,23 @@ export function ClientContainer({ view: viewProp }: IProps) {
   }, [filteredEvents]);
 
   return (
-    <TooltipProvider delayDuration={250}>
-      <div className="overflow-hidden rounded-lg bg-white">
-        <CalendarHeader view={view} events={filteredEvents} />
+    <TooltipProvider delayDuration={150}>
+      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-white">
+        <div className="shrink-0">
+          <CalendarHeader view={view} events={filteredEvents} />
+        </div>
 
-        <DndProviderWrapper>
-          <div key={view} className="transition-opacity duration-300 ease-in-out animate-fade-in">
-            {view === "day" && <CalendarDayView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
-            {view === "month" && <CalendarMonthView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
-            {view === "week" && <CalendarWeekView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
-            {view === "year" && <CalendarYearView allEvents={eventStartDates} />}
-            {view === "agenda" && <CalendarAgendaView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
-          </div>
-        </DndProviderWrapper>
+        <div className="calendar-scroll min-h-0 flex-1 overflow-y-auto">
+          <DndProviderWrapper>
+            <div key={view} className="transition-opacity duration-300 ease-in-out animate-fade-in">
+              {view === "day" && <CalendarDayView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
+              {view === "month" && <CalendarMonthView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
+              {view === "week" && <CalendarWeekView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
+              {view === "year" && <CalendarYearView allEvents={eventStartDates} />}
+              {view === "agenda" && <CalendarAgendaView singleDayEvents={singleDayEvents} multiDayEvents={multiDayEvents} />}
+            </div>
+          </DndProviderWrapper>
+        </div>
       </div>
     </TooltipProvider>
   );

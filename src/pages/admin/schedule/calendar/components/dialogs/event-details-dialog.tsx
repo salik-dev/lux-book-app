@@ -75,10 +75,10 @@ export function EventDetailsDialog({ event, children }: IProps) {
 
         <TooltipContent side="top" className="space-y-0.5">
           <p className="font-semibold">{event.title}</p>
-          <p className="text-neutral-300">
+          <p className="text-[#1a1208]/70">
             {format(startDate, "MMM d, HH:mm")} - {format(endDate, "HH:mm")}
           </p>
-          <p className="text-neutral-300">{event.user.name}</p>
+          <p className="text-[#1a1208]/70">{event.user.name}</p>
         </TooltipContent>
       </Tooltip>
 

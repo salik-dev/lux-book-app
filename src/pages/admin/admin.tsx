@@ -1,24 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useNavigate } from 'react-router-dom';
-import { Header } from '@/components/header';
 import { AdminOverview } from '@/components/admin/AdminOverview';
 import { BookingsManagement } from '@/components/admin/BookingsManagement';
 import { CarsManagement } from '@/components/admin/CarsManagement';
 import { CustomersManagement } from '@/components/admin/CustomersManagement';
 import { PricingManagement } from '@/components/admin/PricingManagement';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetTitle } from '@/pages/admin/schedule/components/ui/sheet';
-import { BarChart3, Car, Users, Settings, DollarSign, Calendar, CalendarDays } from 'lucide-react';
-import { AdminHeader } from '@/components/admin/AdminHeader';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { AdminTopbar } from '@/components/admin/AdminTopbar';
 import { CarCalendarContainer } from '@/pages/admin/schedule/calendar/components/car-calendar-container';
+import { AdminHeaderSlotContext } from '@/context/admin-header-slot';
+
+const SECTION_LABELS: Record<string, string> = {
+  overview: 'Dashboard',
+  bookings: 'Bookings',
+  cars: 'Fleet',
+  customers: 'Customers',
+  pricing: 'Pricing',
+  settings: 'Settings',
+};
+
+/** Tabs whose management component portals a search bar + action button(s) into the header. */
+const DATA_TABLE_TABS = new Set(['bookings', 'cars', 'customers']);
 
 const Admin = () => {
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('bookings');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [headerSlot, setHeaderSlot] = useState<HTMLDivElement | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('admin-sidebar-collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('admin-sidebar-collapsed', String(isSidebarCollapsed));
+    } catch {
+      // ignore storage failures (e.g. private browsing)
+    }
+  }, [isSidebarCollapsed]);
 
   useEffect(() => {
     console.log('Admin page - Auth state:', { user: user?.id, email: user?.email, isAdmin, loading });
@@ -40,96 +69,70 @@ const Admin = () => {
     return null;
   }
 
+  const isDataTableTab = DATA_TABLE_TABS.has(activeTab);
+
   return (
-    <>
-      <AdminHeader />
-      <div className="min-h-screen bg-gray-50 mt-18 px-18">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-primary mb-2">
-              {/* {t('admin.title')} */}
-              Admin Dashboard
-            </h1>
-            <p className="text-gray-500">
-              Manage your luxury car rental business from one dashboard
-            </p>
-          </div>
+    <div className={`bg-gray-50 ${isDataTableTab ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
+      <AdminSidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onOpenCalendar={() => setIsCalendarOpen(true)}
+        isMobileOpen={isMobileNavOpen}
+        onCloseMobile={() => setIsMobileNavOpen(false)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((v) => !v)}
+      />
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-7 lg:w-fit bg-[#f5f5f5] rounded-lg gap-2">
-              <TabsTrigger value="overview" className="flex items-center gap-[4px] rounded-lg hover:cursor-pointer transition-colors duration-500">
-                <BarChart3 className="h-4 w-4" />
-                <span className="flex items-center gap-[4px] rounded-lg hover:cursor-pointer transition-colors duration-500">
-                  {/* {t('admin.overview')} */}
-                  Overview
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="bookings" className="flex items-center gap-[4px] rounded-lg hover:cursor-pointer transition-colors duration-500">
-                <Calendar className="h-4 w-4" />
-                <span className="flex items-center gap-[4px] rounded-lg hover:cursor-pointer transition-colors duration-500">
-                  {/* {t('admin.bookings')} */}
-                  Bookings
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="cars" className="flex items-center gap-2 rounded-lg hover:cursor-pointer transition-colors duration-500">
-                <Car className="h-4 w-4" />
-                <span className="flex items-center gap-[4px] rounded-lg hover:cursor-pointer transition-colors duration-500">
-                  {/* {t('admin.cars')} */}
-                  Cars
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="customers" className="flex items-center gap-2 rounded-lg hover:cursor-pointer transition-colors duration-500">
-                <Users className="h-4 w-4" />
-                <span className="flex items-center gap-[4px] rounded-lg hover:cursor-pointer transition-colors duration-500">
-                  {/* {t('admin.customers')} */}
-                  Customers
-                </span>
-              </TabsTrigger>
-              <button
-                type="button"
-                onClick={() => setIsCalendarOpen(true)}
-                className="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-medium text-gray-500 transition-colors duration-500 hover:cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <CalendarDays className="h-4 w-4" />
-                <span className="flex items-center gap-[4px]">Calendar</span>
-              </button>
-              <TabsTrigger value="pricing" className="flex items-center gap-2 rounded-lg hover:cursor-pointer transition-colors duration-500">
-                <DollarSign className="h-4 w-4" />
-                <span className="flex items-center gap-[4px] hover:cursor-pointer transition-colors duration-500">
-                  {/* {t('admin.pricing')} */}
-                  Pricing
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="flex items-center gap-2 rounded-lg hover:cursor-pointer transition-colors duration-500">
-                <Settings className="h-4 w-4" />
-                <span className="flex items-center gap-[4px] hover:cursor-pointer transition-colors duration-500">
-                  {/* {t('admin.settings')} */}
-                  Settings
-                </span>
-              </TabsTrigger>
-            </TabsList>
+      <div
+        className={`flex flex-col transition-all duration-300 ease-in-out ${
+          isDataTableTab ? 'h-screen overflow-hidden' : 'min-h-screen'
+        } ${isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}
+      >
+        <AdminTopbar
+          sectionLabel={SECTION_LABELS[activeTab] ?? 'Dashboard'}
+          onOpenMobileSidebar={() => setIsMobileNavOpen(true)}
+        />
 
-            <TabsContent value="overview" className="space-y-6">
+        <main
+          className={`flex flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8 ${
+            isDataTableTab ? 'min-h-0 overflow-hidden' : 'overflow-y-auto'
+          }`}
+        >
+
+          {isDataTableTab && (
+            <div
+              ref={setHeaderSlot}
+              className="mb-3 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+            />
+          )}
+
+          <AdminHeaderSlotContext.Provider value={headerSlot}>
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className={isDataTableTab ? 'flex min-h-0 flex-1 flex-col' : 'space-y-6'}
+          >
+            <TabsContent value="overview" className="step-enter-forward space-y-6">
               <AdminOverview />
             </TabsContent>
 
-            <TabsContent value="bookings" className="space-y-6">
+            <TabsContent value="bookings" className="step-enter-forward flex min-h-0 flex-1 flex-col">
               <BookingsManagement />
             </TabsContent>
 
-            <TabsContent value="cars" className="space-y-6">
+            <TabsContent value="cars" className="step-enter-forward flex min-h-0 flex-1 flex-col">
               <CarsManagement />
             </TabsContent>
 
-            <TabsContent value="customers" className="space-y-6">
+            <TabsContent value="customers" className="step-enter-forward flex min-h-0 flex-1 flex-col">
               <CustomersManagement />
             </TabsContent>
 
-            <TabsContent value="pricing" className="space-y-6">
+            <TabsContent value="pricing" className="step-enter-forward space-y-6">
               <PricingManagement />
             </TabsContent>
 
-            <TabsContent value="settings" className="space-y-6">
+            <TabsContent value="settings" className="step-enter-forward space-y-6">
               <Card className="card-premium bg-white">
                 <CardHeader>
                   <CardTitle>Settings</CardTitle>
@@ -142,19 +145,20 @@ const Admin = () => {
               </Card>
             </TabsContent>
           </Tabs>
+          </AdminHeaderSlotContext.Provider>
 
           <Sheet open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-            <SheetContent side="right" className="w-full p-0 sm:max-w-[90vw] overflow-y-auto">
+            <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-[90vw]">
               <SheetTitle className="sr-only">Calendar</SheetTitle>
 
-              <div className="h-full p-6">
+              <div className="flex min-h-0 flex-1 flex-col p-6">
                 {isCalendarOpen && <CarCalendarContainer />}
               </div>
             </SheetContent>
           </Sheet>
-        </div>
+        </main>
       </div>
-    </>
+    </div>
   );
 };
 

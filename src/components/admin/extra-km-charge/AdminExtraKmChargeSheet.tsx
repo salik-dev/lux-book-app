@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCreateExtraKmCharge, useSendExtraKmChargeEmail, formatNOK } from "./hooks";
 
 const GOLD = "#e3c08d";
@@ -164,6 +165,7 @@ export const AdminExtraKmChargeSheet: React.FC<Props> = ({ open, onOpenChange, b
   };
 
   return (
+    <TooltipProvider>
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay
@@ -186,20 +188,24 @@ export const AdminExtraKmChargeSheet: React.FC<Props> = ({ open, onOpenChange, b
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               {view === "existing" && (
-                <button
-                  type="button"
-                  onClick={startNewCharge}
-                  disabled={isDepositConfirmed}
-                  title={
-                    isDepositConfirmed
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={startNewCharge}
+                      disabled={isDepositConfirmed}
+                      className="h-7 w-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:pointer-events-none disabled:hover:bg-transparent"
+                      aria-label="Create new charge"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {isDepositConfirmed
                       ? "Deposit deduction already confirmed — no new charge needed"
-                      : "Create a new checkout link (e.g. if the previous one expired)"
-                  }
-                  className="h-7 w-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:pointer-events-none disabled:hover:bg-transparent"
-                  aria-label="Create new charge"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </button>
+                      : "Create a new checkout link (e.g. if the previous one expired)"}
+                  </TooltipContent>
+                </Tooltip>
               )}
               <DialogPrimitive.Close asChild>
                 <button
@@ -343,6 +349,7 @@ export const AdminExtraKmChargeSheet: React.FC<Props> = ({ open, onOpenChange, b
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
+    </TooltipProvider>
   );
 };
 

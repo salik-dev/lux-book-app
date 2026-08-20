@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { createPortal } from 'react-dom';
+import { useAdminHeaderSlot } from '@/context/admin-header-slot';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Search, Edit, Trash2, Image, Loader2, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -29,12 +31,11 @@ interface Car {
 }
 
 export const CarsManagement: React.FC = () => {
-  const { t } = useTranslation();
   const { toast } = useToast();
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(12);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -65,6 +66,9 @@ export const CarsManagement: React.FC = () => {
   };
 
   const toggleCarAvailability = async (carId: string, isAvailable: boolean) => {
+    // Optimistic update so the switch flips instantly instead of waiting on the round-trip.
+    setCars(prev => prev.map(c => (c.id === carId ? { ...c, is_available: !isAvailable } : c)));
+
     try {
       const { error } = await supabase
         .from('cars')
@@ -77,10 +81,10 @@ export const CarsManagement: React.FC = () => {
         title: 'Success',
         description: `Car ${!isAvailable ? 'enabled' : 'disabled'} successfully`,
       });
-
-      loadCars();
     } catch (error) {
       console.error('Error updating car:', error);
+      // Roll back on failure.
+      setCars(prev => prev.map(c => (c.id === carId ? { ...c, is_available: isAvailable } : c)));
       toast({
         title: 'Error',
         description: 'Failed to update car availability',
@@ -131,32 +135,35 @@ export const CarsManagement: React.FC = () => {
     );
   }
 
+  const headerSlot = useAdminHeaderSlot();
+
   return (
-    <Card className="card-premium bg-white">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>Fleet Management</span>
-          <CarFormDialog onCarSaved={loadCars} />
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Search */}
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search vehicles..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-[#fafafa] rounded-lg border-gray-200"
-            />
-          </div>
+    <TooltipProvider>
+    {headerSlot && createPortal(
+      <>
+        <div className="relative flex-1 sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search vehicles..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 rounded-lg border-gray-200 bg-[#fafafa] transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-[#e3c08d]/50 focus-visible:border-[#e3c08d] focus-visible:bg-white"
+          />
         </div>
+        <CarFormDialog onCarSaved={loadCars} />
+      </>,
+      headerSlot
+    )}
+    <Card className="card-premium bg-white flex flex-1 min-h-0 flex-col">
+      <CardHeader className="px-5 py-4 shrink-0">
+        <CardTitle className="text-lg">Fleet Management</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-1 min-h-0 flex-col space-y-4 px-5 pb-5 pt-0">
 
         {/* Cars Table */}
-        <div className="rounded-md border border-gray-200">
-          <Table className='bg-white rounded-lg'>
-            <TableHeader>
+        <div className="flex-1 min-h-0 overflow-hidden rounded-md border border-gray-200">
+          <Table className='bg-white rounded-lg' containerClassName="h-full overflow-auto table-scroll">
+            <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgba(0,0,0,0.06)]">
               <TableRow className="text-gray-500 border-gray-200">
                 <TableHead>Image</TableHead>
                 <TableHead>Vehicle</TableHead>
@@ -167,10 +174,10 @@ export const CarsManagement: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCars.map((car) => (
-                <TableRow key={car.id} className='hover:bg-[#fafafa] transition-colors duration-500 border-gray-200   '>
+              {currentItems.map((car) => (
+                <TableRow key={car.id} className='hover:bg-[#f7efe3] transition-colors duration-300 border-gray-200'>
                   <TableCell>
-                    <div className="relative w-16 h-12 rounded-lg overflow-hidden bg-muted">
+                    <div className="relative w-14 h-10 rounded-lg overflow-hidden bg-muted">
                       <img
                         src={car.image_url || getCarPlaceholder(car.brand, car.model, car.name)}
                         alt={car.name}
@@ -180,21 +187,21 @@ export const CarsManagement: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{car.name}</div>
-                      <div className="text-sm text-gray-500">
-                        {car.brand} {car.model} ({car.year})d
+                      <div className="font-medium text-sm">{car.name}</div>
+                      <div className="text-xs text-gray-500 leading-tight">
+                        {car.brand} {car.model} ({car.year})
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">
-                      <div className="font-medium">{formatPrice(car.base_price_per_day)}/day</div>
+                    <div className="text-xs leading-tight space-y-0.5">
+                      <div className="font-medium text-gray-900">{formatPrice(car.base_price_per_day)}/day</div>
                       <div className="text-gray-500">{formatPrice(car.base_price_per_hour)}/hour</div>
                       <div className="text-gray-500">Deposit: {formatPrice(car.deposit_amount ?? 0)}</div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">
+                    <div className="text-xs leading-tight space-y-0.5">
                       <div>{car.included_km_per_day} km/day</div>
                       <div className="text-gray-500">
                         +{formatPrice((car.extra_km_rate ?? 0) as number)}/km
@@ -222,12 +229,18 @@ export const CarsManagement: React.FC = () => {
                           </Button>
                         }
                       />
-                      <Switch
-                        checked={car.is_available ?? false}
-                        onCheckedChange={() => toggleCarAvailability(car.id, car.is_available || false)}
-                        title={car.is_available ? 'Disable this vehicle' : 'Enable this vehicle'}
-                        className="hover:cursor-pointer data-[state=checked]:bg-[#e3c08d] data-[state=unchecked]:bg-gray-300"
-                      />
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <Switch
+                              checked={car.is_available ?? false}
+                              onCheckedChange={() => toggleCarAvailability(car.id, car.is_available || false)}
+                              className="hover:cursor-pointer transition-colors duration-300 data-[state=checked]:bg-[#e3c08d] data-[state=unchecked]:bg-gray-300"
+                            />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>{car.is_available ? 'Disable this vehicle' : 'Enable this vehicle'}</TooltipContent>
+                      </Tooltip>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -238,7 +251,7 @@ export const CarsManagement: React.FC = () => {
 
         {/* Pagination Rendering */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t bg-white rounded-b-lg border-gray-200">
+          <div className="shrink-0 flex items-center justify-between px-4 py-3 border-t bg-white rounded-b-lg border-gray-200">
             <div className="text-sm text-gray-500">
               Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, totalItems)} of {totalItems} bookings
             </div>
@@ -310,5 +323,6 @@ export const CarsManagement: React.FC = () => {
         )}
       </CardContent>
     </Card>
+    </TooltipProvider>
   );
 };
