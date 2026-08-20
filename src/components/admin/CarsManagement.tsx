@@ -248,7 +248,7 @@ export const CarsManagement: React.FC = () => {
                 size="sm"
                 onClick={() => handlePageChange(1)}
                 disabled={currentPage === 1}
-                className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+                className="h-8 w-8 p-0 border border-gray-300 bg-white text-gray-700 shadow-none rounded-lg hover:cursor-pointer hover:bg-gray-100 hover:text-gray-700 dark:bg-white dark:text-gray-700 dark:border-gray-300 dark:hover:bg-gray-100 dark:hover:text-gray-700"
               >
                 <ChevronsLeft className="h-4 w-4" />
               </Button>
@@ -257,7 +257,7 @@ export const CarsManagement: React.FC = () => {
                 size="sm"
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+                className="h-8 w-8 p-0 border border-gray-300 bg-white text-gray-700 shadow-none rounded-lg hover:cursor-pointer hover:bg-gray-100 hover:text-gray-700 dark:bg-white dark:text-gray-700 dark:border-gray-300 dark:hover:bg-gray-100 dark:hover:text-gray-700"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -274,7 +274,7 @@ export const CarsManagement: React.FC = () => {
                       variant={currentPage === page ? "default" : "outline"}
                       size="sm"
                       onClick={() => handlePageChange(page)}
-                      className={`h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer ${currentPage === page ? 'bg-[#e3c08d] text-white' : ''}`}
+                      className={`h-8 w-8 p-0 border border-gray-300 rounded-lg hover:cursor-pointer ${currentPage === page ? 'bg-[#e3c08d] text-white' : 'bg-white text-gray-700 shadow-none hover:bg-gray-100 hover:text-gray-700 dark:bg-white dark:text-gray-700 dark:border-gray-300 dark:hover:bg-gray-100 dark:hover:text-gray-700'}`}
                     >
                       {page}
                     </Button>
@@ -286,7 +286,7 @@ export const CarsManagement: React.FC = () => {
                 size="sm"
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+                className="h-8 w-8 p-0 border border-gray-300 bg-white text-gray-700 shadow-none rounded-lg hover:cursor-pointer hover:bg-gray-100 hover:text-gray-700 dark:bg-white dark:text-gray-700 dark:border-gray-300 dark:hover:bg-gray-100 dark:hover:text-gray-700"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -295,7 +295,7 @@ export const CarsManagement: React.FC = () => {
                 size="sm"
                 onClick={() => handlePageChange(totalPages)}
                 disabled={currentPage === totalPages}
-                className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+                className="h-8 w-8 p-0 border border-gray-300 bg-white text-gray-700 shadow-none rounded-lg hover:cursor-pointer hover:bg-gray-100 hover:text-gray-700 dark:bg-white dark:text-gray-700 dark:border-gray-300 dark:hover:bg-gray-100 dark:hover:text-gray-700"
               >
                 <ChevronsRight className="h-4 w-4" />
               </Button>

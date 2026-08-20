@@ -118,7 +118,11 @@ export const CustomersManagement: React.FC = () => {
         <CardTitle className="flex items-center justify-between">
           <span>Customer Management</span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="bg-[#fafafa] rounded-lg border-gray-200 hover:cursor-pointer">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border border-gray-200 bg-[#fafafa] text-gray-700 shadow-none rounded-lg hover:cursor-pointer hover:bg-gray-100 hover:text-gray-700 dark:bg-[#fafafa] dark:text-gray-700 dark:border-gray-200 dark:hover:bg-gray-100 dark:hover:text-gray-700"
+            >
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
@@ -213,7 +217,7 @@ export const CustomersManagement: React.FC = () => {
                         size="sm"
                         onClick={() => handlePageChange(1)}
                         disabled={currentPage === 1}
-                        className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+                        className="h-8 w-8 p-0 border border-gray-300 bg-white text-gray-700 shadow-none rounded-lg hover:cursor-pointer hover:bg-gray-100 hover:text-gray-700 dark:bg-white dark:text-gray-700 dark:border-gray-300 dark:hover:bg-gray-100 dark:hover:text-gray-700"
                       >
                         <ChevronsLeft className="h-4 w-4" />
                       </Button>
@@ -222,7 +226,7 @@ export const CustomersManagement: React.FC = () => {
                         size="sm"
                         onClick={() => handlePageChange(currentPage - 1)}
                         disabled={currentPage === 1}
-                        className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+                        className="h-8 w-8 p-0 border border-gray-300 bg-white text-gray-700 shadow-none rounded-lg hover:cursor-pointer hover:bg-gray-100 hover:text-gray-700 dark:bg-white dark:text-gray-700 dark:border-gray-300 dark:hover:bg-gray-100 dark:hover:text-gray-700"
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
@@ -239,7 +243,7 @@ export const CustomersManagement: React.FC = () => {
                               variant={currentPage === page ? "default" : "outline"}
                               size="sm"
                               onClick={() => handlePageChange(page)}
-                              className={`h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer ${currentPage === page ? 'bg-[#e3c08d] text-white' : ''}`}
+                              className={`h-8 w-8 p-0 border border-gray-300 rounded-lg hover:cursor-pointer ${currentPage === page ? 'bg-[#e3c08d] text-white' : 'bg-white text-gray-700 shadow-none hover:bg-gray-100 hover:text-gray-700 dark:bg-white dark:text-gray-700 dark:border-gray-300 dark:hover:bg-gray-100 dark:hover:text-gray-700'}`}
                             >
                               {page}
                             </Button>
@@ -251,7 +255,7 @@ export const CustomersManagement: React.FC = () => {
                         size="sm"
                         onClick={() => handlePageChange(currentPage + 1)}
                         disabled={currentPage === totalPages}
-                        className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+                        className="h-8 w-8 p-0 border border-gray-300 bg-white text-gray-700 shadow-none rounded-lg hover:cursor-pointer hover:bg-gray-100 hover:text-gray-700 dark:bg-white dark:text-gray-700 dark:border-gray-300 dark:hover:bg-gray-100 dark:hover:text-gray-700"
                       >
                         <ChevronRight className="h-4 w-4" />
                       </Button>
@@ -260,7 +264,7 @@ export const CustomersManagement: React.FC = () => {
                         size="sm"
                         onClick={() => handlePageChange(totalPages)}
                         disabled={currentPage === totalPages}
-                        className="h-8 w-8 p-0 border-gray-300 rounded-lg hover:cursor-pointer"
+                        className="h-8 w-8 p-0 border border-gray-300 bg-white text-gray-700 shadow-none rounded-lg hover:cursor-pointer hover:bg-gray-100 hover:text-gray-700 dark:bg-white dark:text-gray-700 dark:border-gray-300 dark:hover:bg-gray-100 dark:hover:text-gray-700"
                       >
                         <ChevronsRight className="h-4 w-4" />
                       </Button>

@@ -137,7 +137,7 @@ export function AdminHeader() {
                                         variant="outline"
                                         size="sm"
                                         onClick={handleSignOut}
-                                        className="border-[#E3C08D] text-white bg-[#E3C08D] hover:text-black w-full hover:bg-[#E3C08D]/80 hover:cursor-pointer transition-all duration-300"
+                                        className="border border-[#E3C08D] text-white bg-[#E3C08D] shadow-none hover:text-black w-full hover:bg-[#E3C08D]/80 hover:cursor-pointer transition-all duration-300 dark:bg-[#E3C08D] dark:text-white dark:border-[#E3C08D] dark:hover:bg-[#E3C08D]/80 dark:hover:text-black"
                                     >
                                         Logg ut
                                     </Button>

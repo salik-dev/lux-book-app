@@ -130,7 +130,7 @@ export default function BookingCancelled() {
             <Button
               onClick={() => navigate('/cars')}
               variant="outline"
-              className="border-[#e3c08d] hover:cursor-pointer text-[#e3c08d] hover:bg-[#e3c08d] hover:text-[#0d1518] font-medium py-6 px-8 rounded-lg transition-colors"
+              className="border border-[#e3c08d] bg-transparent shadow-none hover:cursor-pointer text-[#e3c08d] hover:bg-[#e3c08d] hover:text-[#0d1518] font-medium py-6 px-8 rounded-lg transition-colors dark:bg-transparent dark:border-[#e3c08d] dark:text-[#e3c08d] dark:hover:bg-[#e3c08d] dark:hover:text-[#0d1518]"
             >
               Browse Cars Again
             </Button>

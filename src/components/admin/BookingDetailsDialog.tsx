@@ -319,10 +319,17 @@ export const BookingDetailsDialog: React.FC<BookingDetailsDialogProps> = ({
           {/*  */}
 
           <div className="flex gap-4">
-            <Button variant="outline" onClick={onClose} className='rounded-lg border-gray-200 hover:bg-[#e3c08d] hover:cursor-pointer transition-colors duration-500'>
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className='rounded-lg border border-gray-200 bg-white text-gray-700 shadow-none hover:cursor-pointer hover:border-[#e3c08d] hover:bg-[#e3c08d] hover:text-black transition-colors duration-300 dark:bg-white dark:text-gray-700 dark:border-gray-200 dark:hover:bg-[#e3c08d] dark:hover:text-black dark:hover:border-[#e3c08d]'
+            >
               Close
             </Button>
-            <Button onClick={onClose} className='rounded-lg border-gray-200 bg-[#e3c08d] hover:bg-white hover:cursor-pointer transition-colors duration-500'>
+            <Button
+              onClick={onClose}
+              className='rounded-lg border border-transparent bg-[#e3c08d] text-black hover:cursor-pointer hover:bg-[#d1b07f] hover:text-black transition-colors duration-300 dark:bg-[#e3c08d] dark:text-black dark:hover:bg-[#d1b07f] dark:hover:text-black'
+            >
               Save Changes
             </Button>
           </div>

@@ -602,8 +602,6 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                   decorationRequired={decorationRequired}
                   withDriver={withDriver}
                   pricing={pricing}
-                  language={language}
-                  setLanguage={setLanguage}
                 />
               )}
               {step === 4 && createdBooking && (
@@ -1226,13 +1224,11 @@ interface ReviewStepProps {
   decorationRequired: boolean;
   withDriver: boolean;
   pricing: NonNullable<ReturnType<typeof computePricing>>;
-  language: "en" | "no";
-  setLanguage: (v: "en" | "no") => void;
 }
 
 const ReviewStep: React.FC<ReviewStepProps> = ({
   customerFullName, customerLastName, customerEmail, customerPhone, licenseCategories,
-  car, start, end, pickupLocation, deliveryLocation, decorationRequired, withDriver, pricing, language, setLanguage,
+  car, start, end, pickupLocation, deliveryLocation, decorationRequired, withDriver, pricing,
 }) => (
   <div className="space-y-3">
 
@@ -1316,28 +1312,14 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
       <span className="text-2xl font-bold text-gray-900">{formatNOK(pricing.totalPrice)}</span>
     </div>
 
-    {/* Language + info row */}
-    <div className="flex items-center gap-3">
-      <div
-        className="flex-1 px-3 py-2.5 rounded-xl text-xs text-gray-500 leading-relaxed"
-        style={{ backgroundColor: "#f0f9ff", border: "1px solid #bae6fd" }}
-      >
-        Invoice email → <strong className="text-gray-700">{customerEmail}</strong>
-        &nbsp;· booking status: <strong className="text-gray-700">pending</strong>
-        &nbsp;· Stripe link valid 24 h
-      </div>
-      <div className="shrink-0">
-        <p className="text-xs text-gray-500 mb-1 text-right">Email language</p>
-        <Select value={language} onValueChange={(v) => setLanguage(v as "en" | "no")}>
-          <SelectTrigger className="w-28 h-8 rounded-lg border-gray-200 bg-white text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="rounded-xl border-gray-200">
-            <SelectItem value="en">English</SelectItem>
-            <SelectItem value="no">Norsk</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+    {/* Info row */}
+    <div
+      className="px-3 py-2.5 rounded-xl text-xs text-gray-500 leading-relaxed"
+      style={{ backgroundColor: "#f0f9ff", border: "1px solid #bae6fd" }}
+    >
+      Invoice email → <strong className="text-gray-700">{customerEmail}</strong>
+      &nbsp;· booking status: <strong className="text-gray-700">pending</strong>
+      &nbsp;· Stripe link valid 24 h
     </div>
   </div>
 );

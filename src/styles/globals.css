@@ -228,8 +228,8 @@
 /* ─── Admin booking sheet animations ───────────────────────────────────────── */
 @keyframes sheet-overlay-in  { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sheet-overlay-out { from { opacity: 1; } to { opacity: 0; } }
-[data-booking-overlay][data-state="open"]   { animation: sheet-overlay-in  0.25s ease-out forwards; }
-[data-booking-overlay][data-state="closed"] { animation: sheet-overlay-out 0.2s  ease-in  forwards; }
+[data-booking-overlay][data-state="open"]   { animation: sheet-overlay-in  0.25s ease-out both; }
+[data-booking-overlay][data-state="closed"] { animation: sheet-overlay-out 0.2s  ease-in  both; }
 
 @keyframes sheet-slide-in {
   from { transform: translateX(100%); }
@@ -240,10 +240,10 @@
   to   { transform: translateX(100%); }
 }
 [data-booking-sheet][data-state="open"] {
-  animation: sheet-slide-in 0.32s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  animation: sheet-slide-in 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 [data-booking-sheet][data-state="closed"] {
-  animation: sheet-slide-out 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation: sheet-slide-out 0.28s cubic-bezier(0.4, 0, 1, 1) both;
 }
 
 /* ─── Centered modal animations. Opacity-only, deliberately: this element is
@@ -256,10 +256,10 @@
 @keyframes center-dialog-in  { from { opacity: 0; } to { opacity: 1; } }
 @keyframes center-dialog-out { from { opacity: 1; } to { opacity: 0; } }
 [data-center-dialog][data-state="open"] {
-  animation: center-dialog-in 0.2s ease-out forwards;
+  animation: center-dialog-in 0.2s ease-out both;
 }
 [data-center-dialog][data-state="closed"] {
-  animation: center-dialog-out 0.15s ease-in forwards;
+  animation: center-dialog-out 0.15s ease-in both;
 }
 
 /* ─── Step content transitions ──────────────────────────────────────────────── */

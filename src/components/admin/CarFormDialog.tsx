@@ -253,8 +253,8 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sheet-scroll sm:max-w-[640px] max-h-[85vh] overflow-y-auto bg-gray-50 rounded-2xl border-gray-200 shadow-2xl p-0">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-200 bg-white rounded-t-2xl">
+      <DialogContent className="flex flex-col sm:max-w-[640px] h-[85vh] max-h-[85vh] bg-gray-50 rounded-2xl border-gray-200 shadow-2xl p-0 overflow-hidden">
+        <DialogHeader className="shrink-0 px-6 pt-6 pb-4 border-b border-gray-200 bg-white rounded-t-2xl">
           <DialogTitle className="text-xl font-semibold text-gray-900">
             {car?.id ? 'Edit Vehicle' : 'Add New Vehicle'}
           </DialogTitle>
@@ -263,7 +263,8 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
           </p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+        <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
+        <div className="sheet-scroll flex-1 min-h-0 overflow-y-auto space-y-4 px-6 py-5">
           {/* Image Upload */}
           <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
             <Label className="text-sm font-semibold text-gray-700">Car Image</Label>
@@ -493,22 +494,23 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
               className="h-5 w-9 hover:cursor-pointer data-[state=checked]:bg-[#e3c08d] data-[state=unchecked]:bg-gray-300"
             />
           </div>
+        </div>
 
-          <div className="flex justify-end gap-3 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={loading}
-              className='rounded-lg border-gray-300 bg-white hover:cursor-pointer hover:bg-gray-100 transition-colors duration-300'
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading} className='bg-[#e3c08d] text-black hover:bg-[#e3c08d]/80 hover:cursor-pointer transition-colors duration-300 rounded-lg shadow-sm'>
-              {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {car?.id ? 'Update Vehicle' : 'Add Vehicle'}
-            </Button>
-          </div>
+        <div className="shrink-0 flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-white rounded-b-2xl">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={loading}
+            className='rounded-lg border border-gray-300 bg-white text-gray-700 shadow-none hover:cursor-pointer hover:bg-gray-100 hover:text-gray-700 transition-colors duration-300 dark:bg-white dark:text-gray-700 dark:border-gray-300 dark:hover:bg-gray-100 dark:hover:text-gray-700'
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={loading} className='bg-[#e3c08d] text-black hover:bg-[#e3c08d]/80 hover:cursor-pointer transition-colors duration-300 rounded-lg shadow-sm'>
+            {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {car?.id ? 'Update Vehicle' : 'Add Vehicle'}
+          </Button>
+        </div>
         </form>
       </DialogContent>
     </Dialog>
