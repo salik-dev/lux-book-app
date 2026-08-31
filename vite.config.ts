@@ -3,10 +3,7 @@ import react from '@vitejs/plugin-react-swc';
 import path from 'path';
 
 export default defineConfig({
-  base: './',
-  define: {
-    'import.meta.env.BASE_URL': JSON.stringify(process.env.NODE_ENV === 'production' ? './' : '/'),
-  },
+  base: '/',
   plugins: [react()],
   css: {
     postcss: {
