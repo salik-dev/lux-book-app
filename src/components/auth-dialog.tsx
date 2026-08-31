@@ -150,7 +150,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
         setOpen(false);
         toast({
           title: 'Welcome back',
-          description: result.isAdmin && 'Redirecting to admin dashboard.',
+          description: result.isAdmin && 'Welcome to admin dashboard.',
         });
         navigate(result.isAdmin ? '/admin' : '/bookings');
         setTimeout(resetAll, 200);
@@ -328,7 +328,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
               <CheckCircle2 className="success-pop mb-4 h-14 w-14 text-emerald-400" />
               <DialogTitle className="text-2xl font-bold text-[#E3C08D]">Verified</DialogTitle>
               <p className="mt-2 text-sm text-[#9eabb1]">
-                {signedInAsAdmin ? 'Redirecting to admin dashboard...' : 'Redirecting to your bookings...'}
+                {signedInAsAdmin ? 'Welcome to admin dashboard!' : 'Redirecting to your bookings...'}
               </p>
             </div>
           )}
