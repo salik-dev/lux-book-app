@@ -1,98 +1,178 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { ArrowLeft, CheckCircle2, Loader2, Mail, ShieldCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Loader2, Mail, Lock, Eye, EyeOff, X } from 'lucide-react';
 import { Dialog, DialogPortal, DialogOverlay, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { OtpInput } from '@/components/ui/otp-input';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import logo from '../assets/logo.png';
 
-interface AuthFormData {
-  email: string;
-  password: string;
-  confirmPassword?: string;
-  name?: string;
-  phone?: string;
+const OTP_LENGTH = 4;
+const OTP_TTL_SECONDS = 5 * 60;
+const RESEND_COOLDOWN_SECONDS = 30;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EXPIRING_REASONS = new Set(['expired', 'too_many_attempts', 'not_found', 'no_pending_otp']);
+
+function formatTime(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 export function AuthDialog({ children }: { children: React.ReactNode }) {
-  const { t } = useTranslation();
   const navigate = useNavigate();
-  const { signIn, signUp } = useAuth();
+  const { requestLoginOtp, verifyLoginOtp } = useAuth();
   const { toast } = useToast();
-  const [isLogin, setIsLogin] = useState(true);
-  const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
-  const form = useForm<AuthFormData>({
-    defaultValues: {
-      email: '',
-      password: '',
-      confirmPassword: '',
-      name: '',
-      phone: ''
-    },
-  });
+  const [step, setStep] = useState<'email' | 'otp' | 'success'>('email');
+  const [stepAnimation, setStepAnimation] = useState<'step-enter-forward' | 'step-enter-back'>('step-enter-forward');
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [sendingCode, setSendingCode] = useState(false);
 
-  const onSubmit = async (data: AuthFormData) => {
-    setLoading(true);
-    try {
-      if (isLogin) {
-        const { error, isAdmin: signedInAsAdmin } = await signIn(data.email, data.password);
-        if (error) {
-          toast({
-            title: 'Error',
-            description: "Invalid email or password! Please try again.",
-            variant: 'destructive',
-          });
-          return;
-        }
-        setOpen(false);
-        toast({
-          title: 'Welcome back',
-          description: signedInAsAdmin ? 'Redirecting to admin dashboard.' : 'Redirecting to your bookings.',
-        });
-        navigate(signedInAsAdmin ? '/admin' : '/bookings');
-      } else {
-        if (data.password !== data.confirmPassword) {
-          console.log('Passwords do not match')
-          toast({
-            title: 'Error',
-            description: 'Passwords do not match',
-            variant: 'destructive',
-          });
-          return;
-        }
-        await signUp(data.email, data.password, {
-          name: data.name,
-          phone: data.phone,
-        });
-        setOpen(false);
-        toast({
-          title: 'Success',
-          description: 'Account created! Check your email to confirm.',
-        });
-        setIsLogin(true);
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'An error occurred',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
+  const [otp, setOtp] = useState('');
+  const [otpResetKey, setOtpResetKey] = useState(0);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [shake, setShake] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(OTP_TTL_SECONDS);
+  const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS);
+  const [signedInAsAdmin, setSignedInAsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (step !== 'otp') return;
+    const interval = setInterval(() => {
+      setSecondsLeft((s) => Math.max(0, s - 1));
+      setResendCooldown((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [step]);
+
+  const expired = step === 'otp' && secondsLeft === 0;
+
+  const resetOtp = () => {
+    setOtp('');
+    setOtpResetKey((k) => k + 1);
+  };
+
+  const resetAll = () => {
+    setStep('email');
+    setStepAnimation('step-enter-forward');
+    setEmail('');
+    setEmailError(null);
+    setOtpError(null);
+    resetOtp();
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) {
+      // Let the close animation finish before resetting the form underneath it.
+      setTimeout(resetAll, 200);
     }
   };
 
+  const sendCode = async (targetEmail: string) => {
+    setSendingCode(true);
+    setEmailError(null);
+    try {
+      const result = await requestLoginOtp(targetEmail);
+      if (result.error) {
+        setEmailError(result.error);
+        return false;
+      }
+      return true;
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedEmail = email.trim();
+    if (!EMAIL_PATTERN.test(trimmedEmail)) {
+      setEmailError('Please enter a valid email address.');
+      return;
+    }
+    setEmail(trimmedEmail);
+
+    const sent = await sendCode(trimmedEmail);
+    if (!sent) return;
+
+    resetOtp();
+    setOtpError(null);
+    setSecondsLeft(OTP_TTL_SECONDS);
+    setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    setStepAnimation('step-enter-forward');
+    setStep('otp');
+    toast({
+      title: 'Code sent',
+      description: `We've sent a ${OTP_LENGTH}-digit code to ${trimmedEmail}.`,
+    });
+  };
+
+  const handleBack = () => {
+    setStepAnimation('step-enter-back');
+    setStep('email');
+    setOtpError(null);
+  };
+
+  const triggerShake = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 400);
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otp.length !== OTP_LENGTH || expired) return;
+
+    setVerifying(true);
+    setOtpError(null);
+    try {
+      const result = await verifyLoginOtp(email, otp);
+      if (result.error) {
+        setOtpError(result.error);
+        triggerShake();
+        if (result.reason && EXPIRING_REASONS.has(result.reason)) {
+          setSecondsLeft(0);
+        } else {
+          resetOtp();
+        }
+        return;
+      }
+      setSignedInAsAdmin(!!result.isAdmin);
+      setStep('success');
+      setTimeout(() => {
+        setOpen(false);
+        toast({
+          title: 'Welcome back',
+          description: result.isAdmin && 'Redirecting to admin dashboard.',
+        });
+        navigate(result.isAdmin ? '/admin' : '/bookings');
+        setTimeout(resetAll, 200);
+      }, 700);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0 || sendingCode) return;
+    const sent = await sendCode(email);
+    if (!sent) return;
+    resetOtp();
+    setOtpError(null);
+    setSecondsLeft(OTP_TTL_SECONDS);
+    setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    toast({ title: 'Code resent', description: `We've sent a new code to ${email}.` });
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
@@ -110,213 +190,148 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
           <span className="flex justify-center">
             <img src={logo} alt="Logo" className="h-40 w-40 object-contain p-2" />
           </span>
-          <DialogHeader className="mb-2">
-            <DialogTitle className="text-center text-2xl font-bold text-[#E3C08D]">
-              {isLogin ? 'Welcome Back' : 'Create an Account'}
-            </DialogTitle>
-          </DialogHeader>
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 space-y-6">
-              <div className="space-y-4">
-                {/* {!isLogin && (
-                  <>
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      rules={{ required: 'Name is required' }}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-medium text-gray-700">Full Name <span className="text-red-500">*</span></FormLabel>
-                          <div className="relative mt-1">
-                            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input 
-                              placeholder="Enter your full name" 
-                              {...field} 
-                              className="pl-10 h-12 rounded-md border-gray-300"
-                            />
-                          </div>
-                          <FormMessage className="text-red-500 text-xs mt-1" />
-                        </FormItem>
-                      )}
+          {step === 'email' && (
+            <div key="email" className={stepAnimation}>
+              <DialogHeader className="mb-2">
+                <DialogTitle className="text-center text-2xl font-bold text-[#E3C08D]">
+                  Welcome Back
+                </DialogTitle>
+              </DialogHeader>
+              <p className="mb-6 text-center text-sm text-[#9eabb1]">
+                Enter your email and we'll send you a one-time code to sign in.
+              </p>
+
+              <form onSubmit={handleEmailSubmit} className="mt-8 space-y-6">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-[#d0d9dd]">
+                    Email <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative mt-1">
+                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9eabb1]" />
+                    <Input
+                      type="email"
+                      autoFocus
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setEmailError(null);
+                      }}
+                      className="h-9 rounded-md border border-[#46555d] bg-[#1b2529] pl-10 text-[#b1bdc3] placeholder:text-[#7d8a91] focus-visible:ring-1 focus-visible:ring-[#E3C08D]"
                     />
-                    <FormField
-                      control={form.control}
-                      name="phone"
-                      rules={{ required: 'Phone number is required' }}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-medium text-gray-700">Phone Number <span className="text-red-500">*</span></FormLabel>
-                          <div className="relative mt-1">
-                            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input 
-                              placeholder="Enter your phone number" 
-                              {...field} 
-                              className="pl-10 h-12 rounded-md border-gray-300 focus:ring-2 focus:ring-[#E3C08D] focus:border-[#E3C08D]"
-                            />
-                          </div>
-                          <FormMessage className="text-red-500 text-xs mt-1" />
-                        </FormItem>
-                      )}
-                    />
-                  </>
-                )} */}
-
-                <FormField
-                  control={form.control}
-                  name="email"
-                  rules={{
-                    required: 'Email is required',
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: 'Invalid email address',
-                    },
-                  }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium text-[#d0d9dd]">Email <span className="text-red-400">*</span></FormLabel>
-                      <div className="relative mt-1">
-                        <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9eabb1]" />
-                        <Input
-                          placeholder="Enter your email"
-                          {...field}
-                          className="h-9 rounded-md border border-[#46555d] bg-[#1b2529] pl-10 text-[#b1bdc3] placeholder:text-[#7d8a91] focus-visible:ring-1 focus-visible:ring-[#E3C08D]"
-                        />
-                      </div>
-                      <FormMessage className="text-red-500 text-xs mt-1" />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="password"
-                  rules={{
-                    required: 'Password is required',
-                    minLength: {
-                      value: 6,
-                      message: 'Password must be at least 6 characters',
-                    },
-                  }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <div className="flex justify-between items-center">
-                        <FormLabel className="text-sm font-medium text-[#d0d9dd]">Password <span className="text-red-400">*</span></FormLabel>
-                        {!isLogin && (
-                          <span className="text-xs text-[#9eabb1]">
-                            Min. 6 characters
-                          </span>
-                        )}
-                      </div>
-                      <div className="relative mt-1">
-                        <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9eabb1]" />
-                        <Input
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Enter your password"
-                          {...field}
-                          className="h-9 rounded-md border border-[#46555d] bg-[#1b2529] pl-10 text-[#b1bdc3] placeholder:text-[#7d8a91] focus-visible:ring-1 focus-visible:ring-[#E3C08D]"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9eabb1] hover:text-[#d0d9dd]"
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </button>
-                      </div>
-                      <FormMessage className="text-red-500 text-xs mt-1" />
-                    </FormItem>
-                  )}
-                />
-
-                {!isLogin && (
-                  <FormField
-                    control={form.control}
-                    name="confirmPassword"
-                    rules={{
-                      required: 'Please confirm your password',
-                      validate: (value) =>
-                        value === form.getValues('password') || 'Passwords do not match',
-                    }}
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9eabb1]" />
-                          <Input
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Confirm Password"
-                            {...field}
-                            className="h-9 rounded-md border border-[#46555d] bg-[#1b2529] pl-10 pr-10 text-[#b1bdc3] placeholder:text-[#7d8a91] focus-visible:ring-1 focus-visible:ring-[#E3C08D]"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9eabb1] hover:text-[#d0d9dd]"
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </button>
-                        </div>
-                        <FormMessage className="text-red-500 text-xs mt-1" />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {isLogin && (
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      className="text-sm text-[#E3C08D] hover:underline"
-                    >
-                      Forgot password?
-                    </button>
                   </div>
-                )}
-              </div>
+                  {emailError && (
+                    <p className="mt-2 text-xs text-red-400">{emailError}</p>
+                  )}
+                </div>
 
-              <Button
-                type="submit"
-                className="h-9 w-full rounded-md bg-[#E3C08D] font-medium text-black hover:cursor-pointer hover:bg-[#d4b27f]"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isLogin ? 'Signing in...' : 'Creating account...'}
-                  </>
-                ) : isLogin ? (
-                  'Sign In'
-                ) : (
-                  'Create Account'
-                )}
-              </Button>
-
-              <div className="flex flex-col justify-center items-center">
-                <p className="text-center text-sm text-[#9eabb1]">
-                  {isLogin ? "Don't have an account? " : 'Already have an account? '}
-                </p>
                 <Button
-                  variant="ghost"
-                  type="button"
-                  onClick={() => {
-                    form.reset();
-                    setIsLogin(!isLogin);
-                  }}
-                  className="w-24 leading-6 font-medium text-[#E3C08D] hover:cursor-pointer hover:bg-transparent hover:underline"
+                  type="submit"
+                  disabled={sendingCode}
+                  className="h-9 w-full rounded-md bg-[#E3C08D] font-medium text-black hover:cursor-pointer hover:bg-[#d4b27f]"
                 >
-                  {isLogin ? 'Sign up' : 'Sign in'}
+                  {sendingCode ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending code...
+                    </>
+                  ) : (
+                    'Send code'
+                  )}
                 </Button>
+              </form>
+            </div>
+          )}
+
+          {step === 'otp' && (
+            <div key="otp" className={stepAnimation}>
+              <button
+                type="button"
+                onClick={handleBack}
+                className="mt-2 mb-4 flex items-center gap-1 text-sm text-[#9eabb1] hover:text-[#d0d9dd]"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </button>
+
+              <div className="mb-6 text-center">
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#E3C08D]/15">
+                  <ShieldCheck className="h-5 w-5 text-[#E3C08D]" />
+                </div>
+                <DialogTitle className="text-2xl font-bold text-[#E3C08D]">
+                  Enter verification code
+                </DialogTitle>
+                <p className="mt-2 text-sm text-[#9eabb1]">
+                  We sent a {OTP_LENGTH}-digit code to <span className="text-[#d0d9dd]">{email}</span>
+                </p>
               </div>
-            </form>
-          </Form>
+
+              <form onSubmit={handleVerify} className="space-y-5">
+                <OtpInput
+                  key={otpResetKey}
+                  length={OTP_LENGTH}
+                  value={otp}
+                  onChange={(v) => {
+                    setOtp(v);
+                    setOtpError(null);
+                  }}
+                  disabled={expired || verifying}
+                  autoFocus
+                  shake={shake}
+                  inputClassName="border-[#46555d] bg-[#1b2529] text-[#d0d9dd] focus-visible:ring-[#E3C08D]"
+                />
+
+                {otpError && (
+                  <p className="text-center text-sm text-red-400">{otpError}</p>
+                )}
+
+                <p className={`text-center text-sm ${expired ? 'text-red-400' : 'text-[#9eabb1]'}`}>
+                  {expired ? 'Code expired.' : `Code expires in ${formatTime(secondsLeft)}`}
+                </p>
+
+                <Button
+                  type="submit"
+                  disabled={verifying || expired || otp.length !== OTP_LENGTH}
+                  className="h-9 w-full rounded-md bg-[#E3C08D] font-medium text-black hover:cursor-pointer hover:bg-[#d4b27f]"
+                >
+                  {verifying ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Confirming...
+                    </>
+                  ) : (
+                    'Confirm'
+                  )}
+                </Button>
+
+                <div className="pb-6 text-center">
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendCooldown > 0 || sendingCode}
+                    className="text-sm text-[#E3C08D] hover:underline disabled:cursor-not-allowed disabled:text-[#7d8a91] disabled:no-underline"
+                  >
+                    {sendingCode
+                      ? 'Resending...'
+                      : resendCooldown > 0
+                        ? `Resend code in ${resendCooldown}s`
+                        : 'Resend code'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {step === 'success' && (
+            <div key="success" className="flex flex-col items-center py-10 text-center">
+              <CheckCircle2 className="success-pop mb-4 h-14 w-14 text-emerald-400" />
+              <DialogTitle className="text-2xl font-bold text-[#E3C08D]">Verified</DialogTitle>
+              <p className="mt-2 text-sm text-[#9eabb1]">
+                {signedInAsAdmin ? 'Redirecting to admin dashboard...' : 'Redirecting to your bookings...'}
+              </p>
+            </div>
+          )}
         </div>
         </DialogPrimitive.Content>
       </DialogPortal>

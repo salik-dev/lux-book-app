@@ -21,6 +21,10 @@ export type Database = {
           full_name: string
           id: string
           is_active: boolean | null
+          otp_attempts: number
+          otp_code_hash: string | null
+          otp_expires_at: string | null
+          otp_last_sent_at: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
           user_id: string | null
@@ -31,6 +35,10 @@ export type Database = {
           full_name: string
           id?: string
           is_active?: boolean | null
+          otp_attempts?: number
+          otp_code_hash?: string | null
+          otp_expires_at?: string | null
+          otp_last_sent_at?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id?: string | null
@@ -41,6 +49,10 @@ export type Database = {
           full_name?: string
           id?: string
           is_active?: boolean | null
+          otp_attempts?: number
+          otp_code_hash?: string | null
+          otp_expires_at?: string | null
+          otp_last_sent_at?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id?: string | null

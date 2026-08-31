@@ -12,6 +12,12 @@ verify_jwt = false
 [functions.send-booking-email]
 verify_jwt = false
 
+[functions.request-login-otp]
+verify_jwt = false
+
+[functions.verify-login-otp]
+verify_jwt = false
+
 [functions.upload-license]
 verify_jwt = false
 

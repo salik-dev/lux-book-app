@@ -2,6 +2,13 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { AuthError, User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface OtpVerifyResult {
+  error: string | null;
+  reason?: string;
+  attemptsRemaining?: number;
+  isAdmin?: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -10,6 +17,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null; isAdmin?: boolean }>;
   signUp: (email: string, password: string, metadata?: any) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
+  requestLoginOtp: (email: string) => Promise<{ error: string | null; waitSeconds?: number }>;
+  verifyLoginOtp: (email: string, otp: string) => Promise<OtpVerifyResult>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -129,6 +138,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
+  /** Exchanges a token_hash minted by an OTP-verify edge function for a real session, resolving admin status before returning (avoids the onAuthStateChange race). */
+  const establishSessionFromTokenHash = async (tokenHash: string): Promise<OtpVerifyResult> => {
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: 'magiclink',
+    });
+    if (error || !data.user) {
+      return { error: error?.message ?? 'Something went wrong. Please try again.' };
+    }
+    const admin = await resolveAdminForUser(data.user);
+    setSession(data.session ?? null);
+    setUser(data.user);
+    setIsAdmin(admin);
+    setLoading(false);
+    return { error: null, isAdmin: admin };
+  };
+
+  const requestLoginOtp = async (email: string): Promise<{ error: string | null; waitSeconds?: number }> => {
+    const { data, error } = await supabase.functions.invoke('request-login-otp', {
+      body: { email },
+    });
+    if (error || !data) {
+      return { error: 'Something went wrong. Please try again.' };
+    }
+    if (!data.success) {
+      return { error: data.message ?? 'Something went wrong. Please try again.', waitSeconds: data.waitSeconds };
+    }
+    return { error: null };
+  };
+
+  const verifyLoginOtp = async (email: string, otp: string): Promise<OtpVerifyResult> => {
+    const { data, error } = await supabase.functions.invoke('verify-login-otp', {
+      body: { email, otp },
+    });
+    if (error || !data?.success) {
+      return { error: data?.message ?? 'Something went wrong. Please try again.', reason: data?.reason, attemptsRemaining: data?.attemptsRemaining };
+    }
+    return establishSessionFromTokenHash(data.tokenHash);
+  };
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -148,6 +197,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signUp,
     signOut,
+    requestLoginOtp,
+    verifyLoginOtp,
   };
 
   return (

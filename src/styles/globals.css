@@ -284,6 +284,34 @@
 .step-enter-forward { animation: step-from-right 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
 .step-enter-back    { animation: step-from-left  0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
 
+@keyframes card-fade-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.card-fade-in { animation: card-fade-in 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+
+@keyframes shake-x {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+.shake-x { animation: shake-x 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+
+@keyframes success-pop {
+  0%   { transform: scale(0.5); opacity: 0; }
+  60%  { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.success-pop { animation: success-pop 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+
+@keyframes otp-digit-fill {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+.otp-digit-fill { animation: otp-digit-fill 0.18s ease-out both; }
+
 /* ─── Thin custom scrollbar ─────────────────────────────────────────────────── */
 .sheet-scroll {
   scrollbar-width: thin;
