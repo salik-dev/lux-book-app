@@ -778,7 +778,7 @@ serve(async (req: Request): Promise<Response> => {
     const stripeCustomers = await stripe.customers.list({ email: p.customerEmail, limit: 1 });
     const stripeCustomerId =
       stripeCustomers.data[0]?.id ??
-      (await stripe.customers.create({ email: p.customerEmail, name: fullName })).id;
+      (await stripe.customers.create({ email: p.customerEmail })).id;
 
     const amountMinor = Math.round(Number(booking.total_price) * 100);
     const session = await stripe.checkout.sessions.create({
@@ -789,7 +789,7 @@ serve(async (req: Request): Promise<Response> => {
             currency: "nok",
             product_data: {
               name: `Car Rental - ${car.name}`,
-              description: `Booking ${booking.booking_number} - ${booking.pickup_location}`,
+              description: `Customer Email: ${p.customerEmail}     • Booking ID: ${booking.booking_number}`,
               images: car.image_url ? [car.image_url] : [],
             },
             unit_amount: amountMinor,

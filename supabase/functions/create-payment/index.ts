@@ -37,7 +37,7 @@ serve(async (req)=>{
     //   userId: user.id,
     //   email: user.email
     // });
-    const { bookingId, amount, currency, customerEmail, customerName } = await req.json();
+    const { bookingId, amount, currency, customerEmail } = await req.json();
     logStep("Request body parsed", {
       bookingId,
       amount,
@@ -59,8 +59,7 @@ serve(async (req)=>{
       });
     } else {
       const customer = await stripe.customers.create({
-        email: customerEmail,
-        name: customerName
+        email: customerEmail
       });
       customerId = customer.id;
       logStep("Created new Stripe customer", {
@@ -85,7 +84,7 @@ serve(async (req)=>{
             currency: currency.toLowerCase(),
             product_data: {
               name: `Car Rental - ${booking.car.name}`,
-              description: `Booking ${booking.booking_number} - ${booking.pickup_location}`,
+              description: `Customer Email: ${booking.customer?.email ?? ""}     • Booking ID: ${booking.booking_number}`,
               images: booking.car.image_url ? [
                 booking.car.image_url
               ] : []
