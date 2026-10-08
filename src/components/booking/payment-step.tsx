@@ -10,6 +10,7 @@ import { useToast } from "../../hooks/use-toast";
 import { format, differenceInHours } from "date-fns";
 import { enUS } from "date-fns/locale";
 import {
+  Clock,
   CreditCard,
   Smartphone,
   Loader2,
@@ -39,6 +40,20 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
     const totalDays = Math.ceil(totalHours / 24);
     return `${totalDays} ${totalDays === 1 ? "day" : "days"} (${totalHours} hours)`;
   };
+
+  // Mirrors the step-1 pricing rule so the review shows exactly how the base price was derived.
+  const isDailyPricing = bookingData.seatPricingMode === "daily-basis";
+  const rentalHours = Math.max(
+    1,
+    differenceInHours(new Date(bookingData.endDateTime), new Date(bookingData.startDateTime))
+  );
+  const rentalUnits = isDailyPricing ? Math.ceil(rentalHours / 24) : rentalHours;
+  const rentalRate = Number(
+    (isDailyPricing ? bookingData.car.base_price_per_day : bookingData.car.base_price_per_hour) ?? 0
+  );
+  const rentalUnitLabel = isDailyPricing
+    ? rentalUnits === 1 ? "day" : "days"
+    : rentalUnits === 1 ? "hour" : "hours";
 
   const decorationReview = (
     [
@@ -98,20 +113,32 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
           .eq('email', customerData.email)
           .maybeSingle();
 
+        const customerDetails = {
+          full_name: customerData.fullName,
+          first_name: customerData.firstName || null,
+          last_name: customerData.lastName || null,
+          nin: customerData.nin || null,
+          email: customerData.email,
+          phone: customerData.phone,
+          address: customerData.address,
+          postal_code: customerData.postalCode,
+          city: customerData.city,
+        };
+
         if (existingCustomer) {
           customerId = existingCustomer.id;
+          // Keep the stored profile in sync with the latest details entered on the form.
+          const { error: updateError } = await supabase
+            .from('customers')
+            .update(customerDetails)
+            .eq('id', existingCustomer.id);
+          if (updateError) console.error('Failed to update customer details:', updateError);
         } else {
           const { data: newCustomer, error: customerError } = await supabase
             .from('customers')
             .insert({
               user_id: user?.id,
-              full_name: customerData.fullName,
-              email: customerData.email,
-              phone: customerData.phone,
-              address: customerData.address,
-              postal_code: customerData.postalCode,
-              city: customerData.city,
-              driver_license_number: customerData.driverLicenseNumber,
+              ...customerDetails,
               driver_license_file_path: customerData.driverLicenseFile ? String(customerData.driverLicenseFile) : null,
             })
             .select('id')
@@ -288,37 +315,56 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
 
           <Separator className="bg-[#46555d]" />
 
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Base price:</span>
-              <span>{formatPrice(bookingData.basePrice)}</span>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-[14px] font-semibold">Price summary</h4>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E3C08D]/40 bg-[#E3C08D]/10 px-2.5 py-0.5 text-xs font-medium text-[#E3C08D]">
+                <Clock className="h-3.5 w-3.5" aria-hidden />
+                {isDailyPricing ? "Per day pricing" : "Per hour pricing"}
+              </span>
             </div>
-            {bookingData.deliveryFee > 0 && (
-              <div className="flex justify-between text-sm">
-                <span>Delivery fee:</span>
-                <span>
-                  {formatPrice(bookingData.deliveryFee)}
+
+            <div className="space-y-2 rounded-md border border-[#3f4d54] bg-[#1b2529] p-3 text-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p>Rental</p>
+                  <p className="text-xs text-[#8a979d]">
+                    {rentalUnits} {rentalUnitLabel} × {formatPrice(rentalRate)} / {isDailyPricing ? "day" : "hour"}
+                  </p>
+                </div>
+                <span className="tabular-nums">{formatPrice(bookingData.basePrice)}</span>
+              </div>
+              {(bookingData.driverSurcharge ?? 0) > 0 && (
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p>Driver surcharge</p>
+                    <p className="text-xs text-[#8a979d]">25% of rental</p>
+                  </div>
+                  <span className="tabular-nums">{formatPrice(bookingData.driverSurcharge ?? 0)}</span>
+                </div>
+              )}
+              {bookingData.deliveryFee > 0 && (
+                <div className="flex justify-between gap-4">
+                  <span>Delivery fee</span>
+                  <span className="tabular-nums">{formatPrice(bookingData.deliveryFee)}</span>
+                </div>
+              )}
+              {(bookingData.depositAmount ?? 0) > 0 && (
+                <div className="flex justify-between gap-4">
+                  <span>Deposit</span>
+                  <span className="tabular-nums">{formatPrice(bookingData.depositAmount ?? 0)}</span>
+                </div>
+              )}
+              <Separator className="bg-[#46555d]" />
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-base font-semibold text-[#d0d9dd]">Total amount</p>
+                  <p className="text-xs text-[#8a979d]">Amount charged at checkout (NOK)</p>
+                </div>
+                <span className="text-xl font-bold tabular-nums text-[#E3C08D]">
+                  {formatPrice(bookingData.totalPrice)}
                 </span>
               </div>
-            )}
-            {(bookingData.depositAmount ?? 0) > 0 && (
-              <div className="flex justify-between text-sm">
-                <span>Deposit:</span>
-                <span>{formatPrice(bookingData.depositAmount ?? 0)}</span>
-              </div>
-            )}
-            {(bookingData.driverSurcharge ?? 0) > 0 && (
-              <div className="flex justify-between text-sm">
-                <span>Driver surcharge (25%):</span>
-                <span>{formatPrice(bookingData.driverSurcharge ?? 0)}</span>
-              </div>
-            )}
-            <Separator className="bg-[#46555d]" />
-            <div className="flex justify-between text-lg font-bold">
-              <span>Total:</span>
-              <span className="text-primary">
-                {formatPrice(bookingData.totalPrice)}
-              </span>
             </div>
           </div>
 

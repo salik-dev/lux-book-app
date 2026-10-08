@@ -119,6 +119,18 @@
   animation: lux-pop-out 0.12s ease both;
 }
 
+/* Booking step 1: fade the vehicle details in after switching vehicle. */
+@keyframes lux-fade-in-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.lux-fade-in {
+  animation: lux-fade-in-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lux-fade-in { animation: none; }
+}
+
 /* Tooltip pop animation. Radix Tooltip's data-state is "delayed-open" / "instant-open" /
    "closed" (never plain "open"), so it needs its own selector rather than reusing .lux-pop. */
 .tooltip-pop[data-state="delayed-open"],

@@ -83,7 +83,7 @@ serve(async (req)=>{
           price_data: {
             currency: currency.toLowerCase(),
             product_data: {
-              name: `Car Rental - ${booking.car.name}`,
+              name: `Prime Car - ${booking.car.name}`,
               description: `Customer Email: ${booking.customer?.email ?? ""}     • Booking ID: ${booking.booking_number}`,
               images: booking.car.image_url ? [
                 booking.car.image_url

@@ -27,6 +27,7 @@ import {
 } from "../ui/select";
 import { cn } from "@/lib/utils";
 import { isPickupLeadTimeValid, MIN_PICKUP_LEAD_HOURS } from "@/lib/booking-time";
+import { VehicleSwitcher } from "./vehicle-switcher";
 
 /** Fixed demo locations (Norway) — always applied to the booking. */
 const DEFAULT_PICKUP_LOCATION = "Karl Johans gate 1, 0154 Oslo";
@@ -71,11 +72,16 @@ function BookingDateTimeTimeRow({
   };
 
   return (
-    <div className="notranslate border-t border-[#3f4d54] bg-[#232e33] px-3 py-3" translate="no">
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[#9aa8ae]">
+    <div
+      className="notranslate flex items-center justify-between gap-3 border-t border-[#3f4d54] bg-[#232e33] px-3 py-2.5"
+      translate="no"
+      role="group"
+      aria-label="Time"
+    >
+      <span className="text-xs font-medium uppercase tracking-wide text-[#9aa8ae]" aria-hidden>
         Time
-      </p>
-      <div className="flex items-center gap-2">
+      </span>
+      <div className="flex items-center gap-1.5">
         <Select
           value={String(hours)}
           onValueChange={(v) => apply(parseInt(v, 10), minutes)}
@@ -90,7 +96,7 @@ function BookingDateTimeTimeRow({
             side="bottom"
             align="start"
             sideOffset={6}
-            avoidCollisions={false}
+            collisionPadding={8}
           >
             {Array.from({ length: 24 }, (_, i) => (
               <SelectItem
@@ -120,7 +126,7 @@ function BookingDateTimeTimeRow({
             side="bottom"
             align="start"
             sideOffset={6}
-            avoidCollisions={false}
+            collisionPadding={8}
           >
             {Array.from({ length: 60 }, (_, i) => (
               <SelectItem
@@ -155,6 +161,8 @@ const Form = ({ children, form, onSubmit }: {
 interface BookingDetailsProps {
   car: CarData;
   onComplete: (data: BookingData) => void;
+  /** Switch vehicle in place; dates and preferences already entered are kept. */
+  onCarChange?: (car: CarData) => void;
   initialData?: BookingData;
 }
 
@@ -173,6 +181,7 @@ interface FormData {
 export const BookingDetails: React.FC<BookingDetailsProps> = ({
   car,
   onComplete,
+  onCarChange,
   initialData,
 }) => {
   // const { t } = useTranslation();
@@ -388,14 +397,25 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
           {/* Selected Car Display */}
           <Card className="border-[#334047] bg-[#232e33] text-[#b1bdc3] shadow-sm">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
               <CardTitle className="flex items-center gap-2">
                 <Car className="h-5 w-5" />
                 Selected vehicle
               </CardTitle>
+              {onCarChange && (
+                <VehicleSwitcher
+                  selectedCar={car}
+                  onSelect={onCarChange}
+                  disabled={form.formState.isSubmitting}
+                />
+              )}
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col md:flex-row gap-4">
+              {/* Keyed by car so switching vehicles fades the new details in. */}
+              <div
+                key={String(car.id)}
+                className="lux-fade-in flex flex-col md:flex-row gap-4"
+              >
                 <img
                   src={car.image_url || defaultImg}
                   alt={car.name}
@@ -405,7 +425,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 <div className="flex-1 tracking-wide">
                   <div className="flex flex-col gap-2">
                     <h3 className="text-xl font-semibold text-[#E3C08D]">{car.name}</h3>
-                    <p className="text-sm tracking-wide text-[#b1bdc3]">{car.description.length > 250 ? `${car.description.slice(0, 300)}...` : car.description}</p>
+                    <p className="text-sm tracking-wide text-[#b1bdc3]">{(car.description ?? "").length > 300 ? `${car.description.slice(0, 300)}...` : car.description}</p>
                     <div className="flex gap-4 flex-wrap">
                       <p className="text-sm"><span className="font-semibold">Per hour: </span>{car.base_price_per_hour}</p>
                       <p className="text-sm"><span className="font-semibold">Per day: </span>{car.base_price_per_day}</p>
@@ -514,7 +534,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                       <FormLabel>Pickup (date and time) <span className="text-red-500">*</span></FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
-                          <div>
+                          <div className="border border-[#46555d] bg-[#1b2529] text-[#b1bdc3] rounded-md">
                             <Button
                               variant="outline"
                               type="button"
@@ -595,7 +615,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                       <FormLabel>Return (date and time) <span className="text-red-500">*</span></FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
-                          <div>
+                          <div className="border border-[#46555d] bg-[#1b2529] text-[#b1bdc3] rounded-md">
                             <Button
                               variant="outline"
                               type="button"

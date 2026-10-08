@@ -352,8 +352,11 @@ export type Database = {
           driver_license_file_path: string | null
           driver_license_number: string | null
           email: string
+          first_name: string | null
           full_name: string
           id: string
+          last_name: string | null
+          nin: string | null
           phone: string
           postal_code: string
           updated_at: string
@@ -367,8 +370,11 @@ export type Database = {
           driver_license_file_path?: string | null
           driver_license_number?: string | null
           email: string
+          first_name?: string | null
           full_name: string
           id?: string
+          last_name?: string | null
+          nin?: string | null
           phone: string
           postal_code: string
           updated_at?: string
@@ -382,8 +388,11 @@ export type Database = {
           driver_license_file_path?: string | null
           driver_license_number?: string | null
           email?: string
+          first_name?: string | null
           full_name?: string
           id?: string
+          last_name?: string | null
+          nin?: string | null
           phone?: string
           postal_code?: string
           updated_at?: string

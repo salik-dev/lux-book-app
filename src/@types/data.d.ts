@@ -62,7 +62,9 @@ export interface BookingData {
 }
 
 export interface CustomerData {
+  /** Derived as "firstName lastName" on submit. */
   fullName: string;
+  firstName: string;
   lastName: string;
   nin: string;
   email: string;
@@ -74,7 +76,8 @@ export interface CustomerData {
   postalCode: string;
   city: string;
   dateOfBirth: Date;
-  driverLicenseNumber: string;
+  /** No longer collected on the form (licence is verified via Statens vegvesen). */
+  driverLicenseNumber?: string;
   driverLicenseFile?: File | string; // Can be either File object or URL string
   bankIdVerifiedAt?: string;
   contractSignedAt?: string;

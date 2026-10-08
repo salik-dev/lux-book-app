@@ -15,12 +15,43 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCriiptoVerify } from "@criipto/verify-react";
 import { createContractSigning, getContractDocumentPreviewUrl, getContractStatus, UserData } from "@/api/signicat";
 
-/** Values not shown in the form; still sent to complete the booking. */
-const HIDDEN_CUSTOMER_DEFAULTS = {
-  fullName: "",
-  phone: "",
-  city: "Oslo",
-} as const;
+const getCustomerFormValues = (data?: CustomerData | null): CustomerData => ({
+  fullName: data?.fullName || "",
+  firstName: data?.firstName || "",
+  lastName: data?.lastName || "",
+  nin: data?.nin || "",
+  email: data?.email || "",
+  phone: data?.phone || "",
+  bookingForCompany: data?.bookingForCompany ?? false,
+  orgName: data?.orgName || "",
+  orgNo: data?.orgNo || "",
+  address: data?.address || "",
+  postalCode: data?.postalCode || "",
+  city: data?.city || "",
+  dateOfBirth: data?.dateOfBirth as Date,
+  driverLicenseFile: data?.driverLicenseFile,
+});
+
+const EMAIL_PATTERN = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+const NIN_PATTERN = /^\d{11}$/;
+
+/** Mirrors the field rules below. Used to enable "Continue" from the live values instead of
+ * `formState.isValid`, which goes stale when fields are filled programmatically (BankID autofill,
+ * restore after redirect). */
+const isCustomerInfoComplete = (v: Partial<CustomerData>): boolean => {
+  const filled = (x?: string) => Boolean(x && x.trim());
+  return (
+    filled(v.firstName) &&
+    filled(v.lastName) &&
+    NIN_PATTERN.test((v.nin || "").trim()) &&
+    filled(v.phone) &&
+    EMAIL_PATTERN.test((v.email || "").trim()) &&
+    filled(v.city) &&
+    filled(v.address) &&
+    filled(v.postalCode) &&
+    (!v.bookingForCompany || (filled(v.orgName) && filled(v.orgNo)))
+  );
+};
 
 export const STORAGE_KEYS = {
   bankIdVerified: "bankid_verified",
@@ -114,42 +145,24 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
   const { loginWithRedirect, isLoading: isBankIDPending, isInitializing } = useCriiptoVerify();
 
   const form = useForm<CustomerData>({
-    defaultValues: {
-      fullName: initialData?.fullName || HIDDEN_CUSTOMER_DEFAULTS.fullName,
-      lastName: initialData?.lastName || "",
-      nin: initialData?.nin || "",
-      email: initialData?.email || "",
-      phone: initialData?.phone || HIDDEN_CUSTOMER_DEFAULTS.phone,
-      bookingForCompany: initialData?.bookingForCompany ?? false,
-      orgName: initialData?.orgName || "",
-      orgNo: initialData?.orgNo || "",
-      address: initialData?.address || "",
-      postalCode: initialData?.postalCode || "",
-      city: initialData?.city || HIDDEN_CUSTOMER_DEFAULTS.city,
-      driverLicenseNumber: initialData?.driverLicenseNumber || "",
-      driverLicenseFile: initialData?.driverLicenseFile,
-    },
+    defaultValues: getCustomerFormValues(initialData),
     mode: "onChange",
   });
 
   // Hydrate/reset when navigating back with existing data
   useEffect(() => {
     if (initialData) {
-      form.reset({
-        fullName: initialData.fullName || HIDDEN_CUSTOMER_DEFAULTS.fullName,
-        lastName: initialData.lastName || "",
-        nin: initialData.nin || "",
-        email: initialData.email || "",
-        phone: initialData.phone || HIDDEN_CUSTOMER_DEFAULTS.phone,
-        bookingForCompany: initialData.bookingForCompany ?? false,
-        orgName: initialData.orgName || "",
-        orgNo: initialData.orgNo || "",
-        address: initialData.address || "",
-        postalCode: initialData.postalCode || "",
-        city: initialData.city || HIDDEN_CUSTOMER_DEFAULTS.city,
-        driverLicenseNumber: initialData.driverLicenseNumber || "",
-        driverLicenseFile: initialData.driverLicenseFile,
+      // Keep anything already typed/autofilled; only fill fields that are still empty.
+      const current = form.getValues();
+      const restored = getCustomerFormValues(initialData);
+      const merged = { ...restored };
+      (Object.keys(current) as (keyof CustomerData)[]).forEach((key) => {
+        const value = current[key];
+        if (value !== undefined && value !== null && value !== "") {
+          Object.assign(merged, { [key]: value });
+        }
       });
+      form.reset(merged);
       // Also hydrate local file preview state so dropzone shows the file name
       if (initialData.driverLicenseFile) {
         setLicenseFile(initialData.driverLicenseFile as File);
@@ -160,24 +173,20 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
   useEffect(() => {
     if (!bankIdVerified || !bankIdUser) return;
 
-    const derivedName = [bankIdUser.firstName, bankIdUser.lastName]
-      .filter(Boolean)
-      .join(" ")
-      .trim();
-    if (derivedName) form.setValue("fullName", derivedName);
-    if (bankIdUser.phoneNumber) form.setValue("phone", bankIdUser.phoneNumber);
-    if (bankIdUser.email && !form.getValues("email")) {
-      form.setValue("email", bankIdUser.email);
-    }
-    if (bankIdUser.address && !form.getValues("address")) {
-      form.setValue("address", bankIdUser.address);
-    }
-    if (bankIdUser.lastName && !form.getValues("lastName")) {
-      form.setValue("lastName", bankIdUser.lastName);
-    }
-    if (bankIdUser.nin && !form.getValues("nin")) {
-      form.setValue("nin", bankIdUser.nin);
-    }
+    const fillIfEmpty = (
+      name: "firstName" | "lastName" | "nin" | "phone" | "email" | "address",
+      value?: string
+    ) => {
+      if (value && !form.getValues(name)) {
+        form.setValue(name, value, { shouldValidate: true, shouldDirty: true });
+      }
+    };
+    fillIfEmpty("firstName", bankIdUser.firstName);
+    fillIfEmpty("lastName", bankIdUser.lastName);
+    fillIfEmpty("nin", bankIdUser.nin);
+    fillIfEmpty("phone", bankIdUser.phoneNumber);
+    fillIfEmpty("email", bankIdUser.email);
+    fillIfEmpty("address", bankIdUser.address);
   }, [bankIdVerified, bankIdUser, form]);
 
   const applyVerificationContractFromServer = (data: {
@@ -371,8 +380,12 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
     }).format(price);
   };
 
-  const watchedEmail = form.watch("email");
-  const bookingForCompany = form.watch("bookingForCompany");
+  const watchedValues = form.watch();
+  const watchedEmail = watchedValues.email;
+  const bookingForCompany = watchedValues.bookingForCompany;
+  const customerInfoComplete = isCustomerInfoComplete(watchedValues);
+  // A stale "pending" status (e.g. left in storage) must not block an already verified session.
+  const bankIdInProgress = !bankIdVerified && (isBankIDPending || bankIdStatus === "pending");
   const pdfActionsAllowed =
     serverContractSigned === true && Boolean(contractDocumentId || contractFileUrl);
 
@@ -494,7 +507,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
       });
       return;
     }
-    if (!/^\d{11}$/.test(nin)) {
+    if (!NIN_PATTERN.test(nin)) {
       form.setError("nin", { type: "manual", message: "National ID number must be 11 digits" });
       toast({ title: "Invalid national ID number", description: "National ID number must be 11 digits.", variant: "destructive" });
       return;
@@ -1232,14 +1245,22 @@ const uploadLicense = async (): Promise<string | null> => {
         }
       }
 
+      const firstName = data.firstName.trim();
+      const lastName = data.lastName.trim();
       const customerData: CustomerData = {
         ...data,
         bookingForCompany: data.bookingForCompany ?? false,
         orgName: data.bookingForCompany ? data.orgName?.trim() : undefined,
         orgNo: data.bookingForCompany ? data.orgNo?.trim() : undefined,
-        fullName: data.fullName || HIDDEN_CUSTOMER_DEFAULTS.fullName,
-        phone: data.phone || HIDDEN_CUSTOMER_DEFAULTS.phone,
-        city: initialData?.city || HIDDEN_CUSTOMER_DEFAULTS.city,
+        firstName,
+        lastName,
+        fullName: [firstName, lastName].filter(Boolean).join(" "),
+        nin: data.nin.trim(),
+        email: data.email.trim(),
+        phone: data.phone.trim(),
+        address: data.address.trim(),
+        postalCode: data.postalCode.trim(),
+        city: data.city.trim(),
         driverLicenseFile: licenseUrl ?? undefined,
         bankIdVerifiedAt:
           localStorage.getItem(STORAGE_KEYS.bankIdVerifiedAt) ?? new Date().toISOString(),
@@ -1342,7 +1363,7 @@ const uploadLicense = async (): Promise<string | null> => {
             disabled={isBankIDPending || isInitializing || bankIdVerified}
             className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-[#4e1f67] bg-gradient-to-r from-[#39134C] to-[#4A1A60] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(57,19,76,0.35)] transition-all hover:from-[#470D70] hover:to-[#5a1d7a] focus:outline-none focus:ring-2 focus:ring-[#6d2b8f]/60 focus:ring-offset-2 focus:ring-offset-[#232e33] disabled:cursor-not-allowed disabled:opacity-60 active:translate-y-[1px]"
           >
-            {isBankIDPending || bankIdStatus === "pending" ? (
+            {bankIdInProgress ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Starting BankID ...
@@ -1463,24 +1484,31 @@ const uploadLicense = async (): Promise<string | null> => {
                 Personal information
               </h3>
               <p className="mt-1 text-sm text-[#9eabb1]">Fill in your details to complete the booking</p>
+              {!bankIdVerified && (
+                <p className="mt-2 text-[12px] tracking-wide text-amber-200/80">
+                  Complete BankID verification above to fill in your personal information.
+                </p>
+              )}
             </div>
-            <div className="space-y-3">
+            {/* Native fieldset disables every control inside until BankID is verified. */}
+            <fieldset
+              disabled={!bankIdVerified}
+              className={cn("min-w-0 space-y-3", !bankIdVerified && "cursor-not-allowed opacity-60")}
+            >
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
                 <FormField
                   control={form.control}
-                  name="lastName"
-                  rules={{ required: "Last name is required" }}
+                  name="firstName"
+                  rules={{ validate: (v) => (typeof v === "string" && v.trim().length > 0) || "First name is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Last name <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">First name <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Input
-                            {...field}
-                            className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
-                            placeholder="Last name ..."
-                          />
-                        </div>
+                        <Input
+                          {...field}
+                          className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
+                          placeholder="First name ..."
+                        />
                       </FormControl>
                       <FormMessage className="text-red-500 mt-1" />
                     </FormItem>
@@ -1488,25 +1516,60 @@ const uploadLicense = async (): Promise<string | null> => {
                 />
                 <FormField
                   control={form.control}
+                  name="lastName"
+                  rules={{ validate: (v) => (typeof v === "string" && v.trim().length > 0) || "Last name is required" }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Last name <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
+                          placeholder="Last name ..."
+                        />
+                      </FormControl>
+                      <FormMessage className="text-red-500 mt-1" />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
+                <FormField
+                  control={form.control}
                   name="nin"
                   rules={{
                     required: "National ID number is required",
-                    pattern: {
-                      value: /^\d+$/,
-                      message: "National ID number may only contain digits",
-                    },
+                    pattern: { value: NIN_PATTERN, message: "National ID number must be 11 digits" },
                   }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">National ID number <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">National ID number (NIN) <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Input
-                            {...field}
-                            className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
-                            placeholder="11-digit national ID number"
-                          />
-                        </div>
+                        <Input
+                          {...field}
+                          className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
+                          placeholder="11-digit national ID number"
+                        />
+                      </FormControl>
+                      <FormMessage className="text-red-500 mt-1" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  rules={{ validate: (v) => (typeof v === "string" && v.trim().length > 0) || "Phone is required" }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Phone <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input
+                          type="tel"
+                          {...field}
+                          className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
+                          placeholder="+47 123 45 678"
+                        />
                       </FormControl>
                       <FormMessage className="text-red-500 mt-1" />
                     </FormItem>
@@ -1520,24 +1583,18 @@ const uploadLicense = async (): Promise<string | null> => {
                   name="email"
                   rules={{
                     required: "Email is required",
-                    pattern: {
-                      value:
-                        /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: "Invalid email address",
-                    },
+                    pattern: { value: EMAIL_PATTERN, message: "Invalid email address" },
                   }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-sm font-medium text-[#b1bdc3]">Email <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Input
-                            type="email"
-                            {...field}
-                            className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
-                            placeholder="name@example.com"
-                          />
-                        </div>
+                        <Input
+                          type="email"
+                          {...field}
+                          className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
+                          placeholder="name@example.com"
+                        />
                       </FormControl>
                       <FormMessage className="text-red-500 mt-1" />
                     </FormItem>
@@ -1545,19 +1602,17 @@ const uploadLicense = async (): Promise<string | null> => {
                 />
                 <FormField
                   control={form.control}
-                  name="address"
-                  rules={{ required: "Address is required" }}
+                  name="city"
+                  rules={{ validate: (v) => (typeof v === "string" && v.trim().length > 0) || "City is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Address <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">City <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Input
-                            {...field}
-                            className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
-                            placeholder="Street address ..."
-                          />
-                        </div>
+                        <Input
+                          {...field}
+                          className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
+                          placeholder="City ..."
+                        />
                       </FormControl>
                       <FormMessage className="text-red-500 mt-1" />
                     </FormItem>
@@ -1568,21 +1623,17 @@ const uploadLicense = async (): Promise<string | null> => {
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
                 <FormField
                   control={form.control}
-                  name="postalCode"
-                  rules={{
-                    required: "Postal code is required",
-                  }}
+                  name="address"
+                  rules={{ validate: (v) => (typeof v === "string" && v.trim().length > 0) || "Address is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Postal code <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Address <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Input
-                            {...field}
-                            className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
-                            placeholder="1234"
-                          />
-                        </div>
+                        <Input
+                          {...field}
+                          className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
+                          placeholder="Street address ..."
+                        />
                       </FormControl>
                       <FormMessage className="text-red-500 mt-1" />
                     </FormItem>
@@ -1590,19 +1641,17 @@ const uploadLicense = async (): Promise<string | null> => {
                 />
                 <FormField
                   control={form.control}
-                  name="driverLicenseNumber"
-                  rules={{ required: "Driver's licence number is required" }}
+                  name="postalCode"
+                  rules={{ validate: (v) => (typeof v === "string" && v.trim().length > 0) || "Postal code is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Driver's licence number <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="text-sm font-medium text-[#b1bdc3]">Postal code <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Input
-                            {...field}
-                            className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
-                            placeholder="Your driver's licence number ..."
-                          />
-                        </div>
+                        <Input
+                          {...field}
+                          className="mt-1 block h-9 w-full rounded-md border border-[#46555d] bg-[#1b2529] text-[#b1bdc3]"
+                          placeholder="1234"
+                        />
                       </FormControl>
                       <FormMessage className="text-red-500 mt-1" />
                     </FormItem>
@@ -1748,7 +1797,7 @@ const uploadLicense = async (): Promise<string | null> => {
                   </div>
                 )}
               </div>
-            </div>
+            </fieldset>
           </div>
 
        {SHOW_DRIVER_LICENSE_UPLOAD && (
@@ -1838,17 +1887,16 @@ const uploadLicense = async (): Promise<string | null> => {
           <Button
             type="submit"
             disabled={
-              isBankIDPending ||
-              bankIdStatus === "pending" ||
+              bankIdInProgress ||
               licenseStatus === "checking" ||
               !bankIdVerified ||
               licenseStatus !== "verified" ||
-              !form.formState.isValid
+              !customerInfoComplete
             }
             className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-5 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             size="lg"
           >
-            {isBankIDPending || bankIdStatus === "pending" ? (
+            {bankIdInProgress ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Verifying BankID ...

@@ -11,7 +11,7 @@ import { BookingDetails } from "./booking-details";
 import { CustomerForm } from "./customer-form";
 import { PaymentStep } from "./payment-step";
 import { ArrowLeft, Check, X } from "lucide-react";
-import { BookingData, BookingFlowProps, CustomerData } from "@/@types/data";
+import { BookingData, BookingFlowProps, CarData, CustomerData } from "@/@types/data";
 
 export const BookingDialog: React.FC<BookingFlowProps> = ({
   isOpen,
@@ -24,6 +24,12 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
   const [currentStep, setCurrentStep] = useState(1);
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
+  /** Vehicle being booked; starts as the one picked from the fleet and can be switched in step 1. */
+  const [activeCar, setActiveCar] = useState<CarData | null>(selectedCar);
+
+  useEffect(() => {
+    setActiveCar(selectedCar);
+  }, [selectedCar]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -53,6 +59,7 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
     setCurrentStep(1);
     setBookingData(null);
     setCustomerData(null);
+    setActiveCar(selectedCar);
     onClose();
   };
 
@@ -128,12 +135,13 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
           </div>
         </div>
 
-        <div className="max-h-[calc(90vh-120px)] overflow-y-auto px-8 pb-8 [scrollbar-color:#6b7280_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-500 [&::-webkit-scrollbar-track]:bg-transparent">
+        <div data-booking-scroll-container className="max-h-[calc(90vh-120px)] overflow-y-auto px-8 pb-8 [scrollbar-color:#6b7280_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-500 [&::-webkit-scrollbar-track]:bg-transparent">
           {/* <div className="bg-white shadow-sm p-6"> */}
-            {currentStep === 1 && selectedCar && (
+            {currentStep === 1 && activeCar && (
               <BookingDetails
-                car={selectedCar}
+                car={activeCar}
                 onComplete={handleBookingDetailsComplete}
+                onCarChange={setActiveCar}
                 initialData={bookingData || undefined}
               />
             )}

@@ -788,7 +788,7 @@ serve(async (req: Request): Promise<Response> => {
           price_data: {
             currency: "nok",
             product_data: {
-              name: `Car Rental - ${car.name}`,
+              name: `Prime Car - ${car.name}`,
               description: `Customer Email: ${p.customerEmail}     • Booking ID: ${booking.booking_number}`,
               images: car.image_url ? [car.image_url] : [],
             },
