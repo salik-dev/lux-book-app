@@ -213,11 +213,13 @@ export const BookingDetailsDialog: React.FC<BookingDetailsDialogProps> = ({
                     booking.decoration_ribbon && "Ribbon",
                     booking.decoration_red_carpets && "Red carpets",
                     (booking.decoration_driver_need ?? booking.with_driver) && "Driver requested",
-                    booking.seat_pricing_mode === "daily-basis"
-                      ? "Rental pricing: per day"
-                      : booking.seat_pricing_mode === "flat-rate"
-                        ? "Rental pricing: per hour"
-                        : false,
+                    booking.seat_pricing_mode === "monthly-basis"
+                      ? "Rental pricing: per month"
+                      : booking.seat_pricing_mode === "daily-basis"
+                        ? "Rental pricing: per day"
+                        : booking.seat_pricing_mode === "flat-rate"
+                          ? "Rental pricing: per hour"
+                          : false,
                   ].filter(Boolean) as string[];
 
                   if (preferences.length === 0) return null;

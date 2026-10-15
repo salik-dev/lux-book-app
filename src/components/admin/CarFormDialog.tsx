@@ -7,7 +7,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Loader2, X } from 'lucide-react';
+import { Plus, Loader2, X, Lock } from 'lucide-react';
+import { VehicleRegistrationLookup } from '@/components/admin/VehicleRegistrationLookup';
+import { formatPlate, type VehicleLookupResult } from '@/lib/vehicle-lookup-api';
+
+/** Postgres unique_violation (cars.registration_number). */
+const UNIQUE_VIOLATION = '23505';
 // Generate a unique filename using timestamp and random number
 const generateUniqueId = () => {
   return `img_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
@@ -15,6 +20,8 @@ const generateUniqueId = () => {
 
 
 import { Car } from '@/types/car';
+
+type BasicField = 'name' | 'brand' | 'model' | 'year';
 
 interface CarFormDialogProps {
   car?: Car;
@@ -31,6 +38,13 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  // Adding and editing both require verifying the vehicle against the Statens vegvesen register
+  // first. The verified (normalised) plate is what gets saved as `registration_number`.
+  const [verifiedPlate, setVerifiedPlate] = useState<string | null>(null);
+  const [autofilled, setAutofilled] = useState<Partial<Pick<Car, BasicField>> | null>(null);
+  const [lookupKey, setLookupKey] = useState(0);
+  const verified = verifiedPlate !== null;
+  const locked = !verified;
   const [formData, setFormData] = useState<Car>({
     name: car?.name || "",
     model: car?.model || "",
@@ -38,6 +52,7 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
     year: car?.year || new Date().getFullYear(),
     base_price_per_hour: car?.base_price_per_hour || 0,
     base_price_per_day: car?.base_price_per_day || 0,
+    base_price_per_month: car?.base_price_per_month ?? 0,
     deposit_amount: car?.deposit_amount || 0,
     included_km_per_day: car?.included_km_per_day || 0,
     extra_km_rate: car?.extra_km_rate || 0,
@@ -46,25 +61,68 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
     is_available: car?.is_available ?? true,
   });
 
+  const toFormData = (source: Car): Car => ({
+    id: source.id,
+    name: source.name,
+    model: source.model,
+    brand: source.brand,
+    year: source.year,
+    base_price_per_hour: source.base_price_per_hour,
+    base_price_per_day: source.base_price_per_day,
+    base_price_per_month: source.base_price_per_month ?? 0,
+    deposit_amount: source.deposit_amount || 0,
+    included_km_per_day: source.included_km_per_day,
+    extra_km_rate: source.extra_km_rate,
+    description: source.description || '',
+    image_url: source.image_url || '',
+    is_available: source.is_available,
+    registration_number: source.registration_number ?? null,
+  });
+
   useEffect(() => {
-    if (car) {
-      setFormData({
-        id: car.id,
-        name: car.name,
-        model: car.model,
-        brand: car.brand,
-        year: car.year,
-        base_price_per_hour: car.base_price_per_hour,
-        base_price_per_day: car.base_price_per_day,
-        deposit_amount: car.deposit_amount || 0,
-        included_km_per_day: car.included_km_per_day,
-        extra_km_rate: car.extra_km_rate,
-        description: car.description || '',
-        image_url: car.image_url || '',
-        is_available: car.is_available,
-      });
-    }
+    if (car) setFormData(toFormData(car));
   }, [car]);
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) {
+      // Every open starts from a fresh, locked lookup.
+      setVerifiedPlate(null);
+      setAutofilled(null);
+      setLookupKey((k) => k + 1);
+      // Editing: drop unsaved changes (including register values) so reopening shows the saved car.
+      if (car) setFormData(toFormData(car));
+    }
+  };
+
+  const handleVehicleVerified = ({ vehicle }: VehicleLookupResult) => {
+    // Year is only locked when the register actually has one; otherwise the admin enters it.
+    const filled: Partial<Pick<Car, BasicField>> = {
+      name: vehicle.name,
+      brand: vehicle.brand,
+      model: vehicle.model,
+      ...(vehicle.year !== null ? { year: vehicle.year } : {}),
+    };
+    setFormData((prev) => ({ ...prev, ...filled }));
+    setAutofilled(filled);
+    setVerifiedPlate(vehicle.registrationNumber);
+  };
+
+  /** Register-verified values can't be edited; change the plate to look up another car. */
+  const isFromRegister = (field: BasicField) => verified && autofilled?.[field] !== undefined;
+
+  const autofilledHint = (field: BasicField) =>
+    isFromRegister(field) && (
+      <span className="lux-fade-in ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-600">
+        <Lock className="h-2.5 w-2.5" />
+        From register
+      </span>
+    );
+
+  const basicFieldClass = (field: BasicField) =>
+    isFromRegister(field)
+      ? `${fieldClass} bg-emerald-50/60 border-emerald-300 text-gray-700 cursor-not-allowed focus-visible:ring-0 focus-visible:border-emerald-300`
+      : fieldClass;
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -161,6 +219,7 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (locked) return;
     setLoading(true);
 
     try {
@@ -171,12 +230,18 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
         year: formData.year,
         base_price_per_hour: formData.base_price_per_hour,
         base_price_per_day: formData.base_price_per_day,
+        // Optional: store null when not offered per month so the per-month option stays hidden.
+        base_price_per_month:
+          formData.base_price_per_month && formData.base_price_per_month > 0
+            ? formData.base_price_per_month
+            : null,
         deposit_amount: formData.deposit_amount ?? 0,
         included_km_per_day: formData.included_km_per_day,
         extra_km_rate: formData.extra_km_rate,
         description: formData.description,
         image_url: formData.image_url,
         is_available: formData.is_available,
+        registration_number: verifiedPlate,
       };
 
       let error;
@@ -194,6 +259,15 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
           .insert([carData]));
       }
 
+      if (error?.code === UNIQUE_VIOLATION) {
+        // Another admin saved a car with this plate after our lookup.
+        toast({
+          title: 'Already in your fleet',
+          description: `${formatPlate(verifiedPlate ?? '')} was just added to another vehicle. Each vehicle can only be added once.`,
+          variant: 'destructive',
+        });
+        return;
+      }
       if (error) throw error;
 
       toast({
@@ -201,7 +275,7 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
         description: `Car ${car?.id ? 'updated' : 'created'} successfully`,
       });
 
-      setOpen(false);
+      handleOpenChange(false);
       onCarSaved();
 
       // Reset form if creating new car
@@ -214,6 +288,7 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
           description: '',
           base_price_per_hour: 100,
           base_price_per_day: 800,
+          base_price_per_month: 0,
           deposit_amount: 0,
           included_km_per_day: 200,
           extra_km_rate: 5,
@@ -246,7 +321,7 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
   const fieldLabelClass = 'text-[11px] font-semibold text-gray-500';
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
+    <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
       <DialogPrimitive.Trigger asChild>
         {trigger || (
           <Button className="rounded-lg bg-[#e3c08d] text-white hover:bg-[#e3c08d]/80 hover:cursor-pointer transition-colors duration-500">
@@ -271,7 +346,9 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
                 {car?.id ? 'Edit Vehicle' : 'Add New Vehicle'}
               </DialogPrimitive.Title>
               <DialogPrimitive.Description className="mt-0.5 text-xs text-gray-400">
-                {car?.id ? 'Update the details for this vehicle.' : 'Fill in the details to add a vehicle to the fleet.'}
+                {car?.id
+                  ? 'Verify the registration number, then update the details.'
+                  : 'Verify the registration number, then complete the details.'}
               </DialogPrimitive.Description>
             </div>
             <DialogPrimitive.Close asChild>
@@ -286,6 +363,26 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
 
           <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
           <div className="sheet-scroll flex-1 min-h-0 overflow-y-auto px-6 py-4">
+            <VehicleRegistrationLookup
+              key={lookupKey}
+              carId={car?.id}
+              initialRegistrationNumber={car?.registration_number}
+              onVerified={handleVehicleVerified}
+              onInvalidated={() => setVerifiedPlate(null)}
+            />
+
+            {locked && (
+              <p className="lux-fade-in mt-4 flex items-center gap-1.5 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-[11px] text-gray-500">
+                <Lock className="h-3 w-3 shrink-0" />
+                Search a registration number above to unlock the rest of the form.
+              </p>
+            )}
+
+            <fieldset
+              disabled={locked}
+              aria-disabled={locked}
+              className={`min-w-0 transition-[opacity,filter] duration-500 ease-out pt-4 ${locked ? 'pointer-events-none select-none opacity-40 grayscale' : 'opacity-100'}`}
+            >
             {/* Image Upload */}
             <div className="space-y-2 pb-4 border-b border-gray-100">
               <Label className={sectionLabelClass}>Car Image</Label>
@@ -362,40 +459,43 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
               <Label className={sectionLabelClass}>Basic information</Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="name" className={fieldLabelClass}>Vehicle Name <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="name" className={fieldLabelClass}>Vehicle Name <span className="text-red-500">*</span>{autofilledHint('name')}</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     placeholder="e.g., BMW X7 Luxury"
                     required
-                    className={fieldClass}
+                    readOnly={isFromRegister('name')}
+                    className={basicFieldClass('name')}
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="brand" className={fieldLabelClass}>Brand <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="brand" className={fieldLabelClass}>Brand <span className="text-red-500">*</span>{autofilledHint('brand')}</Label>
                   <Input
                     id="brand"
                     value={formData.brand}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('brand', e.target.value)}
                     placeholder="e.g., BMW"
                     required
-                    className={fieldClass}
+                    readOnly={isFromRegister('brand')}
+                    className={basicFieldClass('brand')}
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="model" className={fieldLabelClass}>Model <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="model" className={fieldLabelClass}>Model <span className="text-red-500">*</span>{autofilledHint('model')}</Label>
                   <Input
                     id="model"
                     value={formData.model}
                     onChange={(e) => handleInputChange('model', e.target.value)}
                     placeholder="e.g., X7"
                     required
-                    className={fieldClass}
+                    readOnly={isFromRegister('model')}
+                    className={basicFieldClass('model')}
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="year" className={fieldLabelClass}>Year <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="year" className={fieldLabelClass}>Year <span className="text-red-500">*</span>{autofilledHint('year')}</Label>
                   <Input
                     id="year"
                     type="number"
@@ -404,7 +504,8 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
                     min="2010"
                     max={new Date().getFullYear() + 1}
                     required
-                    className={fieldClass}
+                    readOnly={isFromRegister('year')}
+                    className={basicFieldClass('year')}
                   />
                 </div>
               </div>
@@ -437,6 +538,19 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
                     min="0"
                     step="0.01"
                     required
+                    className={fieldClass}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="base_price_per_month" className={fieldLabelClass}>Price per Month (NOK)</Label>
+                  <Input
+                    id="base_price_per_month"
+                    type="number"
+                    value={formData.base_price_per_month ?? 0}
+                    onChange={(e) => handleInputChange('base_price_per_month', e.target.value ? parseFloat(e.target.value) : 0)}
+                    min="0"
+                    step="0.01"
+                    placeholder="Leave 0 if not offered per month"
                     className={fieldClass}
                   />
                 </div>
@@ -515,6 +629,7 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
                 className="h-5 w-9 hover:cursor-pointer transition-colors duration-300 data-[state=checked]:bg-[#e3c08d] data-[state=unchecked]:bg-gray-300"
               />
             </div>
+            </fieldset>
           </div>
 
           <div className="shrink-0 flex justify-end gap-3 px-6 py-3 border-t border-gray-100 bg-white">
@@ -522,13 +637,19 @@ export const CarFormDialog: React.FC<CarFormDialogProps> = ({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setOpen(false)}
+              onClick={() => handleOpenChange(false)}
               disabled={loading}
               className='rounded-lg border border-gray-300 bg-white text-gray-700 shadow-none hover:cursor-pointer hover:bg-gray-100 hover:text-gray-700 transition-colors duration-300 dark:bg-white dark:text-gray-700 dark:border-gray-300 dark:hover:bg-gray-100 dark:hover:text-gray-700'
             >
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={loading} className='bg-[#e3c08d] text-black hover:bg-[#e3c08d]/80 hover:cursor-pointer transition-colors duration-300 rounded-lg shadow-sm'>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={loading || locked}
+              title={locked ? 'Verify the registration number first' : undefined}
+              className='bg-[#e3c08d] text-black hover:bg-[#e3c08d]/80 hover:cursor-pointer transition-all duration-300 rounded-lg shadow-sm disabled:cursor-not-allowed'
+            >
               {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {car?.id ? 'Update Vehicle' : 'Add Vehicle'}
             </Button>

@@ -5,9 +5,9 @@ import { Button } from "./button"
 import { CarCardProps } from "../../@types/data"
 import defaultImg from '../../assets/luxury-car-showroom-dark-elegant.jpg'
 
-export function CarCard({ id, name='Luksusbil', image_url, description, base_price_per_day, base_price_per_hour, deposit_amount, included_km_per_day, extra_km_rate, is_available, onNavigateToBooking, onCarSelect }: CarCardProps) {
+export function CarCard({ id, name='Luksusbil', image_url, description, base_price_per_day, base_price_per_hour, base_price_per_month, deposit_amount, included_km_per_day, extra_km_rate, is_available, onNavigateToBooking, onCarSelect }: CarCardProps) {
   const [isInfoOpen, setIsInfoOpen] = useState(false)
-    
+
   const handleCarSelect = () => {
     onCarSelect({
       id,
@@ -15,6 +15,7 @@ export function CarCard({ id, name='Luksusbil', image_url, description, base_pri
       image_url,
       base_price_per_day,
       base_price_per_hour,
+      base_price_per_month: base_price_per_month ?? null,
       deposit_amount: deposit_amount ?? 0,
       included_km_per_day,
       extra_km_rate,
@@ -49,6 +50,12 @@ export function CarCard({ id, name='Luksusbil', image_url, description, base_pri
             <CalendarDays className="h-3 w-3 text-[#E3C08D] flex-shrink-0" />
             <span>per day: {base_price_per_day} pkr</span>
           </div>
+          {Number(base_price_per_month ?? 0) > 0 && (
+            <div className="flex items-center space-x-3 text-sm text-[#D6D3D1]">
+              <CalendarDays className="h-3 w-3 text-[#E3C08D] flex-shrink-0" />
+              <span>per month: {base_price_per_month} pkr</span>
+            </div>
+          )}
           <div className="flex items-center space-x-3 text-sm text-[#D6D3D1]">
             <LocateFixed className="h-3 w-3 text-[#E3C08D] flex-shrink-0" />
             <span>{included_km_per_day} km included per day</span>

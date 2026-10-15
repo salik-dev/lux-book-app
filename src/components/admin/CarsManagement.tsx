@@ -9,9 +9,11 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Search, Edit, Trash2, Image, Loader2, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft } from 'lucide-react';
+import { Plus, Search, Edit, Eye, Trash2, Image, Loader2, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CarFormDialog } from './CarFormDialog';
+import { RegistrationPlate } from './RegistrationPlate';
+import { VehiclePreviewSheet } from './VehiclePreviewSheet';
 import { getCarPlaceholder } from '@/utils/carPlaceholder';
 
 interface Car {
@@ -22,11 +24,13 @@ interface Car {
   year: number;
   base_price_per_hour: number;
   base_price_per_day: number;
+  base_price_per_month: number | null;
   deposit_amount: number | null;
   included_km_per_day: number | null;
   extra_km_rate: number | null;
   image_url?: string | null;
   is_available: boolean | null;  // Make this nullable
+  registration_number?: string | null;
   created_at: string;
 }
 
@@ -37,6 +41,10 @@ export const CarsManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
   const [searchTerm, setSearchTerm] = useState('');
+  // Kept after closing so the drawer still has content during its slide-out animation.
+  const [previewCar, setPreviewCar] = useState<Car | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const headerSlot = useAdminHeaderSlot();
 
   useEffect(() => {
     loadCars();
@@ -101,11 +109,19 @@ export const CarsManagement: React.FC = () => {
     }).format(price);
   };
 
+  // Plates are stored without spaces ("EN10257"), so "en 10257" should match too.
+  const plateTerm = searchTerm.toUpperCase().replace(/[\s-]+/g, '');
   const filteredCars = cars.filter(car =>
     car.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     car.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    car.model.toLowerCase().includes(searchTerm.toLowerCase())
+    car.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (plateTerm !== '' && (car.registration_number ?? '').includes(plateTerm))
   );
+
+  const openPreview = (car: Car) => {
+    setPreviewCar(car);
+    setPreviewOpen(true);
+  };
 
   // Add these calculations before the return statement
   const totalItems = filteredCars.length;
@@ -135,8 +151,6 @@ export const CarsManagement: React.FC = () => {
     );
   }
 
-  const headerSlot = useAdminHeaderSlot();
-
   return (
     <TooltipProvider>
     {headerSlot && createPortal(
@@ -144,7 +158,7 @@ export const CarsManagement: React.FC = () => {
         <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search vehicles..."
+            placeholder="Search vehicles or registration no..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 rounded-lg border-gray-200 bg-[#fafafa] transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-[#e3c08d]/50 focus-visible:border-[#e3c08d] focus-visible:bg-white"
@@ -186,17 +200,27 @@ export const CarsManagement: React.FC = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div>
-                      <div className="font-medium text-sm">{car.name}</div>
-                      <div className="text-xs text-gray-500 leading-tight">
-                        {car.brand} {car.model} ({car.year})
+                    <div className="space-y-1">
+                      <div>
+                        <div className="font-medium text-sm">{car.name}</div>
+                        <div className="text-xs text-gray-500 leading-tight">
+                          {car.brand} {car.model} ({car.year})
+                        </div>
                       </div>
+                      {car.registration_number ? (
+                        <RegistrationPlate value={car.registration_number} />
+                      ) : (
+                        <span className="inline-block text-[10px] italic text-gray-400">No registration no.</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="text-xs leading-tight space-y-0.5">
                       <div className="font-medium text-gray-900">{formatPrice(car.base_price_per_day)}/day</div>
                       <div className="text-gray-500">{formatPrice(car.base_price_per_hour)}/hour</div>
+                      {(car.base_price_per_month ?? 0) > 0 && (
+                        <div className="text-gray-500">{formatPrice(car.base_price_per_month ?? 0)}/month</div>
+                      )}
                       <div className="text-gray-500">Deposit: {formatPrice(car.deposit_amount ?? 0)}</div>
                     </div>
                   </TableCell>
@@ -220,6 +244,20 @@ export const CarsManagement: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openPreview(car)}
+                            aria-label={`Preview ${car.name}`}
+                            className="hover:cursor-pointer"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Preview register details</TooltipContent>
+                      </Tooltip>
                       <CarFormDialog
                         car={car}
                         onCarSaved={loadCars}
@@ -323,6 +361,7 @@ export const CarsManagement: React.FC = () => {
         )}
       </CardContent>
     </Card>
+    <VehiclePreviewSheet car={previewCar} open={previewOpen} onOpenChange={setPreviewOpen} />
     </TooltipProvider>
   );
 };

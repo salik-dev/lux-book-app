@@ -12,6 +12,7 @@ export interface CarCardProps {
   description: string;
   base_price_per_hour: number;
   base_price_per_day: number;
+  base_price_per_month?: number | null;
   deposit_amount?: number;
   included_km_per_day: number;
   extra_km_rate: number;
@@ -30,6 +31,7 @@ export interface CarData {
   description: string;
   base_price_per_hour: number;
   base_price_per_day: number;
+  base_price_per_month?: number | null;
   deposit_amount?: number;
   included_km_per_day: number;
   extra_km_rate: number;
@@ -37,7 +39,7 @@ export interface CarData {
   is_available: boolean;
 }
 
-export type SeatPricingMode = "flat-rate" | "daily-basis";
+export type SeatPricingMode = "flat-rate" | "daily-basis" | "monthly-basis";
 
 export interface BookingData {
   car: CarData;
@@ -93,6 +95,8 @@ export interface PaymentStepProps {
   bookingData: BookingData;
   customerData: CustomerData;
   onComplete: () => void;
+  /** Send the customer back to step 1 to pick other dates when the car is no longer available. */
+  onEditDates?: () => void;
 }
 
 

@@ -159,6 +159,7 @@ export const BookingDialog: React.FC<BookingFlowProps> = ({
                 bookingData={bookingData}
                 customerData={customerData}
                 onComplete={handleClose}
+                onEditDates={() => setCurrentStep(1)}
               />
             )}
           </div>

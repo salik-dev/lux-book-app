@@ -5,6 +5,7 @@ export interface AdminCarOption {
   model: string;
   base_price_per_hour: number;
   base_price_per_day: number;
+  base_price_per_month?: number | null;
   deposit_amount?: number | null;
   image_url: string | null;
   is_available: boolean;
@@ -12,6 +13,10 @@ export interface AdminCarOption {
 
 export interface AdminBookingPricing {
   durationHours: number;
+  /** Days charged (ceil of hours/24) — used for the daily/monthly duration label. */
+  rentalDays: number;
+  /** Whole 30-day months charged for monthly pricing (0 otherwise). */
+  rentalMonths: number;
   basePrice: number;
   deliveryFee: number;
   depositAmount: number;

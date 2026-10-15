@@ -10,10 +10,12 @@ interface VehicleSwitcherProps {
   selectedCar: CarData;
   onSelect: (car: CarData) => void;
   disabled?: boolean;
+  /** Car ids that are already booked/blocked for the selected dates — shown but not selectable. */
+  unavailableIds?: Set<string>;
 }
 
 const CAR_COLUMNS =
-  "id, name, model, brand, year, description, base_price_per_hour, base_price_per_day, deposit_amount, included_km_per_day, extra_km_rate, image_url, is_available";
+  "id, name, model, brand, year, description, base_price_per_hour, base_price_per_day, base_price_per_month, deposit_amount, included_km_per_day, extra_km_rate, image_url, is_available";
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("no-NO", {
@@ -22,7 +24,7 @@ const formatPrice = (price: number) =>
     minimumFractionDigits: 0,
   }).format(price);
 
-export const VehicleSwitcher: React.FC<VehicleSwitcherProps> = ({ selectedCar, onSelect, disabled }) => {
+export const VehicleSwitcher: React.FC<VehicleSwitcherProps> = ({ selectedCar, onSelect, disabled, unavailableIds }) => {
   const [open, setOpen] = useState(false);
   const [cars, setCars] = useState<CarData[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -73,7 +75,11 @@ export const VehicleSwitcher: React.FC<VehicleSwitcherProps> = ({ selectedCar, o
     );
   }, [cars, query]);
 
-  const isSelectable = (car: CarData) => car.is_available !== false;
+  // A car is selectable only if globally available AND free for the selected dates. The
+  // currently-selected car stays selectable so the picker never blocks its own value.
+  const isSelectable = (car: CarData) =>
+    car.is_available !== false &&
+    (String(car.id) === String(selectedCar.id) || !unavailableIds?.has(String(car.id)));
 
   // Reset search and point the highlight at the current vehicle each time the menu opens.
   useEffect(() => {
@@ -295,6 +301,13 @@ export const VehicleSwitcher: React.FC<VehicleSwitcherProps> = ({ selectedCar, o
                         <span className="mx-1.5 text-[#46555d]">·</span>
                         {formatPrice(Number(car.base_price_per_hour ?? 0))}
                         <span className="text-[#7f8d93]"> / hour</span>
+                        {Number(car.base_price_per_month ?? 0) > 0 && (
+                          <>
+                            <span className="mx-1.5 text-[#46555d]">·</span>
+                            {formatPrice(Number(car.base_price_per_month))}
+                            <span className="text-[#7f8d93]"> / month</span>
+                          </>
+                        )}
                       </p>
                     </div>
                     {isSelected ? (

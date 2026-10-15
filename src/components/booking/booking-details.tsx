@@ -8,6 +8,7 @@ import {
   MapPin,
   Check,
   Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { FormItem, FormLabel, FormMessage, FormField, FormControl } from "../ui/form";
@@ -28,6 +29,18 @@ import {
 import { cn } from "@/lib/utils";
 import { isPickupLeadTimeValid, MIN_PICKUP_LEAD_HOURS } from "@/lib/booking-time";
 import { VehicleSwitcher } from "./vehicle-switcher";
+import { calculateBookingPricing } from "@shared/booking-pricing";
+import { useUnavailableCarIds } from "@/lib/car-availability";
+
+/** This browser's own in-progress hold (so it never disables its own selected vehicle). */
+function readOwnBookingId(): string | null {
+  try {
+    const raw = localStorage.getItem("booking_request_state");
+    return raw ? (JSON.parse(raw) as { bookingId?: string })?.bookingId ?? null : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Fixed demo locations (Norway) — always applied to the booking. */
 const DEFAULT_PICKUP_LOCATION = "Karl Johans gate 1, 0154 Oslo";
@@ -207,6 +220,41 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
   const watchedValues = form.watch();
 
+  // "Per month" is only offered for vehicles that have a monthly rate set.
+  const monthlyAvailable = Number(car.base_price_per_month ?? 0) > 0;
+
+  // ...and only for rentals of at least ~1 month: it stays disabled until the chosen
+  // pickup → return span is 29 days or more.
+  const MONTHLY_MIN_DAYS = 29;
+  const monthlyRentalDays =
+    watchedValues.startDateTime instanceof Date &&
+    watchedValues.endDateTime instanceof Date &&
+    !isNaN(watchedValues.startDateTime.getTime()) &&
+    !isNaN(watchedValues.endDateTime.getTime())
+      ? (watchedValues.endDateTime.getTime() - watchedValues.startDateTime.getTime()) / 86_400_000
+      : 0;
+  const monthlyEligible = monthlyAvailable && monthlyRentalDays >= MONTHLY_MIN_DAYS;
+
+  // Fall back to daily if monthly was selected but is no longer eligible — i.e. the customer
+  // switched to a car without a monthly rate, or shortened the rental below 29 days.
+  useEffect(() => {
+    if (!monthlyEligible && form.getValues("seatPricingMode") === "monthly-basis") {
+      form.setValue("seatPricingMode", "daily-basis");
+    }
+  }, [monthlyEligible, form]);
+
+  // Disable vehicles already booked/blocked for the chosen pickup/return window.
+  const { unavailableIds } = useUnavailableCarIds(
+    watchedValues.startDateTime,
+    watchedValues.endDateTime,
+    readOwnBookingId(),
+  );
+
+  // Surface an already-booked conflict for the *selected* vehicle here in step 1, instead of only
+  // discovering it at the contract step (where the server creates the booking). This is a
+  // best-effort early check; create-booking remains authoritative.
+  const selectedCarUnavailable = unavailableIds.has(String(car.id));
+
   // Persist values when navigating back by resetting with initialData
   useEffect(() => {
     if (initialData) {
@@ -267,31 +315,23 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
       };
     }
 
-    // Total hours between end and start (minimum 1 hour)
-    const totalHours = Math.max(1, differenceInHours(end, start));
-    const totalDays = Math.ceil(totalHours / 24);
-
-    let basePrice = 0;
-    if (watchedValues.seatPricingMode === "daily-basis") {
-      basePrice = car.base_price_per_day ? car.base_price_per_day * totalDays : 0;
-    } else {
-      basePrice = car.base_price_per_hour ? car.base_price_per_hour * totalHours : 0;
-    }
-
-    const depositAmount = Number(car.deposit_amount ?? 0);
-    const subtotal = basePrice + deliveryFee + depositAmount;
-    const withDriver = Boolean(watchedValues.decorationDriverNeed);
-    // Driver surcharge applies to base price only (not deposit/delivery).
-    const driverSurcharge = withDriver ? basePrice * 0.25 : 0;
-    const totalPrice = subtotal + driverSurcharge;
+    // Same calculation the server uses when it creates the booking (create-booking).
+    const result = calculateBookingPricing({
+      car,
+      start,
+      end,
+      mode: watchedValues.seatPricingMode ?? "flat-rate",
+      withDriver: Boolean(watchedValues.decorationDriverNeed),
+      deliveryFee,
+    });
 
     return {
-      basePrice,
-      deliveryFee,
-      depositAmount,
-      driverSurcharge,
-      totalPrice,
-      duration: `${totalDays} ${totalDays === 1 ? "day" : "days"} (${totalHours} hours)`,
+      basePrice: result.basePrice,
+      deliveryFee: result.deliveryFee,
+      depositAmount: result.depositAmount,
+      driverSurcharge: result.driverSurcharge,
+      totalPrice: result.totalPrice,
+      duration: `${result.rentalDays} ${result.rentalDays === 1 ? "day" : "days"} (${result.rentalHours} hours)`,
     };
   };
 
@@ -306,21 +346,50 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
   };
 
   const checkCarAvailability = async (carId: string, startDateTime: Date, endDateTime: Date) => {
+    const startIso = startDateTime.toISOString();
+    const endIso = endDateTime.toISOString();
+    const nowIso = new Date().toISOString();
+
+    // Don't let this browser's own in-progress hold (created when it previously reached the
+    // payment step) count against it when the customer steps back and re-submits. The server
+    // supersedes it by key; here we just skip it so step 1 doesn't show a false "already booked".
+    let ownBookingId: string | null = null;
     try {
-      const { data: existingBookings, error } = await supabase
+      // Mirror of BOOKING_REQUEST_KEY in src/lib/booking-storage-keys.ts.
+      const raw = localStorage.getItem("booking_request_state");
+      if (raw) ownBookingId = (JSON.parse(raw) as { bookingId?: string })?.bookingId ?? null;
+    } catch {
+      ownBookingId = null;
+    }
+
+    try {
+      // Mirrors the server's create-booking conflict check (_shared/availability.ts) so a car
+      // that is already taken is caught here, at date selection, instead of later at the payment
+      // step: confirmed bookings, pending holds that haven't expired, and admin unavailability
+      // blocks. Boundaries are inclusive, so back-to-back bookings need a gap.
+      let bookingsQuery = supabase
         .from('bookings')
-        .select('*')
+        .select('id')
         .eq('car_id', carId)
-        .not('status', 'in', '("cancelled","completed")')
-        .or(
-          `and(status.eq.confirmed,start_datetime.lte.${endDateTime.toISOString()},end_datetime.gte.${startDateTime.toISOString()}),` +
-          `and(status.eq.pending,start_datetime.lte.${endDateTime.toISOString()},end_datetime.gte.${startDateTime.toISOString()})`
-        );
+        .lte('start_datetime', endIso)
+        .gte('end_datetime', startIso)
+        .or(`status.eq.confirmed,and(status.eq.pending,or(hold_expires_at.is.null,hold_expires_at.gt.${nowIso}))`);
+      if (ownBookingId) bookingsQuery = bookingsQuery.neq('id', ownBookingId);
 
-      console.log('existingBookings', existingBookings)
+      const [bookings, blocks] = await Promise.all([
+        bookingsQuery,
+        supabase
+          .from('car_unavailability')
+          .select('id')
+          .eq('car_id', carId)
+          .lte('start_datetime', endIso)
+          .gte('end_datetime', startIso)
+          .limit(1),
+      ]);
 
-      if (error) throw error;
-      return existingBookings.length === 0;
+      if (bookings.error) throw bookings.error;
+      if (blocks.error) throw blocks.error;
+      return (bookings.data?.length ?? 0) === 0 && (blocks.data?.length ?? 0) === 0;
     } catch (error) {
       console.error('Error checking car availability:', error);
       return false;
@@ -407,6 +476,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                   selectedCar={car}
                   onSelect={onCarChange}
                   disabled={form.formState.isSubmitting}
+                  unavailableIds={unavailableIds}
                 />
               )}
             </CardHeader>
@@ -429,6 +499,9 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                     <div className="flex gap-4 flex-wrap">
                       <p className="text-sm"><span className="font-semibold">Per hour: </span>{car.base_price_per_hour}</p>
                       <p className="text-sm"><span className="font-semibold">Per day: </span>{car.base_price_per_day}</p>
+                      {Number(car.base_price_per_month ?? 0) > 0 && (
+                        <p className="text-sm"><span className="font-semibold">Per month: </span>{car.base_price_per_month}</p>
+                      )}
                       <p className="text-sm"><span className="font-semibold">Deposit: </span>{car.deposit_amount ?? 0}</p>
                       <p className="text-sm"><span className="font-semibold">Incl. km: </span>{car.included_km_per_day}/day</p>
                     </div>
@@ -683,6 +756,20 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
             </CardContent>
           </Card>
 
+          {/* Early "already booked" warning for the selected vehicle + window. */}
+          {selectedCarUnavailable && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-md border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-300"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              <span>
+                {car.name} is already booked for the selected dates. Please choose other dates or switch to another
+                vehicle.
+              </span>
+            </div>
+          )}
+
           {/* Rental pricing preference */}
           <Card className="card-premium border border-[#46555d] bg-[#232e33] text-[#b1bdc3] shadow-sm">
             <CardHeader className="space-y-1 pb-2">
@@ -691,40 +778,56 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 Rental pricing
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="pt-0 space-y-2">
               <div className="flex flex-col gap-2 rounded-md border border-[#46555d] bg-[#1b2529] p-3 sm:flex-row sm:items-center sm:gap-6">
                 {(
                   [
                     { value: "flat-rate" as const, label: "Per hour" },
                     { value: "daily-basis" as const, label: "Per day" },
+                    ...(monthlyAvailable ? [{ value: "monthly-basis" as const, label: "Per month" }] : []),
                   ] as const
-                ).map((option) => (
-                  <FormField
-                    key={option.value}
-                    control={form.control}
-                    name="seatPricingMode"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2 space-y-0">
-                        <FormControl>
-                          <input
-                            type="radio"
-                            name="seatPricingMode"
-                            checked={field.value === option.value}
-                            onChange={() => {
-                              setPricingModeTouched(true);
-                              field.onChange(option.value);
-                            }}
-                            className="h-3.5 w-3.5 shrink-0 accent-[#E3C08D]"
-                          />
-                        </FormControl>
-                        <FormLabel className="!mt-0 cursor-pointer font-normal text-[#b1bdc3]">
-                          {option.label}
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                ))}
+                ).map((option) => {
+                  const optionDisabled = option.value === "monthly-basis" && !monthlyEligible;
+                  return (
+                    <FormField
+                      key={option.value}
+                      control={form.control}
+                      name="seatPricingMode"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center gap-2 space-y-0">
+                          <FormControl>
+                            <input
+                              type="radio"
+                              name="seatPricingMode"
+                              checked={field.value === option.value}
+                              disabled={optionDisabled}
+                              onChange={() => {
+                                if (optionDisabled) return;
+                                setPricingModeTouched(true);
+                                field.onChange(option.value);
+                              }}
+                              className="h-3.5 w-3.5 shrink-0 accent-[#E3C08D] disabled:cursor-not-allowed"
+                            />
+                          </FormControl>
+                          <FormLabel
+                            className={cn(
+                              "!mt-0 font-normal text-[#b1bdc3]",
+                              optionDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+                            )}
+                          >
+                            {option.label}
+                          </FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  );
+                })}
               </div>
+              {monthlyAvailable && !monthlyEligible && (
+                <p className="text-xs text-[#9aa8ae]">
+                  Per month is available for rentals of {MONTHLY_MIN_DAYS} days or more.
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -780,7 +883,9 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           </Card>
           <Button
             type="submit"
-            className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-black py-5 text-base font-medium shadow-lg hover:shadow-xl hover:text-white transition-all duration-300 hover:cursor-pointer"
+            disabled={selectedCarUnavailable}
+            title={selectedCarUnavailable ? "This vehicle is already booked for the selected dates." : undefined}
+            className="w-full bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-black py-5 text-base font-medium shadow-lg hover:shadow-xl hover:text-white transition-all duration-300 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             size="lg"
           >
             Continue

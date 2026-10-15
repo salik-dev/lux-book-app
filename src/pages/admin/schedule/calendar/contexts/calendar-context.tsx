@@ -4,6 +4,9 @@ import type { Dispatch, SetStateAction } from "react";
 import type { IEvent, IUser, ICalendarCar } from "@/pages/admin/schedule/calendar/interfaces";
 import type { TBadgeVariant, TCalendarView, TVisibleHours, TWorkingHours } from "@/pages/admin/schedule/calendar/types";
 
+/** Booking-status filter for the car calendar ("all" = no filtering). */
+export type TBookingStatusFilter = "all" | "pending" | "confirmed" | "active" | "completed";
+
 // Optional handlers wired up by the car-availability container. They are
 // undefined in the generic/demo usage of the calendar.
 export interface ICarCalendarActions {
@@ -23,6 +26,8 @@ interface ICalendarContext extends ICarCalendarActions {
   setSelectedDate: (date: Date | undefined) => void;
   selectedUserId: IUser["id"] | "all";
   setSelectedUserId: (userId: IUser["id"] | "all") => void;
+  selectedStatus: TBookingStatusFilter;
+  setSelectedStatus: (status: TBookingStatusFilter) => void;
   badgeVariant: TBadgeVariant;
   setBadgeVariant: (variant: TBadgeVariant) => void;
   users: IUser[];
@@ -73,6 +78,7 @@ export function CalendarProvider({
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedUserId, setSelectedUserId] = useState<IUser["id"] | "all">("all");
+  const [selectedStatus, setSelectedStatus] = useState<TBookingStatusFilter>("all");
 
   // This localEvents doesn't need to exists in a real scenario.
   // It's used here just to simulate the update of the events.
@@ -99,6 +105,8 @@ export function CalendarProvider({
         setSelectedDate: handleSelectDate,
         selectedUserId,
         setSelectedUserId,
+        selectedStatus,
+        setSelectedStatus,
         badgeVariant,
         setBadgeVariant,
         users,

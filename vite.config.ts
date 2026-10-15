@@ -46,6 +46,8 @@ export default defineConfig({
       '@radix-ui/react-alert-dialog': '@radix-ui/react-alert-dialog',
       '@radix-ui/react-accordion': '@radix-ui/react-accordion',
       '@': path.resolve(__dirname, './src'),
+      // Runtime-agnostic modules shared with the Supabase edge functions (e.g. pricing).
+      '@shared': path.resolve(__dirname, './supabase/functions/_shared'),
     },
   },
     build: {

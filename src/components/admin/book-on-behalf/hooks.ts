@@ -62,7 +62,7 @@ export function useAvailableCars(enabled: boolean) {
     (async () => {
       const { data, error } = await supabase
         .from("cars")
-        .select("id, name, brand, model, base_price_per_hour, base_price_per_day, image_url, is_available, deposit_amount")
+        .select("id, name, brand, model, base_price_per_hour, base_price_per_day, base_price_per_month, image_url, is_available, deposit_amount")
         .eq("is_available", true)
         .order("name");
 
@@ -118,6 +118,20 @@ export function useAdminCreateBooking() {
 }
 
 /**
+ * Sends the Stripe invoice for an already-created booking (the admin "book on behalf"
+ * contract flow creates the booking first via create-booking + booking-contract). Uses
+ * the authenticated admin client so admin-create-booking can authorize the caller.
+ */
+export async function adminSendInvoice(
+  bookingId: string,
+  language: "en" | "no",
+): Promise<CreateBookingResponse> {
+  const res = await supabase.functions.invoke("admin-create-booking", { body: { bookingId, language } });
+  if (res.error) throw await extractEdgeError(res.error, res.data);
+  return res.data as CreateBookingResponse;
+}
+
+/**
  * Fast client-side precheck used by the Details -> Next button.
  * Mirrors backend overlap semantics for statuses that reserve a car.
  */
@@ -137,7 +151,19 @@ export async function precheckCarAvailability(params: {
     return { ok: false, reason: "Selected car is not available." };
   }
 
-  const { data: overlap, error: overlapErr } = await supabase
+  // This browser's own in-progress hold (created when the admin reached the Review step)
+  // must not count against itself when stepping back and forth. The Review step supersedes
+  // it by key; here we just exclude it so the precheck doesn't flag a false "already booked".
+  let ownBookingId: string | null = null;
+  try {
+    // Mirror of ADMIN_REQUEST_KEY in ./use-admin-contract.ts.
+    const raw = localStorage.getItem("admin_booking_request_state");
+    if (raw) ownBookingId = (JSON.parse(raw) as { bookingId?: string })?.bookingId ?? null;
+  } catch {
+    ownBookingId = null;
+  }
+
+  let overlapQuery = supabase
     .from("bookings")
     .select("id")
     .eq("car_id", params.carId)
@@ -146,6 +172,9 @@ export async function precheckCarAvailability(params: {
     .lt("start_datetime", params.endDateTimeIso)
     .gt("end_datetime", params.startDateTimeIso)
     .limit(1);
+  if (ownBookingId) overlapQuery = overlapQuery.neq("id", ownBookingId);
+
+  const { data: overlap, error: overlapErr } = await overlapQuery;
 
   if (overlapErr) return { ok: false, reason: overlapErr.message };
   if (overlap && overlap.length > 0) {
@@ -162,18 +191,24 @@ export function computePricing(
   car: AdminCarOption | null,
   deliveryFee: number,
   withDriver = false,
-  pricingMode?: "flat-rate" | "daily-basis"
+  pricingMode?: "flat-rate" | "daily-basis" | "monthly-basis"
 ): AdminBookingPricing | null {
   if (!start || !end || !car) return null;
   const ms = end.getTime() - start.getTime();
   if (ms <= 0) return null;
   const hours = Math.max(1, Math.ceil(ms / (1000 * 60 * 60)));
+  const days = Math.ceil(hours / 24);
 
-  const useDaily = pricingMode ? pricingMode === "daily-basis" : hours >= 24;
+  // Mirrors the server's calculateBookingPricing (_shared/booking-pricing.ts).
+  const mode = pricingMode ?? (hours >= 24 ? "daily-basis" : "flat-rate");
   let basePrice: number;
-  if (useDaily) {
-    const days = Math.ceil(hours / 24);
+  let rentalMonths = 0;
+  if (mode === "daily-basis") {
     basePrice = days * Number(car.base_price_per_day);
+  } else if (mode === "monthly-basis") {
+    rentalMonths = Math.floor(days / 30);
+    const leftoverDays = days - rentalMonths * 30;
+    basePrice = rentalMonths * Number(car.base_price_per_month ?? 0) + leftoverDays * Number(car.base_price_per_day);
   } else {
     basePrice = hours * Number(car.base_price_per_hour);
   }
@@ -187,6 +222,8 @@ export function computePricing(
 
   return {
     durationHours: hours,
+    rentalDays: days,
+    rentalMonths,
     basePrice: round2(basePrice),
     deliveryFee: round2(deliveryFee || 0),
     depositAmount,

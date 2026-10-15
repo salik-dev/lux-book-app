@@ -1,4 +1,4 @@
-project_id = "nagzgmnsaiyyzmpzkiey"
+project_id = "tcnemhaocanqvhimvuon"
 
 [functions.create-payment]
 verify_jwt = true
@@ -22,4 +22,24 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.vegvesen-license-check]
+verify_jwt = false
+
+# Booking creation with server-side pricing (signed-in customers only).
+[functions.create-booking]
+verify_jwt = true
+
+# Contract API: PDF generation + Idura signing. Bundles the template and font.
+[functions.booking-contract]
+verify_jwt = true
+static_files = [
+  "./functions/_shared/contract/rental-agreement-en.template.pdf",
+  "./functions/_shared/contract/fonts/Arimo-Regular.ttf",
+]
+
+# Admin fleet form: Statens vegvesen vehicle register lookup (admin-only).
+[functions.vehicle-lookup]
+verify_jwt = true
+
+# Idura calls this directly; requests are authenticated by HMAC signature instead.
+[functions.idura-webhook]
 verify_jwt = false

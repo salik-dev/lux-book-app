@@ -70,7 +70,7 @@ export function useCarCalendarData(enabled = true): CarCalendarData {
       const [carsRes, bookingsRes, blocksRes] = await Promise.all([
         supabase
           .from("cars")
-          .select("id, name, brand, model, image_url, is_available, base_price_per_hour, base_price_per_day")
+          .select("id, name, brand, model, image_url, is_available, base_price_per_hour, base_price_per_day, base_price_per_month")
           .order("name"),
         supabase
           .from("bookings")

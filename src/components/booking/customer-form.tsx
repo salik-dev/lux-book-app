@@ -459,32 +459,10 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ bookingData, onCompl
           if (row.contract_file_path) {
             localStorage.setItem(STORAGE_KEYS.contractFileUrl, row.contract_file_path);
           }
-          return;
         }
-
-        const { data, error } = await supabase
-          .from("bookings")
-          .select("contract_signed_at, contract_file_path, customer:customers!inner(email)")
-          .eq("customer.email", watchedEmail)
-          .not("contract_signed_at", "is", null)
-          .order("contract_signed_at", { ascending: false })
-          .limit(1);
-
-        if (error) throw error;
-        if (data && data.length > 0) {
-          const row = data[0] as { contract_signed_at: string | null; contract_file_path: string | null };
-          const signedAt = row.contract_signed_at ?? new Date().toISOString();
-          setContractStatus("existing");
-          setServerContractSigned(true);
-          localStorage.setItem(STORAGE_KEYS.bankContractStatus, "true");
-          setContractSignedAt(signedAt);
-          setContractFileUrl(row.contract_file_path);
-          localStorage.setItem(STORAGE_KEYS.contractStatus, "existing");
-          localStorage.setItem(STORAGE_KEYS.contractSignedAt, signedAt);
-          if (row.contract_file_path) {
-            localStorage.setItem(STORAGE_KEYS.contractFileUrl, row.contract_file_path);
-          }
-        }
+        // Note: the per-booking rental agreement (Idura) is tracked in `booking_contracts`,
+        // not on `bookings`. The legacy "already signed on a previous booking" lookup against
+        // `bookings.contract_signed_at` was removed — those columns don't exist on that table.
       } catch (error) {
         console.error("Failed checking previous contract:", error);
       } finally {
@@ -1294,7 +1272,24 @@ const uploadLicense = async (): Promise<string | null> => {
       bookingData.decorationDriverNeed && "Driver requested",
     ].filter(Boolean) as string[]
   );
-  
+
+  // Mode-aware duration label for the summary (months + leftover days when billed per month).
+  const summaryTotalDays = Math.ceil(
+    (new Date(bookingData.endDateTime).getTime() - new Date(bookingData.startDateTime).getTime()) /
+      (1000 * 60 * 60 * 24),
+  );
+  const summaryDurationText = (() => {
+    if (bookingData.seatPricingMode === "monthly-basis") {
+      const months = Math.floor(summaryTotalDays / 30);
+      const days = summaryTotalDays - months * 30;
+      const parts: string[] = [];
+      if (months > 0) parts.push(`${months} ${months === 1 ? "month" : "months"}`);
+      if (days > 0) parts.push(`${days} ${days === 1 ? "day" : "days"}`);
+      return parts.join(", ") || `${summaryTotalDays} ${summaryTotalDays === 1 ? "day" : "days"}`;
+    }
+    return `${summaryTotalDays} ${summaryTotalDays === 1 ? "day" : "days"}`;
+  })();
+
   return (
     <div className="space-y-6">
       {/* Booking Summary */}
@@ -1341,7 +1336,7 @@ const uploadLicense = async (): Promise<string | null> => {
               Estimated total
             </div>
             <div className="mt-1 text-xs text-[#9eabb1]">
-              {Math.ceil((new Date(bookingData.endDateTime).getTime() - new Date(bookingData.startDateTime).getTime()) / (1000 * 60 * 60 * 24))} days
+              {summaryDurationText}
             </div>
           </div>
         </div>

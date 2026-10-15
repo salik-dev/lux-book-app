@@ -34,12 +34,12 @@ import { cn } from "@/lib/utils";
 import { isPickupLeadTimeValid, MIN_PICKUP_LEAD_HOURS } from "@/lib/booking-time";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  adminSendInvoice,
   computePricing,
   formatNOK,
   parseDateTimeLocal,
   precheckCarAvailability,
   toDateTimeLocalInputValue,
-  useAdminCreateBooking,
   useAvailableCars,
   useVerifyDriverLicense,
 } from "./hooks";
@@ -47,6 +47,19 @@ import type {
   AdminCarOption,
   CreateBookingResponse,
 } from "./types";
+import { useAdminBookingContract, type AdminContractInput } from "./use-admin-contract";
+import { AdminContractCard } from "./AdminContractCard";
+import { useUnavailableCarIds } from "@/lib/car-availability";
+
+/** This browser's own in-progress admin hold (so it never disables its own selected vehicle). */
+function readOwnAdminBookingId(): string | null {
+  try {
+    const raw = localStorage.getItem("admin_booking_request_state");
+    return raw ? (JSON.parse(raw) as { bookingId?: string })?.bookingId ?? null : null;
+  } catch {
+    return null;
+  }
+}
 
 // ─── Brand tokens ─────────────────────────────────────────────────────────────
 const GOLD        = "#e3c08d";
@@ -293,14 +306,13 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
   const [deliveryFeeInput, setDeliveryFeeInput] = useState("0");
   const [decorationRequired, setDecorationRequired] = useState(false);
   const [withDriver, setWithDriver] = useState(false);
-  const [pricingMode, setPricingMode] = useState<"flat-rate" | "daily-basis">("flat-rate");
+  const [pricingMode, setPricingMode] = useState<"flat-rate" | "daily-basis" | "monthly-basis">("flat-rate");
   const [pricingModeTouched, setPricingModeTouched] = useState(false);
 
   // Step 3
   const [language, setLanguage] = useState<"en" | "no">("en");
-
-  const { createBooking, loading: creating, data: createdBooking, reset: resetMutation } =
-    useAdminCreateBooking();
+  const [invoiceSending, setInvoiceSending] = useState(false);
+  const [invoiceResult, setInvoiceResult] = useState<CreateBookingResponse | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -333,10 +345,11 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
         setPricingMode("flat-rate");
         setPricingModeTouched(false);
         setLanguage("en");
-        resetMutation();
+        setInvoiceSending(false);
+        setInvoiceResult(null);
       }, 350);
     }
-  }, [open, defaultStart, defaultEnd, resetMutation]);
+  }, [open, defaultStart, defaultEnd]);
 
   // Until the admin picks a pricing mode explicitly, keep it in sync with the
   // duration-based rule (<=24h => hourly, otherwise daily).
@@ -359,6 +372,19 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
 
   const start = parseDateTimeLocal(startLocal);
   const end = parseDateTimeLocal(endLocal);
+  // "Per month" is only offered for vehicles that have a monthly rate set...
+  const monthlyAvailable = Number(selectedCar?.base_price_per_month ?? 0) > 0;
+  // ...and only for rentals of at least ~1 month (29 days). It stays disabled until then.
+  const MONTHLY_MIN_DAYS = 29;
+  const monthlyEligible =
+    monthlyAvailable && !!start && !!end &&
+    end.getTime() - start.getTime() >= MONTHLY_MIN_DAYS * 86_400_000;
+  // Fall back to daily if monthly was picked but is no longer eligible (car without a monthly
+  // rate, or the window was shortened below 29 days) so pricing never uses a 0 monthly rate.
+  useEffect(() => {
+    if (pricingMode === "monthly-basis" && !monthlyEligible) setPricingMode("daily-basis");
+  }, [pricingMode, monthlyEligible]);
+
   const pricing = useMemo(
     () => computePricing(start, end, selectedCar, deliveryFee, withDriver, pricingMode),
     [start, end, selectedCar, deliveryFee, withDriver, pricingMode]
@@ -372,7 +398,8 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
     customerEmail.trim().length > 0 &&
     customerPhone.trim().length > 0 &&
     customerAddress.trim().length > 0 &&
-    customerPostalCode.trim().length > 0;
+    customerPostalCode.trim().length > 0 &&
+    customerCity.trim().length > 0; // create-booking requires a city on the contract
   const canAdvanceFrom1 =
     customerDetailsFilled &&
     licenseStatus === "verified" &&
@@ -387,6 +414,51 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
     step === 2 ? canAdvanceFrom2 : true;
 
   const isLastStep = step === 3;
+
+  // Rental-agreement contract for the Review step. Keyed on the raw string inputs so the
+  // object identity only changes when a field actually changes (start/end are re-parsed
+  // inside to avoid new Date() identities on every render).
+  const contractInput: AdminContractInput = useMemo(() => {
+    const s = parseDateTimeLocal(startLocal);
+    const e = parseDateTimeLocal(endLocal);
+    return {
+      carId: selectedCar?.id ?? "",
+      startDateTime: s ? s.toISOString() : "",
+      endDateTime: e ? e.toISOString() : "",
+      seatPricingMode: pricingMode,
+      pickupLocation: pickupLocation.trim(),
+      deliveryLocation: deliveryLocation.trim() || null,
+      decorationRequired,
+      withDriver,
+      customer: {
+        firstName: customerFullName.trim(),
+        lastName: customerLastName.trim(),
+        nin: customerNin,
+        email: customerEmail.trim(),
+        phone: customerPhone.trim(),
+        address: customerAddress.trim(),
+        postalCode: customerPostalCode.trim(),
+        city: customerCity.trim(),
+        bookingForCompany,
+        orgName: bookingForCompany ? orgName.trim() || null : null,
+        orgNo: bookingForCompany ? orgNo.trim() || null : null,
+      },
+    };
+  }, [
+    selectedCar?.id, startLocal, endLocal, pricingMode, pickupLocation, deliveryLocation,
+    decorationRequired, withDriver, customerFullName, customerLastName, customerNin, customerEmail,
+    customerPhone, customerAddress, customerPostalCode, customerCity, bookingForCompany, orgName, orgNo,
+  ]);
+
+  const contractEnabled = step === 3 && canAdvanceFrom1 && canAdvanceFrom2;
+  const contractState = useAdminBookingContract(contractInput, contractEnabled);
+
+  // Vehicles already booked/blocked for the selected window — disabled in the step-2 picker.
+  const { unavailableIds: bookedCarIds } = useUnavailableCarIds(start, end, readOwnAdminBookingId());
+  // Drop a selection that becomes unavailable after the dates change.
+  useEffect(() => {
+    if (carId && bookedCarIds.has(carId)) setCarId("");
+  }, [carId, bookedCarIds]);
 
   function goNext() {
     setDirection("forward");
@@ -428,61 +500,47 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
   }
 
   async function handleSubmit() {
-    if (!canAdvanceFrom1 || !selectedCar || !start || !end || !pricing) return;
-    try {
-      const res = await createBooking({
-        customerFullName: customerFullName.trim(),
-        customerLastName: customerLastName.trim(),
-        customerNin,
-        customerEmail: customerEmail.trim(),
-        customerPhone: customerPhone.trim(),
-        customerAddress: customerAddress.trim(),
-        customerPostalCode: customerPostalCode.trim(),
-        customerCity: customerCity.trim() || null,
-        licenseVerified: licenseStatus === "verified",
-        licenseCategories,
-        carId: selectedCar.id,
-        startDateTime: start.toISOString(),
-        endDateTime: end.toISOString(),
-        pickupLocation: pickupLocation.trim(),
-        deliveryLocation: deliveryLocation.trim() || null,
-        deliveryFee: pricing.deliveryFee,
-        bookingForCompany,
-        orgName: bookingForCompany ? orgName.trim() || null : null,
-        orgNo: bookingForCompany ? orgNo.trim() || null : null,
-        decorationRequired,
-        withDriver,
-        basePrice: pricing.basePrice,
-        totalPrice: pricing.totalPrice,
-        vatAmount: pricing.vatAmount,
-        language,
+    // The booking was already created by the contract step (create-booking); the final
+    // action just bills + emails the customer for that same booking.
+    const bookingId = contractState.booking?.bookingId;
+    if (!bookingId) {
+      toast({
+        title: "Contract not ready",
+        description: "The rental agreement is still being prepared. Please wait a moment and try again.",
+        variant: "destructive",
       });
+      return;
+    }
 
-      // Safety net: persist organization fields client-side as well, so values are
-      // saved even if the deployed edge function is still on an older version.
-      const { error: orgPatchErr } = await supabase
-        .from("bookings")
-        .update({
-          org_name: bookingForCompany ? orgName.trim() || null : null,
-          org_no: bookingForCompany ? orgNo.trim() || null : null,
-        })
-        .eq("id", res.bookingId);
-      if (orgPatchErr) {
-        console.warn("Failed to persist organization fields on client fallback:", orgPatchErr.message);
+    setInvoiceSending(true);
+    try {
+      const res = await adminSendInvoice(bookingId, language);
+
+      // Persist organization fields (the guest create-booking path stores them from the
+      // contract request, but keep this safety net for older deployments).
+      if (bookingForCompany) {
+        const { error: orgPatchErr } = await supabase
+          .from("bookings")
+          .update({ org_name: orgName.trim() || null, org_no: orgNo.trim() || null })
+          .eq("id", res.bookingId);
+        if (orgPatchErr) console.warn("Failed to persist organization fields:", orgPatchErr.message);
       }
 
       toast({
-        title: "Booking created",
+        title: "Invoice sent",
         description: `${res.bookingNumber} • invoice email sent to ${customerEmail.trim()}`,
       });
+      setInvoiceResult(res);
       onBookingCreated?.(res);
       setStep(4);
     } catch (err) {
       toast({
-        title: "Failed to create booking",
+        title: "Failed to send invoice",
         description: err instanceof Error ? err.message : "Unknown error",
         variant: "destructive",
       });
+    } finally {
+      setInvoiceSending(false);
     }
   }
 
@@ -566,6 +624,7 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                   carsLoading={carsLoading}
                   carId={carId}
                   setCarId={setCarId}
+                  disabledCarIds={bookedCarIds}
                   startLocal={startLocal}
                   setStartLocal={setStartLocal}
                   endLocal={endLocal}
@@ -584,29 +643,39 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                   setWithDriver={setWithDriver}
                   pricingMode={pricingMode}
                   setPricingMode={(v) => { setPricingModeTouched(true); setPricingMode(v); }}
+                  monthlyAvailable={monthlyAvailable}
+                  monthlyEligible={monthlyEligible}
+                  monthlyMinDays={MONTHLY_MIN_DAYS}
                   pricing={pricing}
                 />
               )}
               {step === 3 && selectedCar && start && end && pricing && (
-                <ReviewStep
-                  customerFullName={customerFullName}
-                  customerLastName={customerLastName}
-                  customerEmail={customerEmail}
-                  customerPhone={customerPhone}
-                  licenseCategories={licenseCategories}
-                  car={selectedCar}
-                  start={start}
-                  end={end}
-                  pickupLocation={pickupLocation}
-                  deliveryLocation={deliveryLocation}
-                  decorationRequired={decorationRequired}
-                  withDriver={withDriver}
-                  pricing={pricing}
-                />
+                <div className="space-y-3">
+                  <AdminContractCard
+                    state={contractState}
+                    customerEmail={customerEmail.trim()}
+                    onEditDates={() => { setDirection("back"); setStep(2); }}
+                  />
+                  <ReviewStep
+                    customerFullName={customerFullName}
+                    customerLastName={customerLastName}
+                    customerEmail={customerEmail}
+                    customerPhone={customerPhone}
+                    licenseCategories={licenseCategories}
+                    car={selectedCar}
+                    start={start}
+                    end={end}
+                    pickupLocation={pickupLocation}
+                    deliveryLocation={deliveryLocation}
+                    decorationRequired={decorationRequired}
+                    withDriver={withDriver}
+                    pricing={pricing}
+                  />
+                </div>
               )}
-              {step === 4 && createdBooking && (
+              {step === 4 && invoiceResult && (
                 <SuccessStep
-                  booking={createdBooking}
+                  booking={invoiceResult}
                   customerEmail={customerEmail}
                   language={language}
                 />
@@ -630,12 +699,12 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                 {/* Back — disabled on step 1 */}
                 <button
                   type="button"
-                  disabled={step === 1 || creating || checkingAvailability}
+                  disabled={step === 1 || invoiceSending || checkingAvailability}
                   onClick={goBack}
                   className={cn(
                     "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-150",
                     "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
-                    (step === 1 || creating) && "opacity-30 pointer-events-none"
+                    (step === 1 || invoiceSending) && "opacity-30 pointer-events-none"
                   )}
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
@@ -646,12 +715,12 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                 {isLastStep ? (
                   <GoldButton
                     onClick={handleSubmit}
-                    disabled={creating}
+                    disabled={invoiceSending || !contractState.booking}
                     className="px-5 min-w-[220px] justify-center"
                   >
-                    {creating
-                      ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Creating booking…</>
-                      : <><MailIcon className="h-3.5 w-3.5" />Create booking &amp; send invoice</>
+                    {invoiceSending
+                      ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Sending invoice…</>
+                      : <><MailIcon className="h-3.5 w-3.5" />Send invoice to customer</>
                     }
                   </GoldButton>
                 ) : (
@@ -931,9 +1000,11 @@ interface CarPickerProps {
   loading: boolean;
   value: string;
   onChange: (id: string) => void;
+  /** Car ids already booked/blocked for the selected dates — shown but not selectable. */
+  disabledIds?: Set<string>;
 }
 
-const CarPicker: React.FC<CarPickerProps> = ({ cars, loading, value, onChange }) => {
+const CarPicker: React.FC<CarPickerProps> = ({ cars, loading, value, onChange, disabledIds }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const selected = cars.find((c) => c.id === value) ?? null;
@@ -966,6 +1037,12 @@ const CarPicker: React.FC<CarPickerProps> = ({ cars, loading, value, onChange })
               <div className="text-xs text-gray-400 mt-0.5">
                 {selected.brand} {selected.model} &nbsp;·&nbsp;
                 <span className="text-gray-600 font-medium">{formatNOK(selected.base_price_per_day)}/day</span>
+                {Number(selected.base_price_per_month ?? 0) > 0 && (
+                  <>
+                    &nbsp;·&nbsp;
+                    <span className="text-gray-600 font-medium">{formatNOK(Number(selected.base_price_per_month))}/mo</span>
+                  </>
+                )}
               </div>
             </div>
           </>
@@ -996,14 +1073,20 @@ const CarPicker: React.FC<CarPickerProps> = ({ cars, loading, value, onChange })
             <ul className="max-h-60 overflow-y-auto sheet-scroll divide-y divide-gray-100">
               {cars.map((car) => {
                 const isSel = car.id === value;
+                const isBooked = disabledIds?.has(car.id) ?? false;
                 return (
                   <li key={car.id}>
                     <button
                       type="button"
-                      onClick={() => { onChange(car.id); setOpen(false); }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-left focus:outline-none"
+                      disabled={isBooked}
+                      aria-disabled={isBooked}
+                      onClick={() => { if (isBooked) return; onChange(car.id); setOpen(false); }}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-3 py-2.5 text-left focus:outline-none",
+                        isBooked && "opacity-50 cursor-not-allowed",
+                      )}
                       style={{ backgroundColor: isSel ? GOLD_LIGHT : undefined }}
-                      onMouseEnter={(e) => { if (!isSel) e.currentTarget.style.backgroundColor = "#f9fafb"; }}
+                      onMouseEnter={(e) => { if (!isSel && !isBooked) e.currentTarget.style.backgroundColor = "#f9fafb"; }}
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isSel ? GOLD_LIGHT : ""; }}
                     >
                       {/* Car image 80 × 56 */}
@@ -1019,13 +1102,23 @@ const CarPicker: React.FC<CarPickerProps> = ({ cars, loading, value, onChange })
                           <span className="text-[11px] font-semibold text-gray-700">{formatNOK(car.base_price_per_day)}/day</span>
                           <span className="text-gray-300 text-[10px]">·</span>
                           <span className="text-[11px] text-gray-400">{formatNOK(car.base_price_per_hour)}/hr</span>
+                          {Number(car.base_price_per_month ?? 0) > 0 && (
+                            <>
+                              <span className="text-gray-300 text-[10px]">·</span>
+                              <span className="text-[11px] text-gray-400">{formatNOK(Number(car.base_price_per_month))}/mo</span>
+                            </>
+                          )}
                         </div>
                       </div>
-                      {isSel && (
+                      {isBooked ? (
+                        <span className="shrink-0 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                          Booked
+                        </span>
+                      ) : isSel ? (
                         <div className="h-4 w-4 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: GOLD }}>
                           <CheckCircle2 className="h-2.5 w-2.5" style={{ color: "#1a1208" }} />
                         </div>
-                      )}
+                      ) : null}
                     </button>
                   </li>
                 );
@@ -1045,6 +1138,7 @@ interface BookingDetailsStepProps {
   carsLoading: boolean;
   carId: string;
   setCarId: (v: string) => void;
+  disabledCarIds?: Set<string>;
   startLocal: string;
   setStartLocal: (v: string) => void;
   endLocal: string;
@@ -1061,32 +1155,50 @@ interface BookingDetailsStepProps {
   setDecorationRequired: (v: boolean) => void;
   withDriver: boolean;
   setWithDriver: (v: boolean) => void;
-  pricingMode: "flat-rate" | "daily-basis";
-  setPricingMode: (v: "flat-rate" | "daily-basis") => void;
+  pricingMode: "flat-rate" | "daily-basis" | "monthly-basis";
+  setPricingMode: (v: "flat-rate" | "daily-basis" | "monthly-basis") => void;
+  monthlyAvailable: boolean;
+  monthlyEligible: boolean;
+  monthlyMinDays: number;
   pricing: ReturnType<typeof computePricing>;
 }
 
 const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
-  cars, carsLoading, carId, setCarId,
+  cars, carsLoading, carId, setCarId, disabledCarIds,
   startLocal, setStartLocal, endLocal, setEndLocal,
   pickupLocation, setPickupLocation,
   deliveryLocation, setDeliveryLocation,
   deliveryFee, setDeliveryFee, deliveryFeeInput, setDeliveryFeeInput,
   decorationRequired, setDecorationRequired,
   withDriver, setWithDriver,
-  pricingMode, setPricingMode,
+  pricingMode, setPricingMode, monthlyAvailable, monthlyEligible, monthlyMinDays,
   pricing,
 }) => {
   const startDate = parseLocalDateTimeValue(startLocal);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  const durationLabel = (() => {
+    if (!pricing) return "";
+    if (pricingMode === "monthly-basis") {
+      const leftoverDays = pricing.rentalDays - pricing.rentalMonths * 30;
+      const parts: string[] = [];
+      if (pricing.rentalMonths > 0) parts.push(`${pricing.rentalMonths} ${pricing.rentalMonths === 1 ? "month" : "months"}`);
+      if (leftoverDays > 0) parts.push(`${leftoverDays} ${leftoverDays === 1 ? "day" : "days"}`);
+      return parts.join(", ") || `${pricing.rentalDays} ${pricing.rentalDays === 1 ? "day" : "days"}`;
+    }
+    if (pricingMode === "daily-basis") {
+      return `${pricing.rentalDays} ${pricing.rentalDays === 1 ? "day" : "days"}`;
+    }
+    return `${pricing.durationHours} h`;
+  })();
+
   return (
   <div className="space-y-5">
     {/* Vehicle */}
     <div>
       <FieldLabel>Vehicle</FieldLabel>
-      <CarPicker cars={cars} loading={carsLoading} value={carId} onChange={setCarId} />
+      <CarPicker cars={cars} loading={carsLoading} value={carId} onChange={setCarId} disabledIds={disabledCarIds} />
     </div>
 
     {/* Dates (same functional style as customer booking form) */}
@@ -1131,21 +1243,34 @@ const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
           [
             { value: "flat-rate" as const, label: "Per hour" },
             { value: "daily-basis" as const, label: "Per day" },
+            ...(monthlyAvailable ? [{ value: "monthly-basis" as const, label: "Per month" }] : []),
           ] as const
-        ).map((option) => (
-          <label key={option.value} className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="admin-pricing-mode"
-              checked={pricingMode === option.value}
-              onChange={() => setPricingMode(option.value)}
-              className="h-3.5 w-3.5"
-              style={{ accentColor: GOLD }}
-            />
-            <span className="text-xs text-gray-700">{option.label}</span>
-          </label>
-        ))}
+        ).map((option) => {
+          const optionDisabled = option.value === "monthly-basis" && !monthlyEligible;
+          return (
+            <label
+              key={option.value}
+              className={cn("flex items-center gap-2", optionDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer")}
+            >
+              <input
+                type="radio"
+                name="admin-pricing-mode"
+                checked={pricingMode === option.value}
+                disabled={optionDisabled}
+                onChange={() => { if (!optionDisabled) setPricingMode(option.value); }}
+                className="h-3.5 w-3.5"
+                style={{ accentColor: GOLD }}
+              />
+              <span className="text-xs text-gray-700">{option.label}</span>
+            </label>
+          );
+        })}
       </div>
+      {monthlyAvailable && !monthlyEligible && (
+        <p className="mt-2 text-[11px] text-gray-500">
+          Per month is available for rentals of {monthlyMinDays} days or more.
+        </p>
+      )}
     </div>
 
     {/* Pickup + delivery location — same row */}
@@ -1189,7 +1314,7 @@ const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
       <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
         <div className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Pricing preview</div>
         <dl className="text-sm space-y-1.5">
-          <PricingRow label="Duration" value={`${pricing.durationHours} h`} />
+          <PricingRow label="Duration" value={durationLabel} />
           <PricingRow label="Base price" value={formatNOK(pricing.basePrice)} />
           {pricing.depositAmount > 0 && (
             <PricingRow label="Deposit" value={formatNOK(pricing.depositAmount)} />

@@ -20,28 +20,31 @@ interface IProps {
 }
 
 export function ClientContainer({ view: viewProp }: IProps) {
-  const { view: contextView, selectedDate, selectedUserId, events } = useCalendar();
+  const { view: contextView, selectedDate, selectedUserId, selectedStatus, events } = useCalendar();
   const view = viewProp ?? contextView;
 
   const filteredEvents = useMemo(() => {
+    // Status filter applies to bookings; a specific status also hides unavailability blocks
+    // (which have no booking status). "all" shows everything.
+    const isStatusMatch = (event: typeof events[number]) =>
+      selectedStatus === "all" || event.status === selectedStatus;
+
     return events.filter(event => {
       const eventStartDate = parseISO(event.startDate);
       const eventEndDate = parseISO(event.endDate);
+      const isUserMatch = selectedUserId === "all" || event.user.id === selectedUserId;
+      if (!isUserMatch || !isStatusMatch(event)) return false;
 
       if (view === "year") {
         const yearStart = new Date(selectedDate.getFullYear(), 0, 1);
         const yearEnd = new Date(selectedDate.getFullYear(), 11, 31, 23, 59, 59, 999);
-        const isInSelectedYear = eventStartDate <= yearEnd && eventEndDate >= yearStart;
-        const isUserMatch = selectedUserId === "all" || event.user.id === selectedUserId;
-        return isInSelectedYear && isUserMatch;
+        return eventStartDate <= yearEnd && eventEndDate >= yearStart;
       }
 
       if (view === "month" || view === "agenda") {
         const monthStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
         const monthEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0, 23, 59, 59, 999);
-        const isInSelectedMonth = eventStartDate <= monthEnd && eventEndDate >= monthStart;
-        const isUserMatch = selectedUserId === "all" || event.user.id === selectedUserId;
-        return isInSelectedMonth && isUserMatch;
+        return eventStartDate <= monthEnd && eventEndDate >= monthStart;
       }
 
       if (view === "week") {
@@ -55,20 +58,16 @@ export function ClientContainer({ view: viewProp }: IProps) {
         weekEnd.setDate(weekStart.getDate() + 6);
         weekEnd.setHours(23, 59, 59, 999);
 
-        const isInSelectedWeek = eventStartDate <= weekEnd && eventEndDate >= weekStart;
-        const isUserMatch = selectedUserId === "all" || event.user.id === selectedUserId;
-        return isInSelectedWeek && isUserMatch;
+        return eventStartDate <= weekEnd && eventEndDate >= weekStart;
       }
 
       if (view === "day") {
         const dayStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 0, 0, 0);
         const dayEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 23, 59, 59);
-        const isInSelectedDay = eventStartDate <= dayEnd && eventEndDate >= dayStart;
-        const isUserMatch = selectedUserId === "all" || event.user.id === selectedUserId;
-        return isInSelectedDay && isUserMatch;
+        return eventStartDate <= dayEnd && eventEndDate >= dayStart;
       }
     });
-  }, [selectedDate, selectedUserId, events, view]);
+  }, [selectedDate, selectedUserId, selectedStatus, events, view]);
 
   const singleDayEvents = filteredEvents.filter(event => {
     const startDate = parseISO(event.startDate);

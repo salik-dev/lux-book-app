@@ -50,4 +50,5 @@ export interface ICalendarCar {
   is_available: boolean;
   base_price_per_hour: number;
   base_price_per_day: number;
+  base_price_per_month?: number | null;
 }

@@ -10,8 +10,13 @@ import { DateTime24hField } from "@/pages/admin/schedule/calendar/components/ui/
 import { CarSearchBox, CarThumbnail, CarEmptyState, useCarSearch } from "@/pages/admin/schedule/calendar/components/ui/car-search-select";
 
 import { isPickupLeadTimeValid, MIN_PICKUP_LEAD_HOURS } from "@/lib/booking-time";
+import { useUnavailableCarIds } from "@/lib/car-availability";
 
 import type { ICalendarCar } from "@/pages/admin/schedule/calendar/interfaces";
+
+/** Compact monthly-rate label for the vehicle dropdown, e.g. "NOK 20 000/mo". */
+const formatNokPerMonth = (amount: number) =>
+  `${new Intl.NumberFormat("no-NO", { style: "currency", currency: "NOK", minimumFractionDigits: 0 }).format(amount)}/mo`;
 
 interface IProps {
   open: boolean;
@@ -30,6 +35,13 @@ export function BookCarDialog({ open, onOpenChange, cars, defaultCarId, defaultS
   const [end, setEnd] = useState<Date | null>(null);
 
   const { query, setQuery, filtered } = useCarSearch(cars);
+
+  // Disable vehicles already booked/blocked for the selected window, and drop a selection
+  // that becomes unavailable after the dates change.
+  const { unavailableIds } = useUnavailableCarIds(start, end);
+  useEffect(() => {
+    if (carId && unavailableIds.has(carId)) setCarId("");
+  }, [carId, unavailableIds]);
 
   useEffect(() => {
     if (!open) return;
@@ -67,30 +79,7 @@ export function BookCarDialog({ open, onOpenChange, cars, defaultCarId, defaultS
         </DialogHeader>
 
         <div className="min-w-0 space-y-5 py-1">
-          <div className="min-w-0 space-y-1.5">
-            <Label>Vehicle</Label>
-            <Select value={carId} onValueChange={setCarId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a vehicle" />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                <CarSearchBox value={query} onChange={setQuery} />
-                {filtered.length === 0 ? (
-                  <CarEmptyState text={cars.length === 0 ? "No available vehicles" : "No vehicles found"} />
-                ) : (
-                  filtered.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      <span className="flex w-full items-center gap-2">
-                        <CarThumbnail car={c} />
-                        <span className="truncate">{c.name}</span>
-                      </span>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
+          {/* Pickup / Return first — the vehicle list below reflects availability for this window. */}
           <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="min-w-0 space-y-1.5">
               <Label>Pickup</Label>
@@ -105,6 +94,43 @@ export function BookCarDialog({ open, onOpenChange, cars, defaultCarId, defaultS
               <Label>Return</Label>
               <DateTime24hField value={end} onChange={setEnd} placeholder="Return date" />
             </div>
+          </div>
+
+          <div className="min-w-0 space-y-1.5">
+            <Label>Vehicle</Label>
+            <Select value={carId} onValueChange={setCarId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a vehicle" />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                <CarSearchBox value={query} onChange={setQuery} />
+                {filtered.length === 0 ? (
+                  <CarEmptyState text={cars.length === 0 ? "No available vehicles" : "No vehicles found"} />
+                ) : (
+                  filtered.map((c) => {
+                    const booked = unavailableIds.has(c.id);
+                    return (
+                      <SelectItem key={c.id} value={c.id} disabled={booked}>
+                        <span className="flex w-full items-center gap-2">
+                          <CarThumbnail car={c} />
+                          <span className="truncate">{c.name}</span>
+                          {Number(c.base_price_per_month ?? 0) > 0 && !booked && (
+                            <span className="ml-auto shrink-0 text-[10px] font-medium tabular-nums text-muted-foreground">
+                              {formatNokPerMonth(Number(c.base_price_per_month))}
+                            </span>
+                          )}
+                          {booked && (
+                            <span className="ml-auto shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              Booked
+                            </span>
+                          )}
+                        </span>
+                      </SelectItem>
+                    );
+                  })
+                )}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

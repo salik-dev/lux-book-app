@@ -293,6 +293,7 @@ export type Database = {
         Row: {
           base_price_per_day: number
           base_price_per_hour: number
+          base_price_per_month: number | null
           deposit_amount: number | null
           brand: string
           created_at: string
@@ -304,12 +305,14 @@ export type Database = {
           is_available: boolean | null
           model: string
           name: string
+          registration_number: string | null
           updated_at: string
           year: number
         }
         Insert: {
           base_price_per_day: number
           base_price_per_hour: number
+          base_price_per_month?: number | null
           deposit_amount?: number | null
           brand: string
           created_at?: string
@@ -321,12 +324,14 @@ export type Database = {
           is_available?: boolean | null
           model: string
           name: string
+          registration_number?: string | null
           updated_at?: string
           year: number
         }
         Update: {
           base_price_per_day?: number
           base_price_per_hour?: number
+          base_price_per_month?: number | null
           deposit_amount?: number | null
           brand?: string
           created_at?: string
@@ -338,6 +343,7 @@ export type Database = {
           is_available?: boolean | null
           model?: string
           name?: string
+          registration_number?: string | null
           updated_at?: string
           year?: number
         }

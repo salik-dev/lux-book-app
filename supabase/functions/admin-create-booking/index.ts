@@ -695,8 +695,17 @@ serve(async (req: Request): Promise<Response> => {
     if (!adminUser?.is_active) return json({ error: "forbidden" }, 403);
     log("admin_authenticated", { adminId: adminUser.id });
 
-    // 2. Validate body
-    const parsed = validate(await req.json().catch(() => ({})));
+    const rawBody = await req.json().catch(() => ({}));
+
+    // Invoice-only path: the booking already exists (the admin "book on behalf" contract
+    // flow creates it via create-booking + booking-contract first). Skip creation and just
+    // bill + email the customer for that booking.
+    if (rawBody && typeof rawBody === "object" && typeof (rawBody as Record<string, unknown>).bookingId === "string") {
+      return await sendInvoiceForExistingBooking(admin, STRIPE_KEY, req, rawBody as Record<string, unknown>, adminUser);
+    }
+
+    // 2. Validate body (legacy create path)
+    const parsed = validate(rawBody);
     if (!parsed.ok) return json({ error: "bad_request", reason: parsed.error }, 400);
     const p = parsed.value;
 
@@ -918,6 +927,132 @@ async function applyDecorationRequireFlag(
 // overlap, then inserts. Manual-entry admin bookings don't go through the
 // BankID/contract eligibility RPC, so this is the only insert path now.
 // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Invoice-only path: the booking already exists (created by the admin "book on
+// behalf" contract flow via create-booking + booking-contract). Marks it as an
+// admin booking, holds the car until paid/cancelled, creates a Stripe Checkout
+// session, persists the payment row and emails the admin invoice. Uses the
+// booking's stored (server-priced) total.
+// -----------------------------------------------------------------------------
+async function sendInvoiceForExistingBooking(
+  admin: ReturnType<typeof createClient>,
+  stripeKey: string,
+  req: Request,
+  body: Record<string, unknown>,
+  adminUser: { id: string; full_name?: string | null }
+): Promise<Response> {
+  const bookingId = String(body.bookingId);
+  if (!UUID_RE.test(bookingId)) return json({ error: "bad_request", reason: "bookingId must be a uuid" }, 400);
+  const language = body.language === "no" ? "no" : "en";
+
+  const { data: booking, error: bErr } = await admin
+    .from("bookings")
+    .select("id, booking_number, total_price, pickup_location, car_id, customer_id, status")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (bErr) return json({ error: "load_failed", reason: bErr.message }, 500);
+  if (!booking?.id) return json({ error: "booking_not_found" }, 404);
+  if (!(Number(booking.total_price) > 0)) return json({ error: "booking_total_invalid" }, 409);
+
+  const [{ data: car }, { data: customer }] = await Promise.all([
+    admin.from("cars").select("id, name, image_url, deposit_amount").eq("id", booking.car_id).single(),
+    admin.from("customers").select("id, email, full_name").eq("id", booking.customer_id).single(),
+  ]);
+  if (!car?.id) return json({ error: "car_missing" }, 500);
+  if (!customer?.email) return json({ error: "customer_missing_email" }, 500);
+
+  // Core fields that always exist: snapshot deposit and hold the car indefinitely
+  // (NULL hold = always blocks, matching admin-created bookings).
+  await admin
+    .from("bookings")
+    .update({ booking_deposit: car.deposit_amount ?? 0, hold_expires_at: null })
+    .eq("id", booking.id);
+
+  // Best-effort admin provenance (columns may be absent on older schemas).
+  try {
+    const { error } = await admin
+      .from("bookings")
+      .update({ booking_channel: "admin", created_by_admin_id: adminUser.id })
+      .eq("id", booking.id);
+    if (error) log("invoice_admin_columns_skip", { reason: error.message });
+  } catch (e) {
+    log("invoice_admin_columns_skip", serializeError(e));
+  }
+
+  const origin = req.headers.get("origin") || Deno.env.get("PUBLIC_APP_URL") || "";
+  const stripe = new Stripe(stripeKey, { apiVersion: "2025-04-30.basil" });
+
+  const stripeCustomers = await stripe.customers.list({ email: customer.email, limit: 1 });
+  const stripeCustomerId =
+    stripeCustomers.data[0]?.id ??
+    (await stripe.customers.create({ email: customer.email, name: customer.full_name ?? undefined })).id;
+
+  const amountMinor = Math.round(Number(booking.total_price) * 100);
+  const session = await stripe.checkout.sessions.create({
+    customer: stripeCustomerId,
+    line_items: [
+      {
+        price_data: {
+          currency: "nok",
+          product_data: {
+            name: `Prime Car - ${car.name}`,
+            description: `Customer Email: ${customer.email}     • Booking ID: ${booking.booking_number}`,
+            images: car.image_url ? [car.image_url] : [],
+          },
+          unit_amount: amountMinor,
+        },
+        quantity: 1,
+      },
+    ],
+    mode: "payment",
+    payment_method_types: ["card"],
+    wallet_options: { link: { display: "never" } },
+    success_url: `${origin}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${origin}/booking-cancelled?booking_id=${booking.id}`,
+    metadata: {
+      bookingId: booking.id,
+      bookingNumber: booking.booking_number,
+      channel: "admin",
+      createdByAdminId: adminUser.id,
+    },
+    expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 23, // 23 h
+  });
+  log("stripe_session_created", { sessionId: session.id, bookingId: booking.id });
+
+  const { error: payErr } = await admin.from("payments").insert({
+    booking_id: booking.id,
+    amount: Number(booking.total_price),
+    currency: "NOK",
+    method: "stripe",
+    status: "pending",
+    stripe_session_id: session.id,
+  });
+  if (payErr) log("payment_insert_error", payErr.message);
+
+  try {
+    const { error: emailInvokeError } = await admin.functions.invoke("send-booking-email", {
+      body: {
+        bookingId: booking.id,
+        emailType: "admin_invoice",
+        language,
+        checkoutUrl: session.url,
+        adminFullName: adminUser.full_name ?? null,
+      },
+    });
+    if (emailInvokeError) log("invoice_email_error", serializeError(emailInvokeError));
+  } catch (e) {
+    log("invoice_email_error", serializeError(e));
+  }
+
+  return json({
+    ok: true,
+    bookingId: booking.id,
+    bookingNumber: booking.booking_number,
+    checkoutUrl: session.url,
+    stripeSessionId: session.id,
+  });
+}
+
 async function createBookingDirect(
   admin: ReturnType<typeof createClient>,
   p: Payload,

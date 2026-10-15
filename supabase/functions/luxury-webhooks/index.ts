@@ -115,7 +115,21 @@ serve(async (req)=>{
             console.log("[STRIPE-WEBHOOK] send-booking-email invoke ok", emailData);
           }
 
-          // EmailJS admin notifications removed by request.
+          // Notify the team that a new order has been paid (both customer-form and admin
+          // "book on behalf" bookings settle through this webhook). Best-effort; a failure
+          // here must not fail the webhook or the customer confirmation above.
+          const { error: adminNotifyError } = await supabase.functions.invoke("send-booking-email", {
+            body: {
+              bookingId,
+              emailType: "admin_order_paid",
+              language: "en",
+            },
+          });
+          if (adminNotifyError) {
+            console.error("[STRIPE-WEBHOOK] admin_order_paid invoke failed", adminNotifyError);
+          } else {
+            console.log("[STRIPE-WEBHOOK] admin_order_paid invoke ok", { bookingId });
+          }
         }
 
         break;

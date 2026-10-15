@@ -91,7 +91,9 @@ serve(async (req) => {
       if (booking.decoration_driver_need ?? booking.with_driver) {
         items.push(isNoLang ? 'Sjåfør ønsket' : 'Driver requested');
       }
-      if (booking.seat_pricing_mode === 'daily-basis') {
+      if (booking.seat_pricing_mode === 'monthly-basis') {
+        items.push(isNoLang ? 'Prismodell: per måned' : 'Rental pricing: per month');
+      } else if (booking.seat_pricing_mode === 'daily-basis') {
         items.push(isNoLang ? 'Prismodell: per dag' : 'Rental pricing: per day');
       } else if (booking.seat_pricing_mode === 'flat-rate') {
         items.push(isNoLang ? 'Prismodell: per time' : 'Rental pricing: per hour');
@@ -152,6 +154,22 @@ serve(async (req) => {
             (1000 * 60 * 60)
         )
       );
+      // Show the duration in the unit that matches the booking's pricing mode.
+      const durationText = (() => {
+        const totalDays = Math.ceil(durationHours / 24);
+        if (booking.seat_pricing_mode === 'monthly-basis') {
+          const months = Math.floor(totalDays / 30);
+          const days = totalDays - months * 30;
+          const parts: string[] = [];
+          if (months > 0) parts.push(`${months} ${isNo ? (months === 1 ? 'måned' : 'måneder') : (months === 1 ? 'month' : 'months')}`);
+          if (days > 0) parts.push(`${days} ${isNo ? (days === 1 ? 'dag' : 'dager') : (days === 1 ? 'day' : 'days')}`);
+          return parts.join(isNo ? ' og ' : ' and ') || `${totalDays} ${isNo ? (totalDays === 1 ? 'dag' : 'dager') : (totalDays === 1 ? 'day' : 'days')}`;
+        }
+        if (booking.seat_pricing_mode === 'daily-basis') {
+          return `${totalDays} ${isNo ? (totalDays === 1 ? 'dag' : 'dager') : (totalDays === 1 ? 'day' : 'days')}`;
+        }
+        return `${durationHours} ${isNo ? 't' : 'h'}`;
+      })();
 
       const lineRow = (label: string, amount: number) => `
         <tr>
@@ -199,7 +217,7 @@ serve(async (req) => {
                   <tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Retur' : 'Return'}</td>
                       <td style="padding:4px 0; text-align:right;">${formatDateTime(booking.end_datetime)}</td></tr>
                   <tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Varighet' : 'Duration'}</td>
-                      <td style="padding:4px 0; text-align:right;">${durationHours} h</td></tr>
+                      <td style="padding:4px 0; text-align:right;">${durationText}</td></tr>
                   <tr><td style="padding:4px 0; color:#64748b;">${isNo ? 'Hentested' : 'Pickup location'}</td>
                       <td style="padding:4px 0; text-align:right;">${booking.pickup_location}</td></tr>
                   ${booking.delivery_location
@@ -355,21 +373,54 @@ serve(async (req) => {
             </div>
 
             <p>
-              ${language === 'no' 
+              ${language === 'no'
                 ? 'Vennligst ha med deg gyldig førerkort og vær på hentestedet 15 minutter før avtalt tid.'
                 : 'Please bring your valid driving license and be at the pickup location 15 minutes before the scheduled time.'}
             </p>
           </div>
         </div>
       `;
+    } else if (emailType === 'admin_order_paid') {
+      // Internal notification to the team when a booking's payment settles — sent for both
+      // customer-form and admin "book on behalf" bookings (every paid Stripe session).
+      const channelLabel = booking.booking_channel === 'admin' ? 'Admin (book on behalf)' : 'Customer booking form';
+      subject = `New paid order - ${booking.booking_number} (${formatPrice(booking.total_price)})`;
+      htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #065f46, #10b981); padding: 32px 20px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">💰 Payment received</h1>
+          </div>
+          <div style="padding: 32px 20px;">
+            <h2 style="color: #065f46; margin: 0 0 16px 0;">New paid order ${booking.booking_number}</h2>
+            <div style="background: #f0fdf4; border: 1px solid #10b981; padding: 20px; border-radius: 8px;">
+              <p style="margin:0 0 8px"><strong>Booking number:</strong> ${booking.booking_number}</p>
+              <p style="margin:0 0 8px"><strong>Vehicle:</strong> ${booking.car?.name ?? '—'}</p>
+              <p style="margin:0 0 8px"><strong>Customer:</strong> ${booking.customer?.full_name ?? '—'}${booking.customer?.email ? ` (${booking.customer.email})` : ''}</p>
+              <p style="margin:0 0 8px"><strong>Phone:</strong> ${booking.customer?.phone ?? '—'}</p>
+              <p style="margin:0 0 8px"><strong>Pickup:</strong> ${formatDateTime(booking.start_datetime)}</p>
+              <p style="margin:0 0 8px"><strong>Return:</strong> ${formatDateTime(booking.end_datetime)}</p>
+              <p style="margin:0 0 8px"><strong>Pickup location:</strong> ${booking.pickup_location}</p>
+              ${booking.delivery_location ? `<p style="margin:0 0 8px"><strong>Delivery location:</strong> ${booking.delivery_location}</p>` : ''}
+              ${getPreferencesList(false).length ? `<p style="margin:0 0 8px"><strong>Preferences:</strong> ${getPreferencesList(false).join(', ')}</p>` : ''}
+              <p style="margin:0 0 8px"><strong>Source:</strong> ${channelLabel}</p>
+              <p style="margin:12px 0 0; font-size:16px;"><strong>Total paid:</strong> ${formatPrice(booking.total_price)}</p>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
-    // Optional BOOKING_EMAIL_TO_OVERRIDE (e.g. balisaalik@gmail.com) for testing; otherwise
-    // uses the customer email from the booking.
+    // Internal/admin notifications go to the team inbox; customer-facing emails go to the
+    // customer (optionally overridden for testing via BOOKING_EMAIL_TO_OVERRIDE).
+    const ADMIN_EMAIL_TYPES = new Set(['admin_order_paid']);
+    const adminNotifyEmail =
+      Deno.env.get("ADMIN_ORDER_NOTIFY_EMAIL")?.trim() ||
+      Deno.env.get("CONTRACT_COMPLETED_NOTIFY_EMAIL")?.trim() ||
+      "dev.bahadurali@gmail.com";
     const recipientOverride = Deno.env.get("BOOKING_EMAIL_TO_OVERRIDE")?.trim();
     const customerEmail = booking.customer?.email?.trim();
     // const customerEmail = "balisaalik@gmail.com";
-    const toEmail = customerEmail;
+    const toEmail = ADMIN_EMAIL_TYPES.has(emailType) ? adminNotifyEmail : customerEmail;
     if (!toEmail) {
       throw new Error("No recipient: customer has no email and BOOKING_EMAIL_TO_OVERRIDE is not set");
     }

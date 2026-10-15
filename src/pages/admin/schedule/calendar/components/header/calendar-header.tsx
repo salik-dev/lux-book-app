@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/pages/admin/schedule/
 
 import { useCalendar } from "@/pages/admin/schedule/calendar/contexts/calendar-context";
 import { UserSelect } from "@/pages/admin/schedule/calendar/components/header/user-select";
+import { StatusSelect } from "@/pages/admin/schedule/calendar/components/header/status-select";
 import { TodayButton } from "@/pages/admin/schedule/calendar/components/header/today-button";
 import { DateNavigator } from "@/pages/admin/schedule/calendar/components/header/date-navigator";
 import { AddEventDialog } from "@/pages/admin/schedule/calendar/components/dialogs/add-event-dialog";
@@ -76,6 +77,7 @@ export function CalendarHeader({ view, events }: IProps) {
 
         {isCarCalendar ? (
           <div className="flex w-full items-center gap-2 sm:w-auto">
+            <StatusSelect />
             {onMarkUnavailable && (
               <Button
                 type="button"

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { Button } from "../ui/button";
 import { Card,
   CardContent,
@@ -6,7 +6,6 @@ import { Card,
   CardTitle,
 } from "../ui/card";
 import { Separator } from "../ui/separator";
-import { useToast } from "../../hooks/use-toast";
 import { format, differenceInHours } from "date-fns";
 import { enUS } from "date-fns/locale";
 import {
@@ -17,15 +16,12 @@ import {
 } from "lucide-react";
 import { PaymentStepProps } from "@/@types/data";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/auth-context";
+import { useBookingContract } from "@/hooks/use-booking-contract";
+import { ContractSigningCard } from "./contract-signing-card";
 
-export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerData, onComplete }) => {
-  const { toast } = useToast();
-  const { user } = useAuth();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<
-    "stripe" | "vipps" | null
-  >(null);
+export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerData, onEditDates }) => {
+  const contractState = useBookingContract(bookingData, customerData);
+  const { booking, busy } = contractState;
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("no-NO", {
@@ -42,18 +38,45 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
   };
 
   // Mirrors the step-1 pricing rule so the review shows exactly how the base price was derived.
-  const isDailyPricing = bookingData.seatPricingMode === "daily-basis";
+  const pricingMode = bookingData.seatPricingMode ?? "flat-rate";
+  const isDailyPricing = pricingMode === "daily-basis";
+  const isMonthlyPricing = pricingMode === "monthly-basis";
   const rentalHours = Math.max(
     1,
     differenceInHours(new Date(bookingData.endDateTime), new Date(bookingData.startDateTime))
   );
-  const rentalUnits = isDailyPricing ? Math.ceil(rentalHours / 24) : rentalHours;
-  const rentalRate = Number(
-    (isDailyPricing ? bookingData.car.base_price_per_day : bookingData.car.base_price_per_hour) ?? 0
-  );
-  const rentalUnitLabel = isDailyPricing
-    ? rentalUnits === 1 ? "day" : "days"
-    : rentalUnits === 1 ? "hour" : "hours";
+  const rentalDays = Math.ceil(rentalHours / 24);
+  // Monthly bills whole 30-day blocks; the remainder falls back to the daily rate.
+  const rentalMonths = isMonthlyPricing ? Math.floor(rentalDays / 30) : 0;
+  const monthlyLeftoverDays = rentalDays - rentalMonths * 30;
+
+  const dayRate = Number(bookingData.car.base_price_per_day ?? 0);
+  const hourRate = Number(bookingData.car.base_price_per_hour ?? 0);
+  const monthRate = Number(bookingData.car.base_price_per_month ?? 0);
+
+  const pricingModeLabel = isMonthlyPricing
+    ? "Per month pricing"
+    : isDailyPricing
+      ? "Per day pricing"
+      : "Per hour pricing";
+
+  // Human-readable breakdown of how the base price was derived, for the "Rental" line.
+  const rentalBreakdown = isMonthlyPricing
+    ? [
+        rentalMonths > 0 ? `${rentalMonths} ${rentalMonths === 1 ? "month" : "months"} × ${formatPrice(monthRate)}` : "",
+        monthlyLeftoverDays > 0 ? `${monthlyLeftoverDays} ${monthlyLeftoverDays === 1 ? "day" : "days"} × ${formatPrice(dayRate)}` : "",
+      ].filter(Boolean).join(" + ") || `${rentalDays} ${rentalDays === 1 ? "day" : "days"} × ${formatPrice(dayRate)}`
+    : isDailyPricing
+      ? `${rentalDays} ${rentalDays === 1 ? "day" : "days"} × ${formatPrice(dayRate)} / day`
+      : `${rentalHours} ${rentalHours === 1 ? "hour" : "hours"} × ${formatPrice(hourRate)} / hour`;
+
+  // Mode-aware duration shown in the review header.
+  const durationText = isMonthlyPricing
+    ? [
+        rentalMonths > 0 ? `${rentalMonths} ${rentalMonths === 1 ? "month" : "months"}` : "",
+        monthlyLeftoverDays > 0 ? `${monthlyLeftoverDays} ${monthlyLeftoverDays === 1 ? "day" : "days"}` : "",
+      ].filter(Boolean).join(", ") || `${rentalDays} ${rentalDays === 1 ? "day" : "days"}`
+    : formatBookingDuration(new Date(bookingData.startDateTime), new Date(bookingData.endDateTime));
 
   const decorationReview = (
     [
@@ -63,11 +86,25 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
       bookingData.decorationDriverNeed && "Driver requested",
     ].filter(Boolean) as string[]
   );
-  // Payment unlocks once BankID and driver-licence verification are done.
-  // (Contract signing was replaced by the Vegvesen licence check.)
+
+  // The server-computed total is what Stripe charges and what the contract states.
+  const totalAmount = booking?.totalPrice ?? bookingData.totalPrice;
+  const priceChanged = booking !== null && Math.abs(booking.totalPrice - bookingData.totalPrice) >= 0.01;
+
+  // Payment unlocks once BankID and driver-licence verification are done in step 2 and
+  // the rental agreement has been signed (verified server-side; create-payment re-checks).
   const bankIdVerified = localStorage.getItem('bankid_verified') === 'true';
   const licenseVerified = customerData.licenseVerified === true;
-  const canPay = bankIdVerified && licenseVerified;
+  const canPay = bankIdVerified && licenseVerified && contractState.canPay && busy === null;
+  const isPaying = busy === "paying";
+
+  const blockedReason = !bankIdVerified
+    ? "Complete BankID in the previous step before payment."
+    : !licenseVerified
+      ? "Verify your driver's licence in the previous step before payment."
+      : !contractState.canPay
+        ? "Sign the rental agreement above to continue to payment."
+        : null;
 
   const linkCustomerToBankIdVerification = async (resolvedCustomerId: string) => {
     if (!resolvedCustomerId) return;
@@ -98,177 +135,14 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
     }
   };
 
-  const handlePayment = async (method: "stripe" | "vipps") => {
-    setIsProcessing(true);
-    setPaymentMethod(method);
-
-    try {
-
-      // First, create customer record if user is logged in
-      let customerId = null;
-      // if (user) {
-        const { data: existingCustomer } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('email', customerData.email)
-          .maybeSingle();
-
-        const customerDetails = {
-          full_name: customerData.fullName,
-          first_name: customerData.firstName || null,
-          last_name: customerData.lastName || null,
-          nin: customerData.nin || null,
-          email: customerData.email,
-          phone: customerData.phone,
-          address: customerData.address,
-          postal_code: customerData.postalCode,
-          city: customerData.city,
-        };
-
-        if (existingCustomer) {
-          customerId = existingCustomer.id;
-          // Keep the stored profile in sync with the latest details entered on the form.
-          const { error: updateError } = await supabase
-            .from('customers')
-            .update(customerDetails)
-            .eq('id', existingCustomer.id);
-          if (updateError) console.error('Failed to update customer details:', updateError);
-        } else {
-          const { data: newCustomer, error: customerError } = await supabase
-            .from('customers')
-            .insert({
-              user_id: user?.id,
-              ...customerDetails,
-              driver_license_file_path: customerData.driverLicenseFile ? String(customerData.driverLicenseFile) : null,
-            })
-            .select('id')
-            .single();
-
-          if (customerError) throw customerError;
-          customerId = newCustomer.id;
-        }
-
-        if (customerId) {
-          await linkCustomerToBankIdVerification(customerId);
-        }
-      // }
-
-      // Create booking record
-      const { data: booking, error: bookingError } = await supabase
-        .from('bookings')
-        .insert({
-          booking_number: `FJB${Date.now()}`,
-          customer_id: customerId,
-          car_id: String(bookingData.car.id),
-          start_datetime: bookingData.startDateTime.toISOString(),
-          end_datetime: bookingData.endDateTime.toISOString(),
-          pickup_location: bookingData.pickupLocation,
-          delivery_location: bookingData.deliveryLocation,
-          delivery_fee: bookingData.deliveryFee,
-          base_price: bookingData.basePrice,
-          total_price: bookingData.totalPrice,
-          with_driver: bookingData.withDriver ?? bookingData.decorationDriverNeed ?? false,
-          org_name:
-            customerData.bookingForCompany && customerData.orgName
-              ? customerData.orgName.trim()
-              : null,
-          org_no:
-            customerData.bookingForCompany && customerData.orgNo
-              ? customerData.orgNo.trim()
-              : null,
-          decoration_require:
-            bookingData.decorationRequired ??
-            Boolean(
-              bookingData.decorationFlowers ||
-              bookingData.decorationRibbon ||
-              bookingData.decorationRedCarpets
-            ),
-          decoration_flowers: bookingData.decorationFlowers ?? false,
-          decoration_ribbon: bookingData.decorationRibbon ?? false,
-          decoration_red_carpets: bookingData.decorationRedCarpets ?? false,
-          decoration_driver_need: bookingData.decorationDriverNeed ?? false,
-          seat_pricing_mode: bookingData.seatPricingMode ?? 'flat-rate',
-          booking_deposit: bookingData.depositAmount ?? bookingData.car.deposit_amount ?? 0,
-          status: 'active',
-        })
-        .select()
-        .single();
-
-      if (bookingError) throw bookingError;
-
-      if (method === 'stripe') {
-
-        // Call Stripe payment function
-        const { data, error } = await supabase.functions.invoke('create-payment', {
-          body: {
-            bookingId: booking.id,
-            amount: Math.round(bookingData.totalPrice * 100), // Convert to cents
-            currency: 'nok',
-            customerEmail: customerData.email,
-            customerName: customerData.fullName,
-            successUrl: `${window.location.origin}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
-            cancelUrl: `${window.location.origin}/booking-cancelled?booking_id=${booking.id}`,
-          },
-        });
-
-        if (error) throw error;
-
-        if (data.url) {
-          
-          // Update booking with stripe session ID before redirecting
-          await supabase
-            .from('payments')
-            .update({ stripe_session_id: data.sessionId })
-            .eq('id', booking.id);
-            
-          // Redirect to Stripe Checkout
-          window.location.href = data.url;
-        }
-      } 
-      // else if (method === 'vipps') {
-      //   // Call Vipps payment function
-      //   const { data, error } = await supabase.functions.invoke('create-vipps-payment', {
-      //     body: {
-      //       bookingId: booking.id,
-      //       amount: Math.round(bookingData.totalPrice * 100), // Convert to øre
-      //       customerPhone: customerData.phone,
-      //     },
-      //   });
-
-      //   if (error) throw error;
-
-      //   if (data.url) {
-      //     // Redirect to Vipps
-      //     window.open(data.url, '_blank');
-      //   }
-      // }
-      toast({
-        title: "Completed",
-        description:
-          "The booking has been created. Complete payment in the new window.",
-      });
-
-      // Close the booking flow after a delay
-      setTimeout(() => {
-        onComplete();
-      }, 2000);
-    } catch (error) {
-      console.error("Payment error:", error);
-      toast({
-        title: "Payment failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : typeof error === "string"
-              ? error
-              : "An unexpected error occurred.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-      setPaymentMethod(null);
-    }
-  };
+  // Link the BankID verification to the customer once the server has resolved it.
+  const linkedCustomerId = useRef<string | null>(null);
+  useEffect(() => {
+    const customerId = booking?.customerId;
+    if (!customerId || linkedCustomerId.current === customerId) return;
+    linkedCustomerId.current = customerId;
+    void linkCustomerToBankIdVerification(customerId);
+  }, [booking?.customerId]);
 
   return (
     <div className="space-y-6 rounded-xl border border-[#46555d] bg-[#1c262b] p-6">
@@ -290,10 +164,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
               </p>
               <p className="text-sm text-[#9eabb1]">
                 <strong>Duration:</strong>{" "}
-                {formatBookingDuration(
-                  new Date(bookingData.startDateTime),
-                  new Date(bookingData.endDateTime),
-                )}
+                {durationText}
               </p>
               <p className="text-sm text-[#9eabb1]">
                 <strong>Pickup:</strong>{" "}
@@ -320,7 +191,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
               <h4 className="text-[14px] font-semibold">Price summary</h4>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E3C08D]/40 bg-[#E3C08D]/10 px-2.5 py-0.5 text-xs font-medium text-[#E3C08D]">
                 <Clock className="h-3.5 w-3.5" aria-hidden />
-                {isDailyPricing ? "Per day pricing" : "Per hour pricing"}
+                {pricingModeLabel}
               </span>
             </div>
 
@@ -329,7 +200,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
                 <div>
                   <p>Rental</p>
                   <p className="text-xs text-[#8a979d]">
-                    {rentalUnits} {rentalUnitLabel} × {formatPrice(rentalRate)} / {isDailyPricing ? "day" : "hour"}
+                    {rentalBreakdown}
                   </p>
                 </div>
                 <span className="tabular-nums">{formatPrice(bookingData.basePrice)}</span>
@@ -362,9 +233,14 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
                   <p className="text-xs text-[#8a979d]">Amount charged at checkout (NOK)</p>
                 </div>
                 <span className="text-xl font-bold tabular-nums text-[#E3C08D]">
-                  {formatPrice(bookingData.totalPrice)}
+                  {formatPrice(totalAmount)}
                 </span>
               </div>
+              {priceChanged && (
+                <p role="status" className="text-xs text-[#E3C08D]">
+                  The price was updated to the car's current rates. This is the amount on your contract and at checkout.
+                </p>
+              )}
             </div>
           </div>
 
@@ -393,6 +269,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
         </CardContent>
       </Card>
 
+      {/* Rental agreement (Idura signing) */}
+      <ContractSigningCard state={contractState} onEditDates={onEditDates} />
+
       {/* Payment Methods */}
       <Card className="border-[#334047] bg-[#232e33] text-[#b1bdc3] shadow-sm">
         <CardHeader>
@@ -402,16 +281,17 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Button
-              onClick={() => handlePayment("stripe")}
-              disabled={!canPay || isProcessing}
+              onClick={contractState.pay}
+              disabled={!canPay}
+              aria-busy={isPaying}
               variant="outline"
               size="lg"
               className="h-auto flex-col gap-1 rounded-md border-2 border-[#E3C08D]/50 bg-[#1b2529] px-4 py-3 shadow-[0_0_0_1px_rgba(227,192,141,0.15)] transition-premium hover:cursor-pointer hover:border-[#E3C08D] hover:bg-[#2c3b40] hover:shadow-[0_0_16px_rgba(227,192,141,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E3C08D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#232e33] disabled:opacity-50"
             >
-              {isProcessing && paymentMethod === "stripe" ? (
-                <Loader2 className="h-6 w-6 animate-spin" />
+              {isPaying ? (
+                <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
               ) : (
-                <CreditCard className="h-6 w-6" />
+                <CreditCard className="h-6 w-6" aria-hidden />
               )}
               {/* <span>{t('payment.payWithStripe')}</span> */}
               <span>Pay with Stripe</span>
@@ -421,17 +301,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
             </Button>
 
             <Button
-              onClick={() => handlePayment("vipps")}
               disabled={true}
               variant="outline"
               size="lg"
               className="h-auto flex-col gap-1 rounded-md border border-[#3a464c] bg-[#1b2529]/60 px-4 py-3 opacity-60 transition-premium"
             >
-              {isProcessing && paymentMethod === "vipps" ? (
-                <Loader2 className="h-6 w-6 animate-spin" />
-              ) : (
-                <Smartphone className="h-6 w-6" />
-              )}
+              <Smartphone className="h-6 w-6" aria-hidden />
               {/* <span>{t('payment.payWithVipps')}</span> */}
               <span>Vipps is currently unavailable</span>
               <span className="text-xs text-[#9eabb1]">
@@ -440,24 +315,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
             </Button>
           </div>
 
-          {!canPay && (
-            <p className="text-sm text-red-300 text-center">
-              {!bankIdVerified
-                ? "Complete BankID in the previous step before payment."
-                : "Verify your driver's licence in the previous step before payment."}
-            </p>
+          {blockedReason && (
+            <p className="text-sm text-red-300 text-center">{blockedReason}</p>
           )}
         </CardContent>
       </Card>
 
-      {/* <Button
-        onClick={() => contractReady && handlePayment("stripe")}
-        disabled={!contractReady}
-        className="w-full rounded-md h-9 bg-[#E3C08D] hover:bg-[#E3C08D]/90 text-white py-5 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-        size="lg"
-      >
-        Complete Booking
-      </Button> */}
     </div>
   );
 };
