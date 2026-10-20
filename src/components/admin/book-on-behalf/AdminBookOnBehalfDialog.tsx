@@ -50,6 +50,8 @@ import type {
 import { useAdminBookingContract, type AdminContractInput } from "./use-admin-contract";
 import { AdminContractCard } from "./AdminContractCard";
 import { useUnavailableCarIds } from "@/lib/car-availability";
+import { calendarDuration, formatAgreedDuration } from "@shared/contract/format";
+import { naiveToOsloInstant, formatOslo } from "@/lib/oslo-time";
 
 /** This browser's own in-progress admin hold (so it never disables its own selected vehicle). */
 function readOwnAdminBookingId(): string | null {
@@ -281,7 +283,7 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
   };
 
   // Step 2
-  const { cars, loading: carsLoading } = useAvailableCars(open);
+  const { cars, loading: carsLoading, error: carsError, reload: reloadCars } = useAvailableCars(open);
   const [carId, setCarId] = useState<string>("");
   const selectedCar: AdminCarOption | null = useMemo(
     () => cars.find((c) => c.id === carId) ?? null,
@@ -372,22 +374,32 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
 
   const start = parseDateTimeLocal(startLocal);
   const end = parseDateTimeLocal(endLocal);
+  // The pickers capture Oslo wall-clock; use the real Oslo instants for pricing, availability,
+  // the contract and persistence. Memoised so identities only change with the picked values.
+  const osloStart = useMemo(() => {
+    const n = parseDateTimeLocal(startLocal);
+    return n ? naiveToOsloInstant(n) : null;
+  }, [startLocal]);
+  const osloEnd = useMemo(() => {
+    const n = parseDateTimeLocal(endLocal);
+    return n ? naiveToOsloInstant(n) : null;
+  }, [endLocal]);
+
   // "Per month" is only offered for vehicles that have a monthly rate set...
   const monthlyAvailable = Number(selectedCar?.base_price_per_month ?? 0) > 0;
-  // ...and only for rentals of at least ~1 month (29 days). It stays disabled until then.
-  const MONTHLY_MIN_DAYS = 29;
+  // ...and only once the rental spans at least one full calendar month (the unit it bills in).
+  const monthlyCal = osloStart && osloEnd ? calendarDuration(osloStart, osloEnd) : null;
   const monthlyEligible =
-    monthlyAvailable && !!start && !!end &&
-    end.getTime() - start.getTime() >= MONTHLY_MIN_DAYS * 86_400_000;
+    monthlyAvailable && !!monthlyCal && monthlyCal.years * 12 + monthlyCal.months >= 1;
   // Fall back to daily if monthly was picked but is no longer eligible (car without a monthly
-  // rate, or the window was shortened below 29 days) so pricing never uses a 0 monthly rate.
+  // rate, or the window shortened below one month) so pricing never uses a 0 monthly rate.
   useEffect(() => {
     if (pricingMode === "monthly-basis" && !monthlyEligible) setPricingMode("daily-basis");
   }, [pricingMode, monthlyEligible]);
 
   const pricing = useMemo(
-    () => computePricing(start, end, selectedCar, deliveryFee, withDriver, pricingMode),
-    [start, end, selectedCar, deliveryFee, withDriver, pricingMode]
+    () => computePricing(osloStart, osloEnd, selectedCar, deliveryFee, withDriver, pricingMode),
+    [osloStart, osloEnd, selectedCar, deliveryFee, withDriver, pricingMode]
   );
 
   const ninValid = /^\d{11}$/.test(customerNin);
@@ -405,9 +417,9 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
     licenseStatus === "verified" &&
     (!bookingForCompany || (orgNo.trim().length > 0 && orgName.trim().length > 0));
   const canAdvanceFrom2 =
-    !!selectedCar && !!start && !!end && end > start &&
+    !!selectedCar && !!osloStart && !!osloEnd && osloEnd > osloStart &&
     pickupLocation.trim().length > 0 && !!pricing &&
-    isPickupLeadTimeValid(start);
+    isPickupLeadTimeValid(osloStart);
 
   const canGoNext =
     step === 1 ? canAdvanceFrom1 :
@@ -419,8 +431,10 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
   // object identity only changes when a field actually changes (start/end are re-parsed
   // inside to avoid new Date() identities on every render).
   const contractInput: AdminContractInput = useMemo(() => {
-    const s = parseDateTimeLocal(startLocal);
-    const e = parseDateTimeLocal(endLocal);
+    const sNaive = parseDateTimeLocal(startLocal);
+    const eNaive = parseDateTimeLocal(endLocal);
+    const s = sNaive ? naiveToOsloInstant(sNaive) : null;
+    const e = eNaive ? naiveToOsloInstant(eNaive) : null;
     return {
       carId: selectedCar?.id ?? "",
       startDateTime: s ? s.toISOString() : "",
@@ -454,7 +468,7 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
   const contractState = useAdminBookingContract(contractInput, contractEnabled);
 
   // Vehicles already booked/blocked for the selected window — disabled in the step-2 picker.
-  const { unavailableIds: bookedCarIds } = useUnavailableCarIds(start, end, readOwnAdminBookingId());
+  const { unavailableIds: bookedCarIds } = useUnavailableCarIds(osloStart, osloEnd, readOwnAdminBookingId());
   // Drop a selection that becomes unavailable after the dates change.
   useEffect(() => {
     if (carId && bookedCarIds.has(carId)) setCarId("");
@@ -474,14 +488,14 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
       goNext();
       return;
     }
-    if (!selectedCar || !start || !end) return;
+    if (!selectedCar || !osloStart || !osloEnd) return;
 
     setCheckingAvailability(true);
     try {
       const check = await precheckCarAvailability({
         carId: selectedCar.id,
-        startDateTimeIso: start.toISOString(),
-        endDateTimeIso: end.toISOString(),
+        startDateTimeIso: osloStart.toISOString(),
+        endDateTimeIso: osloEnd.toISOString(),
       });
 
       if (!check.ok) {
@@ -622,6 +636,8 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                 <BookingDetailsStep
                   cars={cars}
                   carsLoading={carsLoading}
+                  carsError={carsError}
+                  reloadCars={reloadCars}
                   carId={carId}
                   setCarId={setCarId}
                   disabledCarIds={bookedCarIds}
@@ -645,11 +661,11 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                   setPricingMode={(v) => { setPricingModeTouched(true); setPricingMode(v); }}
                   monthlyAvailable={monthlyAvailable}
                   monthlyEligible={monthlyEligible}
-                  monthlyMinDays={MONTHLY_MIN_DAYS}
+                  durationText={osloStart && osloEnd ? formatAgreedDuration(osloStart, osloEnd) : ""}
                   pricing={pricing}
                 />
               )}
-              {step === 3 && selectedCar && start && end && pricing && (
+              {step === 3 && selectedCar && osloStart && osloEnd && pricing && (
                 <div className="space-y-3">
                   <AdminContractCard
                     state={contractState}
@@ -663,8 +679,8 @@ export const AdminBookOnBehalfDialog: React.FC<Props> = ({
                     customerPhone={customerPhone}
                     licenseCategories={licenseCategories}
                     car={selectedCar}
-                    start={start}
-                    end={end}
+                    start={osloStart}
+                    end={osloEnd}
                     pickupLocation={pickupLocation}
                     deliveryLocation={deliveryLocation}
                     decorationRequired={decorationRequired}
@@ -998,13 +1014,17 @@ const CustomerDetailsStep: React.FC<CustomerDetailsStepProps> = ({
 interface CarPickerProps {
   cars: AdminCarOption[];
   loading: boolean;
+  /** Last load error, if any — surfaced in the dropdown with a retry action. */
+  error?: string | null;
+  /** Refetch the vehicle list (called when the dropdown opens, and by the retry button). */
+  onReload?: () => void;
   value: string;
   onChange: (id: string) => void;
   /** Car ids already booked/blocked for the selected dates — shown but not selectable. */
   disabledIds?: Set<string>;
 }
 
-const CarPicker: React.FC<CarPickerProps> = ({ cars, loading, value, onChange, disabledIds }) => {
+const CarPicker: React.FC<CarPickerProps> = ({ cars, loading, error, onReload, value, onChange, disabledIds }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const selected = cars.find((c) => c.id === value) ?? null;
@@ -1017,12 +1037,22 @@ const CarPicker: React.FC<CarPickerProps> = ({ cars, loading, value, onChange, d
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  // Opening the dropdown refetches the latest vehicles (and retries a previous failure),
+  // but never interrupts an in-flight load.
+  const toggleOpen = () => {
+    setOpen((wasOpen) => {
+      const next = !wasOpen;
+      if (next && !loading) onReload?.();
+      return next;
+    });
+  };
+
   return (
     <div ref={ref} className="relative">
       {/* Trigger — no focus ring; plain border always */}
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-left transition-colors duration-150 focus:outline-none hover:border-gray-300"
       >
         {selected ? (
@@ -1066,6 +1096,17 @@ const CarPicker: React.FC<CarPickerProps> = ({ cars, loading, value, onChange, d
             <div className="flex items-center gap-2 px-4 py-5 text-sm text-gray-400">
               <Loader2 className="h-4 w-4 animate-spin shrink-0" style={{ color: GOLD }} />
               Loading vehicles…
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-start gap-2 px-4 py-5 text-sm">
+              <p className="text-red-600">{error}</p>
+              <button
+                type="button"
+                onClick={() => onReload?.()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50"
+              >
+                Retry
+              </button>
             </div>
           ) : cars.length === 0 ? (
             <div className="px-4 py-5 text-sm text-gray-400">No vehicles available.</div>
@@ -1136,6 +1177,8 @@ const CarPicker: React.FC<CarPickerProps> = ({ cars, loading, value, onChange, d
 interface BookingDetailsStepProps {
   cars: AdminCarOption[];
   carsLoading: boolean;
+  carsError: string | null;
+  reloadCars: () => void;
   carId: string;
   setCarId: (v: string) => void;
   disabledCarIds?: Set<string>;
@@ -1159,46 +1202,43 @@ interface BookingDetailsStepProps {
   setPricingMode: (v: "flat-rate" | "daily-basis" | "monthly-basis") => void;
   monthlyAvailable: boolean;
   monthlyEligible: boolean;
-  monthlyMinDays: number;
+  /** Real Oslo calendar span shown as the "Duration" in the pricing preview. */
+  durationText: string;
   pricing: ReturnType<typeof computePricing>;
 }
 
 const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
-  cars, carsLoading, carId, setCarId, disabledCarIds,
+  cars, carsLoading, carsError, reloadCars, carId, setCarId, disabledCarIds,
   startLocal, setStartLocal, endLocal, setEndLocal,
   pickupLocation, setPickupLocation,
   deliveryLocation, setDeliveryLocation,
   deliveryFee, setDeliveryFee, deliveryFeeInput, setDeliveryFeeInput,
   decorationRequired, setDecorationRequired,
   withDriver, setWithDriver,
-  pricingMode, setPricingMode, monthlyAvailable, monthlyEligible, monthlyMinDays,
+  pricingMode, setPricingMode, monthlyAvailable, monthlyEligible, durationText,
   pricing,
 }) => {
   const startDate = parseLocalDateTimeValue(startLocal);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const durationLabel = (() => {
-    if (!pricing) return "";
-    if (pricingMode === "monthly-basis") {
-      const leftoverDays = pricing.rentalDays - pricing.rentalMonths * 30;
-      const parts: string[] = [];
-      if (pricing.rentalMonths > 0) parts.push(`${pricing.rentalMonths} ${pricing.rentalMonths === 1 ? "month" : "months"}`);
-      if (leftoverDays > 0) parts.push(`${leftoverDays} ${leftoverDays === 1 ? "day" : "days"}`);
-      return parts.join(", ") || `${pricing.rentalDays} ${pricing.rentalDays === 1 ? "day" : "days"}`;
-    }
-    if (pricingMode === "daily-basis") {
-      return `${pricing.rentalDays} ${pricing.rentalDays === 1 ? "day" : "days"}`;
-    }
-    return `${pricing.durationHours} h`;
-  })();
+  // One consistent duration everywhere: the real Oslo calendar span.
+  const durationLabel = durationText;
 
   return (
   <div className="space-y-5">
     {/* Vehicle */}
     <div>
       <FieldLabel>Vehicle</FieldLabel>
-      <CarPicker cars={cars} loading={carsLoading} value={carId} onChange={setCarId} disabledIds={disabledCarIds} />
+      <CarPicker
+        cars={cars}
+        loading={carsLoading}
+        error={carsError}
+        onReload={reloadCars}
+        value={carId}
+        onChange={setCarId}
+        disabledIds={disabledCarIds}
+      />
     </div>
 
     {/* Dates (same functional style as customer booking form) */}
@@ -1268,7 +1308,7 @@ const BookingDetailsStep: React.FC<BookingDetailsStepProps> = ({
       </div>
       {monthlyAvailable && !monthlyEligible && (
         <p className="mt-2 text-[11px] text-gray-500">
-          Per month is available for rentals of {monthlyMinDays} days or more.
+          Per month is available for rentals of at least one month.
         </p>
       )}
     </div>
@@ -1412,8 +1452,8 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
         <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Booking details</span>
       </div>
       <div className="px-3 py-3 space-y-2 text-sm">
-        <ReviewRow label="Pickup" value={start.toLocaleString()} />
-        <ReviewRow label="Return" value={end.toLocaleString()} />
+        <ReviewRow label="Pickup" value={formatOslo(start, { dateStyle: "medium", timeStyle: "short" })} />
+        <ReviewRow label="Return" value={formatOslo(end, { dateStyle: "medium", timeStyle: "short" })} />
         <ReviewRow label="Pickup location" value={pickupLocation} />
         {deliveryLocation && <ReviewRow label="Delivery location" value={deliveryLocation} />}
         {decorationRequired && <ReviewRow label="Decoration" value="Required" />}

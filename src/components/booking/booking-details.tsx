@@ -30,6 +30,8 @@ import { cn } from "@/lib/utils";
 import { isPickupLeadTimeValid, MIN_PICKUP_LEAD_HOURS } from "@/lib/booking-time";
 import { VehicleSwitcher } from "./vehicle-switcher";
 import { calculateBookingPricing } from "@shared/booking-pricing";
+import { calendarDuration, formatAgreedDuration } from "@shared/contract/format";
+import { naiveToOsloInstant, osloInstantToNaive } from "@/lib/oslo-time";
 import { useUnavailableCarIds } from "@/lib/car-availability";
 
 /** This browser's own in-progress hold (so it never disables its own selected vehicle). */
@@ -205,8 +207,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
   const form = useForm<FormData>({
     defaultValues: {
-      startDateTime: initialData ? new Date(initialData.startDateTime) : addHours(new Date(), 2),
-      endDateTime: initialData ? new Date(initialData.endDateTime) : addDays(new Date(), 1),
+      startDateTime: initialData ? osloInstantToNaive(new Date(initialData.startDateTime)) : addHours(new Date(), 2),
+      endDateTime: initialData ? osloInstantToNaive(new Date(initialData.endDateTime)) : addDays(new Date(), 1),
       startTime: "10:00",
       endTime: "10:00",
       seatPricingMode: initialData?.seatPricingMode ?? "flat-rate",
@@ -220,23 +222,27 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
   const watchedValues = form.watch();
 
-  // "Per month" is only offered for vehicles that have a monthly rate set.
-  const monthlyAvailable = Number(car.base_price_per_month ?? 0) > 0;
-
-  // ...and only for rentals of at least ~1 month: it stays disabled until the chosen
-  // pickup → return span is 29 days or more.
-  const MONTHLY_MIN_DAYS = 29;
-  const monthlyRentalDays =
+  // The pickers work in naive wall-clock (the numbers the customer sees); those numbers are
+  // interpreted as Oslo time whenever an exact instant is needed (pricing, availability, the
+  // duration shown everywhere, and what we persist). See src/lib/oslo-time.ts.
+  const datesValid =
     watchedValues.startDateTime instanceof Date &&
     watchedValues.endDateTime instanceof Date &&
     !isNaN(watchedValues.startDateTime.getTime()) &&
-    !isNaN(watchedValues.endDateTime.getTime())
-      ? (watchedValues.endDateTime.getTime() - watchedValues.startDateTime.getTime()) / 86_400_000
-      : 0;
-  const monthlyEligible = monthlyAvailable && monthlyRentalDays >= MONTHLY_MIN_DAYS;
+    !isNaN(watchedValues.endDateTime.getTime());
+  const osloStart = datesValid ? naiveToOsloInstant(watchedValues.startDateTime) : null;
+  const osloEnd = datesValid ? naiveToOsloInstant(watchedValues.endDateTime) : null;
+
+  // "Per month" is only offered for vehicles that have a monthly rate set...
+  const monthlyAvailable = Number(car.base_price_per_month ?? 0) > 0;
+  // ...and only once the rental spans at least one full calendar month, which is also the
+  // unit the monthly price bills in. It stays disabled until then.
+  const monthlyCal = osloStart && osloEnd ? calendarDuration(osloStart, osloEnd) : null;
+  const monthlyEligible =
+    monthlyAvailable && !!monthlyCal && monthlyCal.years * 12 + monthlyCal.months >= 1;
 
   // Fall back to daily if monthly was selected but is no longer eligible — i.e. the customer
-  // switched to a car without a monthly rate, or shortened the rental below 29 days.
+  // switched to a car without a monthly rate, or shortened the rental below one month.
   useEffect(() => {
     if (!monthlyEligible && form.getValues("seatPricingMode") === "monthly-basis") {
       form.setValue("seatPricingMode", "daily-basis");
@@ -245,8 +251,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
   // Disable vehicles already booked/blocked for the chosen pickup/return window.
   const { unavailableIds } = useUnavailableCarIds(
-    watchedValues.startDateTime,
-    watchedValues.endDateTime,
+    osloStart ?? watchedValues.startDateTime,
+    osloEnd ?? watchedValues.endDateTime,
     readOwnBookingId(),
   );
 
@@ -259,8 +265,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
   useEffect(() => {
     if (initialData) {
       form.reset({
-        startDateTime: new Date(initialData.startDateTime),
-        endDateTime: new Date(initialData.endDateTime),
+        startDateTime: osloInstantToNaive(new Date(initialData.startDateTime)),
+        endDateTime: osloInstantToNaive(new Date(initialData.endDateTime)),
         startTime: "10:00",
         endTime: "10:00",
         seatPricingMode: initialData.seatPricingMode ?? "flat-rate",
@@ -289,37 +295,23 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
     }
   }, [watchedValues.startDateTime, watchedValues.endDateTime, pricingModeTouched, form]);
 
-  // Calculate pricing based on the full Date values from datetime-local inputs
+  // Calculate pricing from the picked dates, interpreted as Oslo time.
   const calculatePricing = () => {
-    const start = watchedValues.startDateTime;
-    const end = watchedValues.endDateTime;
-
-    if (!start || !end) {
+    if (!osloStart || !osloEnd) {
       return {
         basePrice: 0,
         deliveryFee: 0,
         depositAmount: 0,
         totalPrice: 0,
-        duration: "0 days (0 hours)",
-      };
-    }
-
-    // Validate dates
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return {
-        basePrice: 0,
-        deliveryFee: 0,
-        depositAmount: 0,
-        totalPrice: 0,
-        duration: "0 days (0 hours)",
+        duration: "—",
       };
     }
 
     // Same calculation the server uses when it creates the booking (create-booking).
     const result = calculateBookingPricing({
       car,
-      start,
-      end,
+      start: osloStart,
+      end: osloEnd,
       mode: watchedValues.seatPricingMode ?? "flat-rate",
       withDriver: Boolean(watchedValues.decorationDriverNeed),
       deliveryFee,
@@ -331,7 +323,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
       depositAmount: result.depositAmount,
       driverSurcharge: result.driverSurcharge,
       totalPrice: result.totalPrice,
-      duration: `${result.rentalDays} ${result.rentalDays === 1 ? "day" : "days"} (${result.rentalHours} hours)`,
+      duration: formatAgreedDuration(osloStart, osloEnd),
     };
   };
 
@@ -397,8 +389,9 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
   };
 
   const onSubmit = async (data: FormData) => {
-    const startDateTime = data.startDateTime;
-    const endDateTime = data.endDateTime;
+    // The picked numbers are Oslo wall-clock; persist (and validate) the real Oslo instants.
+    const startDateTime = naiveToOsloInstant(data.startDateTime);
+    const endDateTime = naiveToOsloInstant(data.endDateTime);
 
     if (!isPickupLeadTimeValid(startDateTime)) {
       toast({
@@ -825,7 +818,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               </div>
               {monthlyAvailable && !monthlyEligible && (
                 <p className="text-xs text-[#9aa8ae]">
-                  Per month is available for rentals of {MONTHLY_MIN_DAYS} days or more.
+                  Per month is available for rentals of at least one month.
                 </p>
               )}
             </CardContent>

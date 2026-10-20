@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { formatAgreedDuration } from '@shared/contract/format';
+import { formatOslo } from '@/lib/oslo-time';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -92,9 +94,8 @@ export const BookingDetailsDialog: React.FC<BookingDetailsDialogProps> = ({
   if (!booking) return null;
 
   const payment = booking.payment?.[0];
-  const totalDays = Math.ceil(
-    (new Date(booking.end_datetime).getTime() - new Date(booking.start_datetime).getTime()) / (1000 * 60 * 60 * 24)
-  );
+  // Real Oslo calendar span — the same duration shown on the contract and in the booking flow.
+  const durationText = formatAgreedDuration(new Date(booking.start_datetime), new Date(booking.end_datetime));
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -162,16 +163,16 @@ export const BookingDetailsDialog: React.FC<BookingDetailsDialogProps> = ({
                     <div className="flex items-center gap-2 mb-2 text-sm">
                       <CalendarIcon className="h-4 w-4 text-gray-500" />
                       <span className="font-medium text-gray-600">Pickup:</span>
-                      <span className='text-[13px] text-gray-600'>{format(new Date(booking.start_datetime), 'PPPp')}</span>
+                      <span className='text-[13px] text-gray-600'>{formatOslo(new Date(booking.start_datetime), { dateStyle: "long", timeStyle: "short" })}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <CalendarIcon className="h-4 w-4 text-gray-500" />
                       <span className="font-medium text-gray-600">Return:</span>
-                      <span className='text-[13px] text-gray-600'>{format(new Date(booking.end_datetime), 'PPPp')}</span>
+                      <span className='text-[13px] text-gray-600'>{formatOslo(new Date(booking.end_datetime), { dateStyle: "long", timeStyle: "short" })}</span>
                     </div>
                     <div className="mt-3 pt-2 border-t border-gray-200">
                       <p className="text-[13px] text-gray-600">
-                        <span className="font-medium text-gray-600 text-[13px]">Duration:</span> {totalDays} {totalDays === 1 ? 'day' : 'days'}
+                        <span className="font-medium text-gray-600 text-[13px]">Duration:</span> {durationText}
                       </p>
                     </div>
                   </div>
@@ -236,7 +237,7 @@ export const BookingDetailsDialog: React.FC<BookingDetailsDialogProps> = ({
                   <h4 className="font-medium mb-2 text-gray-700">Pricing Summary</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-600 text-sm">Base Rate ({totalDays} {totalDays === 1 ? 'day' : 'days'})</span>
+                      <span className="text-gray-600 text-sm">Base Rate ({durationText})</span>
                       <span className="font-medium text-gray-900">NOK {booking.total_price.toFixed(2)}</span>
                     </div>
                     <div className="border-t border-gray-200 my-2"></div>

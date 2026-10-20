@@ -13,10 +13,14 @@ export interface AdminCarOption {
 
 export interface AdminBookingPricing {
   durationHours: number;
-  /** Days charged (ceil of hours/24) — used for the daily/monthly duration label. */
+  /** Days charged (ceil of hours/24) for daily pricing. */
   rentalDays: number;
-  /** Whole 30-day months charged for monthly pricing (0 otherwise). */
+  /** Whole calendar months charged for monthly pricing (0 otherwise). */
   rentalMonths: number;
+  /** Leftover whole days after the calendar months, for monthly pricing (0 otherwise). */
+  rentalLeftoverDays: number;
+  /** Leftover whole hours after the days, for monthly pricing (0 otherwise). */
+  rentalLeftoverHours: number;
   basePrice: number;
   deliveryFee: number;
   depositAmount: number;

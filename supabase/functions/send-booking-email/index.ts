@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import nodemailer from "npm:nodemailer@6.9.16";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { calendarDuration } from "../_shared/contract/format.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -147,28 +148,20 @@ serve(async (req) => {
         ? `Faktura for din bilutleie - ${booking.booking_number}`
         : `Invoice for your car rental - ${booking.booking_number}`;
 
-      const durationHours = Math.max(
-        1,
-        Math.round(
-          (new Date(booking.end_datetime).getTime() - new Date(booking.start_datetime).getTime()) /
-            (1000 * 60 * 60)
-        )
-      );
-      // Show the duration in the unit that matches the booking's pricing mode.
+      // The rental's real Oslo calendar span — the same duration shown on the contract and in
+      // the app (months + days + hours), rendered bilingually.
       const durationText = (() => {
-        const totalDays = Math.ceil(durationHours / 24);
-        if (booking.seat_pricing_mode === 'monthly-basis') {
-          const months = Math.floor(totalDays / 30);
-          const days = totalDays - months * 30;
-          const parts: string[] = [];
-          if (months > 0) parts.push(`${months} ${isNo ? (months === 1 ? 'måned' : 'måneder') : (months === 1 ? 'month' : 'months')}`);
-          if (days > 0) parts.push(`${days} ${isNo ? (days === 1 ? 'dag' : 'dager') : (days === 1 ? 'day' : 'days')}`);
-          return parts.join(isNo ? ' og ' : ' and ') || `${totalDays} ${isNo ? (totalDays === 1 ? 'dag' : 'dager') : (totalDays === 1 ? 'day' : 'days')}`;
-        }
-        if (booking.seat_pricing_mode === 'daily-basis') {
-          return `${totalDays} ${isNo ? (totalDays === 1 ? 'dag' : 'dager') : (totalDays === 1 ? 'day' : 'days')}`;
-        }
-        return `${durationHours} ${isNo ? 't' : 'h'}`;
+        const cal = calendarDuration(new Date(booking.start_datetime), new Date(booking.end_datetime));
+        const u = (n: number, enS: string, enP: string, noS: string, noP: string) =>
+          `${n} ${isNo ? (n === 1 ? noS : noP) : (n === 1 ? enS : enP)}`;
+        const totalMonths = cal.years * 12 + cal.months;
+        const parts: string[] = [];
+        if (totalMonths > 0) parts.push(u(totalMonths, 'month', 'months', 'måned', 'måneder'));
+        if (cal.days > 0) parts.push(u(cal.days, 'day', 'days', 'dag', 'dager'));
+        if (cal.hours > 0) parts.push(u(cal.hours, 'hour', 'hours', 'time', 'timer'));
+        if (parts.length === 0) return u(0, 'hour', 'hours', 'time', 'timer');
+        if (parts.length === 1) return parts[0];
+        return `${parts.slice(0, -1).join(', ')}${isNo ? ' og ' : ' and '}${parts[parts.length - 1]}`;
       })();
 
       const lineRow = (label: string, amount: number) => `

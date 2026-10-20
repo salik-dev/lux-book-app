@@ -130,7 +130,10 @@ export function useAdminBookingContract(input: AdminContractInput, enabled: bool
   const [booking, setBooking] = useState<CreatedBooking | null>(null);
   const [access, setAccess] = useState<BookingAccess | null>(null);
   const [contract, setContract] = useState<PublicContract | null>(null);
-  const [busy, setBusy] = useState<AdminContractBusy>(null);
+  // Start in the "booking" (loading) state so the Review card shows a clean disabled/loading
+  // state until the booking + contract are ready, instead of briefly flashing the
+  // "not prepared yet" fallback before the create effect runs (mirrors the customer hook).
+  const [busy, setBusy] = useState<AdminContractBusy>("booking");
   const [error, setError] = useState<ApiError | null>(null);
   const [bookingError, setBookingError] = useState<ApiError | null>(null);
   const [signLink, setSignLink] = useState<string | null>(null);

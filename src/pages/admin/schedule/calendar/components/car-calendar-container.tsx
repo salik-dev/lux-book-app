@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { parseISO } from "date-fns";
-import { CheckCircle2, CalendarClock, Ban, Power } from "lucide-react";
+import { Clock, CheckCircle2, CarFront, CircleCheckBig } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -149,72 +149,110 @@ export function CarCalendarContainer() {
   );
 }
 
-// ── Per-day availability overview (req #1) ────────────────────────────────────
+// ── Per-day booking-status overview (req #1) ──────────────────────────────────
 
-type CarDayState = "available" | "booked" | "blocked" | "disabled";
+type BookingStatus = "pending" | "confirmed" | "active" | "completed";
 
 function AvailabilitySummary({ loading }: { loading: boolean }) {
-  const { cars, events, selectedDate, setSelectedUserId } = useCalendar();
+  const { events, selectedDate, view } = useCalendar();
+
+  // Compute the visible range for the active view so the counters match what the
+  // calendar body actually shows (day / week / month / agenda / year).
+  const { rangeStart, rangeEnd } = useMemo(() => {
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
+    const date = selectedDate.getDate();
+
+    if (view === "year") {
+      return {
+        rangeStart: new Date(year, 0, 1, 0, 0, 0, 0),
+        rangeEnd: new Date(year, 11, 31, 23, 59, 59, 999),
+      };
+    }
+
+    if (view === "month" || view === "agenda") {
+      return {
+        rangeStart: new Date(year, month, 1, 0, 0, 0, 0),
+        rangeEnd: new Date(year, month + 1, 0, 23, 59, 59, 999),
+      };
+    }
+
+    if (view === "week") {
+      const start = new Date(selectedDate);
+      start.setDate(date - selectedDate.getDay());
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+      return { rangeStart: start, rangeEnd: end };
+    }
+
+    // day view (and any fallback)
+    return {
+      rangeStart: new Date(year, month, date, 0, 0, 0, 0),
+      rangeEnd: new Date(year, month, date, 23, 59, 59, 999),
+    };
+  }, [selectedDate, view]);
 
   const summary = useMemo(() => {
-    const list = cars ?? [];
-    const dayStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 0, 0, 0, 0);
-    const dayEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 23, 59, 59, 999);
-
-    const overlapsDay = (startISO: string, endISO: string) => {
+    const overlapsRange = (startISO: string, endISO: string) => {
       const s = parseISO(startISO);
       const e = parseISO(endISO);
-      return s <= dayEnd && e >= dayStart;
+      return s <= rangeEnd && e >= rangeStart;
     };
 
-    const blockedCarIds = new Set(
-      events.filter((ev) => ev.kind === "block" && ev.carId && overlapsDay(ev.startDate, ev.endDate)).map((ev) => ev.carId!)
-    );
-    const bookedCarIds = new Set(
-      events
-        .filter((ev) => ev.kind === "booking" && ev.carId && ev.status !== "completed" && overlapsDay(ev.startDate, ev.endDate))
-        .map((ev) => ev.carId!)
-    );
-
-    const counts: Record<CarDayState, number> = { available: 0, booked: 0, blocked: 0, disabled: 0 };
-    for (const car of list) {
-      let state: CarDayState;
-      if (!car.is_available) state = "disabled";
-      else if (blockedCarIds.has(car.id)) state = "blocked";
-      else if (bookedCarIds.has(car.id)) state = "booked";
-      else state = "available";
-      counts[state] += 1;
+    const counts: Record<BookingStatus, number> = { pending: 0, confirmed: 0, active: 0, completed: 0 };
+    let total = 0;
+    for (const ev of events) {
+      if (ev.kind !== "booking") continue;
+      if (!overlapsRange(ev.startDate, ev.endDate)) continue;
+      const status = ev.status as BookingStatus | undefined;
+      if (status && status in counts) {
+        counts[status] += 1;
+        total += 1;
+      }
     }
-    return { counts, total: list.length };
-  }, [cars, events, selectedDate]);
+    return { counts, total };
+  }, [events, rangeStart, rangeEnd]);
 
-  const dateLabel = selectedDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const dateLabel = useMemo(() => {
+    if (view === "year") {
+      return selectedDate.toLocaleDateString(undefined, { year: "numeric" });
+    }
+    if (view === "month" || view === "agenda") {
+      return selectedDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    }
+    if (view === "week") {
+      const startLabel = rangeStart.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      const endLabel = rangeEnd.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      return `${startLabel} – ${endLabel}`;
+    }
+    return selectedDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  }, [view, selectedDate, rangeStart, rangeEnd]);
 
-  const stats: { key: CarDayState; label: string; value: number; icon: typeof CheckCircle2; className: string }[] = [
-    { key: "available", label: "Available", value: summary.counts.available, icon: CheckCircle2, className: "text-green-600 bg-green-50 border-green-200" },
-    { key: "booked", label: "Booked", value: summary.counts.booked, icon: CalendarClock, className: "text-blue-600 bg-blue-50 border-blue-200" },
-    { key: "blocked", label: "Unavailable", value: summary.counts.blocked, icon: Ban, className: "text-orange-600 bg-orange-50 border-orange-200" },
-    { key: "disabled", label: "Disabled", value: summary.counts.disabled, icon: Power, className: "text-gray-600 bg-gray-100 border-gray-200" },
+  const stats: { key: BookingStatus; label: string; value: number; icon: typeof CheckCircle2; className: string }[] = [
+    { key: "pending", label: "Pending", value: summary.counts.pending, icon: Clock, className: "text-yellow-700 bg-yellow-50 border-yellow-200" },
+    { key: "confirmed", label: "Confirmed", value: summary.counts.confirmed, icon: CheckCircle2, className: "text-blue-600 bg-blue-50 border-blue-200" },
+    { key: "active", label: "Active", value: summary.counts.active, icon: CarFront, className: "text-green-600 bg-green-50 border-green-200" },
+    { key: "completed", label: "Completed", value: summary.counts.completed, icon: CircleCheckBig, className: "text-gray-600 bg-gray-100 border-gray-200" },
   ];
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md border border-neutral-200 bg-white px-3 py-1.5">
       <p className="shrink-0 whitespace-nowrap text-xs font-medium text-neutral-500">
-        {loading ? "Loading fleet…" : `${summary.total} vehicle${summary.total === 1 ? "" : "s"} · ${dateLabel}`}
+        {loading ? "Loading bookings…" : `${summary.total} booking${summary.total === 1 ? "" : "s"} · ${dateLabel}`}
       </p>
       <div className="flex flex-1 flex-wrap items-center justify-end gap-1.5">
         {stats.map(({ key, label, value, icon: Icon, className }) => (
-          <button
+          <div
             key={key}
-            type="button"
-            onClick={() => setSelectedUserId("all")}
             title={`${label}: ${value}`}
-            className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors ${className}`}
+            className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${className}`}
           >
             <Icon className="size-3 shrink-0" />
             <span className="font-semibold">{value}</span>
             <span className="hidden opacity-80 sm:inline">{label}</span>
-          </button>
+          </div>
         ))}
       </div>
     </div>

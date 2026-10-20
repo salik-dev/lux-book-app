@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { calculateBookingPricing } from "@shared/booking-pricing";
 import type {
   AdminBookingPricing,
   AdminCarOption,
@@ -48,41 +49,48 @@ export function useVerifyDriverLicense() {
   return { ...state, verify };
 }
 
-/** Fetches available cars once when the wizard opens. */
+/**
+ * Loads the bookable vehicles for the wizard. Fetches when the wizard opens and exposes
+ * `reload` so the vehicle picker can refetch on demand (e.g. when its dropdown is opened,
+ * or to retry after a failed load). Stale responses are ignored via a request id so a slow
+ * earlier request can't overwrite a newer one.
+ */
 export function useAvailableCars(enabled: boolean) {
   const [cars, setCars] = useState<AdminCarOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
 
-  useEffect(() => {
-    if (!enabled) return;
-    let cancelled = false;
+  const reload = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
-
-    (async () => {
+    setError(null);
+    try {
       const { data, error } = await supabase
         .from("cars")
         .select("id, name, brand, model, base_price_per_hour, base_price_per_day, base_price_per_month, image_url, is_available, deposit_amount")
         .eq("is_available", true)
         .order("name");
 
-      if (cancelled) return;
-      if (error) {
-        setError(error.message);
-        setCars([]);
-      } else {
-        setCars((data || []) as AdminCarOption[]);
-        setError(null);
-      }
-      setLoading(false);
-    })();
+      if (requestId !== requestIdRef.current) return;
+      if (error) throw error;
+      setCars((data || []) as AdminCarOption[]);
+    } catch (err) {
+      if (requestId !== requestIdRef.current) return;
+      console.error("Failed to load vehicles:", err);
+      setCars([]);
+      setError(err instanceof Error ? err.message : "Could not load vehicles. Please try again.");
+    } finally {
+      if (requestId === requestIdRef.current) setLoading(false);
+    }
+  }, []);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled]);
+  useEffect(() => {
+    if (!enabled) return;
+    void reload();
+  }, [enabled, reload]);
 
-  return { cars, loading, error };
+  return { cars, loading, error, reload };
 }
 
 /** Mutation wrapper for admin-create-booking. */
@@ -184,7 +192,11 @@ export async function precheckCarAvailability(params: {
   return { ok: true };
 }
 
-/** Pure pricing helper — kept in sync with Norwegian 25% VAT. */
+/**
+ * Pricing for the admin wizard. Delegates to the shared engine so the admin preview matches
+ * the customer flow and the authoritative server calculation exactly (hourly / daily /
+ * calendar-month pricing, 25% driver surcharge). `start`/`end` are the real Oslo instants.
+ */
 export function computePricing(
   start: Date | null,
   end: Date | null,
@@ -194,47 +206,38 @@ export function computePricing(
   pricingMode?: "flat-rate" | "daily-basis" | "monthly-basis"
 ): AdminBookingPricing | null {
   if (!start || !end || !car) return null;
-  const ms = end.getTime() - start.getTime();
-  if (ms <= 0) return null;
-  const hours = Math.max(1, Math.ceil(ms / (1000 * 60 * 60)));
-  const days = Math.ceil(hours / 24);
+  if (end.getTime() <= start.getTime()) return null;
 
-  // Mirrors the server's calculateBookingPricing (_shared/booking-pricing.ts).
-  const mode = pricingMode ?? (hours >= 24 ? "daily-basis" : "flat-rate");
-  let basePrice: number;
-  let rentalMonths = 0;
-  if (mode === "daily-basis") {
-    basePrice = days * Number(car.base_price_per_day);
-  } else if (mode === "monthly-basis") {
-    rentalMonths = Math.floor(days / 30);
-    const leftoverDays = days - rentalMonths * 30;
-    basePrice = rentalMonths * Number(car.base_price_per_month ?? 0) + leftoverDays * Number(car.base_price_per_day);
-  } else {
-    basePrice = hours * Number(car.base_price_per_hour);
-  }
+  const mode: "flat-rate" | "daily-basis" | "monthly-basis" =
+    pricingMode ?? (end.getTime() - start.getTime() >= 24 * 60 * 60 * 1000 ? "daily-basis" : "flat-rate");
 
-  const depositAmount = round2(Number(car.deposit_amount ?? 0));
-  const vatAmount = 0;
-  const subtotal = round2(basePrice + (deliveryFee || 0) + depositAmount);
-  // Driver surcharge applies to base price only.
-  const driverSurcharge = withDriver ? round2(basePrice * 0.25) : 0;
-  const totalPrice = round2(subtotal + driverSurcharge);
+  const p = calculateBookingPricing({
+    car: {
+      base_price_per_hour: car.base_price_per_hour,
+      base_price_per_day: car.base_price_per_day,
+      base_price_per_month: car.base_price_per_month,
+      deposit_amount: car.deposit_amount,
+    },
+    start,
+    end,
+    mode,
+    withDriver,
+    deliveryFee: deliveryFee || 0,
+  });
 
   return {
-    durationHours: hours,
-    rentalDays: days,
-    rentalMonths,
-    basePrice: round2(basePrice),
-    deliveryFee: round2(deliveryFee || 0),
-    depositAmount,
-    vatAmount,
-    driverSurcharge,
-    totalPrice,
+    durationHours: p.rentalHours,
+    rentalDays: p.rentalDays,
+    rentalMonths: p.rentalMonths,
+    rentalLeftoverDays: p.rentalLeftoverDays,
+    rentalLeftoverHours: p.rentalLeftoverHours,
+    basePrice: p.basePrice,
+    deliveryFee: p.deliveryFee,
+    depositAmount: p.depositAmount,
+    vatAmount: 0,
+    driverSurcharge: p.driverSurcharge,
+    totalPrice: p.totalPrice,
   };
-}
-
-function round2(n: number) {
-  return Math.round(n * 100) / 100;
 }
 
 export function formatNOK(amount: number) {

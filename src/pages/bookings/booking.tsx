@@ -75,6 +75,7 @@ const Bookings = () => {
 
   const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
+      timeZone: 'Europe/Oslo',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',

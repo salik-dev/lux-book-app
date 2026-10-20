@@ -117,6 +117,7 @@ useEffect(() => {
                 <p><span className="font-medium">Booking #:</span> {bookingDetails.booking_number}</p>
                 <p><span className="font-medium">Vehicle:</span> {bookingDetails.car?.name}</p>
                 <p><span className="font-medium">Pickup:</span> {new Date(bookingDetails.start_datetime).toLocaleString('en-US', {
+                  timeZone: 'Europe/Oslo',
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
@@ -124,6 +125,7 @@ useEffect(() => {
                   minute: '2-digit'
                 })}</p>
                 <p><span className="font-medium">Drop-off:</span> {new Date(bookingDetails.end_datetime).toLocaleString('en-US', {
+                  timeZone: 'Europe/Oslo',
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',

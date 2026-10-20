@@ -6,6 +6,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "../ui/input";
 import { format } from "date-fns";
 import { enUS } from "date-fns/locale";
+import { formatAgreedDuration } from "@shared/contract/format";
+import { formatOslo } from "@/lib/oslo-time";
 import { Upload, User, FileText, MapPin, Truck, Loader2, X, CheckCircle } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { BookingData, CustomerData } from "@/@types/data";
@@ -1273,22 +1275,11 @@ const uploadLicense = async (): Promise<string | null> => {
     ].filter(Boolean) as string[]
   );
 
-  // Mode-aware duration label for the summary (months + leftover days when billed per month).
-  const summaryTotalDays = Math.ceil(
-    (new Date(bookingData.endDateTime).getTime() - new Date(bookingData.startDateTime).getTime()) /
-      (1000 * 60 * 60 * 24),
+  // One consistent duration everywhere: the real Oslo calendar span (same as the contract).
+  const summaryDurationText = formatAgreedDuration(
+    new Date(bookingData.startDateTime),
+    new Date(bookingData.endDateTime),
   );
-  const summaryDurationText = (() => {
-    if (bookingData.seatPricingMode === "monthly-basis") {
-      const months = Math.floor(summaryTotalDays / 30);
-      const days = summaryTotalDays - months * 30;
-      const parts: string[] = [];
-      if (months > 0) parts.push(`${months} ${months === 1 ? "month" : "months"}`);
-      if (days > 0) parts.push(`${days} ${days === 1 ? "day" : "days"}`);
-      return parts.join(", ") || `${summaryTotalDays} ${summaryTotalDays === 1 ? "day" : "days"}`;
-    }
-    return `${summaryTotalDays} ${summaryTotalDays === 1 ? "day" : "days"}`;
-  })();
 
   return (
     <div className="space-y-6">
@@ -1300,8 +1291,8 @@ const uploadLicense = async (): Promise<string | null> => {
             <div>
               <h4 className="font-medium text-[#b1bdc3]">{bookingData.car.name}</h4>
               <p className="text-sm text-[#9eabb1]">
-                {format(new Date(bookingData.startDateTime), "PPP p", { locale: enUS })} –{" "}
-                {format(new Date(bookingData.endDateTime), "PPP p", { locale: enUS })}
+                {formatOslo(new Date(bookingData.startDateTime), { dateStyle: "long", timeStyle: "short" })} –{" "}
+                {formatOslo(new Date(bookingData.endDateTime), { dateStyle: "long", timeStyle: "short" })}
               </p>
             </div>
 

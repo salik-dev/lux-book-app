@@ -6,6 +6,8 @@
  * Keep this module free of runtime-specific imports so both Vite and Deno can load it.
  */
 
+import { calendarDuration } from "./contract/format.ts";
+
 export type PricingMode = "flat-rate" | "daily-basis" | "monthly-basis";
 
 export interface PricingCar {
@@ -14,9 +16,6 @@ export interface PricingCar {
   base_price_per_month?: number | string | null;
   deposit_amount?: number | string | null;
 }
-
-/** Days billed at the monthly rate before any remainder falls back to the daily rate. */
-export const MONTH_BILLING_DAYS = 30;
 
 export interface PricingInput {
   car: PricingCar;
@@ -33,8 +32,12 @@ export interface BookingPricing {
   rentalHours: number;
   /** Days charged for daily pricing: ceil(rentalHours / 24). */
   rentalDays: number;
-  /** Whole 30-day months charged for monthly pricing (0 for other modes). */
+  /** Whole calendar months charged for monthly pricing (0 for other modes). */
   rentalMonths: number;
+  /** Leftover whole days after the calendar months, for monthly pricing (0 otherwise). */
+  rentalLeftoverDays: number;
+  /** Leftover whole hours after the days, for monthly pricing (0 otherwise). */
+  rentalLeftoverHours: number;
   basePrice: number;
   deliveryFee: number;
   depositAmount: number;
@@ -62,18 +65,31 @@ export function calculateBookingPricing(input: PricingInput): BookingPricing {
   // Matches date-fns differenceInHours (truncates partial hours), minimum 1 hour.
   const rentalHours = Math.max(1, Math.trunc(elapsedMs / HOUR_MS));
   const rentalDays = Math.ceil(rentalHours / 24);
-  // Monthly pricing bills whole 30-day blocks at the monthly rate; any remaining days
-  // fall back to the daily rate (e.g. 45 days = 1 month + 15 days).
-  const rentalMonths = input.mode === "monthly-basis" ? Math.floor(rentalDays / MONTH_BILLING_DAYS) : 0;
 
+  let rentalMonths = 0;
+  let rentalLeftoverDays = 0;
+  let rentalLeftoverHours = 0;
   let basePrice: number;
   if (input.mode === "daily-basis") {
     basePrice = roundCurrency(toAmount(input.car.base_price_per_day) * rentalDays);
   } else if (input.mode === "monthly-basis") {
-    const leftoverDays = rentalDays - rentalMonths * MONTH_BILLING_DAYS;
+    // Bill the real Oslo calendar span: whole calendar months at the monthly rate, the
+    // leftover whole days at the daily rate and the leftover whole hours at the hourly rate
+    // (e.g. 2 months, 12 days, 9 hours = 2·month + 12·day + 9·hour). This matches the
+    // "Agreed duration" shown on the contract. Choosing "per month" bills at least one month.
+    const cal = calendarDuration(input.start, input.end);
+    rentalMonths = cal.years * 12 + cal.months;
+    rentalLeftoverDays = cal.days;
+    rentalLeftoverHours = cal.hours;
+    if (rentalMonths < 1) {
+      rentalMonths = 1;
+      rentalLeftoverDays = 0;
+      rentalLeftoverHours = 0;
+    }
     basePrice = roundCurrency(
       toAmount(input.car.base_price_per_month) * rentalMonths +
-        toAmount(input.car.base_price_per_day) * leftoverDays,
+        toAmount(input.car.base_price_per_day) * rentalLeftoverDays +
+        toAmount(input.car.base_price_per_hour) * rentalLeftoverHours,
     );
   } else {
     basePrice = roundCurrency(toAmount(input.car.base_price_per_hour) * rentalHours);
@@ -88,6 +104,8 @@ export function calculateBookingPricing(input: PricingInput): BookingPricing {
     rentalHours,
     rentalDays,
     rentalMonths,
+    rentalLeftoverDays,
+    rentalLeftoverHours,
     basePrice,
     deliveryFee,
     depositAmount,

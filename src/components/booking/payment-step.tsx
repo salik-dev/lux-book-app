@@ -6,8 +6,6 @@ import { Card,
   CardTitle,
 } from "../ui/card";
 import { Separator } from "../ui/separator";
-import { format, differenceInHours } from "date-fns";
-import { enUS } from "date-fns/locale";
 import {
   Clock,
   CreditCard,
@@ -18,6 +16,9 @@ import { PaymentStepProps } from "@/@types/data";
 import { supabase } from "@/integrations/supabase/client";
 import { useBookingContract } from "@/hooks/use-booking-contract";
 import { ContractSigningCard } from "./contract-signing-card";
+import { calculateBookingPricing } from "@shared/booking-pricing";
+import { formatAgreedDuration } from "@shared/contract/format";
+import { formatOslo } from "@/lib/oslo-time";
 
 export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerData, onEditDates }) => {
   const contractState = useBookingContract(bookingData, customerData);
@@ -31,24 +32,23 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
     }).format(price);
   };
 
-  const formatBookingDuration = (start: Date, end: Date) => {
-    const totalHours = Math.max(1, differenceInHours(end, start));
-    const totalDays = Math.ceil(totalHours / 24);
-    return `${totalDays} ${totalDays === 1 ? "day" : "days"} (${totalHours} hours)`;
-  };
-
-  // Mirrors the step-1 pricing rule so the review shows exactly how the base price was derived.
+  // Pickup/return are stored as Oslo instants; render everything in Oslo and show the real
+  // calendar span as the duration (same as the contract).
+  const start = new Date(bookingData.startDateTime);
+  const end = new Date(bookingData.endDateTime);
   const pricingMode = bookingData.seatPricingMode ?? "flat-rate";
   const isDailyPricing = pricingMode === "daily-basis";
   const isMonthlyPricing = pricingMode === "monthly-basis";
-  const rentalHours = Math.max(
-    1,
-    differenceInHours(new Date(bookingData.endDateTime), new Date(bookingData.startDateTime))
-  );
-  const rentalDays = Math.ceil(rentalHours / 24);
-  // Monthly bills whole 30-day blocks; the remainder falls back to the daily rate.
-  const rentalMonths = isMonthlyPricing ? Math.floor(rentalDays / 30) : 0;
-  const monthlyLeftoverDays = rentalDays - rentalMonths * 30;
+
+  // Reuse the shared engine so the breakdown matches the server exactly.
+  const pricing = calculateBookingPricing({
+    car: bookingData.car,
+    start,
+    end,
+    mode: pricingMode,
+    withDriver: Boolean(bookingData.decorationDriverNeed ?? bookingData.withDriver),
+    deliveryFee: bookingData.deliveryFee,
+  });
 
   const dayRate = Number(bookingData.car.base_price_per_day ?? 0);
   const hourRate = Number(bookingData.car.base_price_per_hour ?? 0);
@@ -60,23 +60,22 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
       ? "Per day pricing"
       : "Per hour pricing";
 
-  // Human-readable breakdown of how the base price was derived, for the "Rental" line.
+  const unit = (n: number, singular: string) => `${n} ${singular}${n === 1 ? "" : "s"}`;
+
+  // How the base price was derived, for the "Rental" line — months × monthly + days × daily
+  // + hours × hourly for a monthly rental.
   const rentalBreakdown = isMonthlyPricing
     ? [
-        rentalMonths > 0 ? `${rentalMonths} ${rentalMonths === 1 ? "month" : "months"} × ${formatPrice(monthRate)}` : "",
-        monthlyLeftoverDays > 0 ? `${monthlyLeftoverDays} ${monthlyLeftoverDays === 1 ? "day" : "days"} × ${formatPrice(dayRate)}` : "",
-      ].filter(Boolean).join(" + ") || `${rentalDays} ${rentalDays === 1 ? "day" : "days"} × ${formatPrice(dayRate)}`
+        pricing.rentalMonths > 0 ? `${unit(pricing.rentalMonths, "month")} × ${formatPrice(monthRate)}` : "",
+        pricing.rentalLeftoverDays > 0 ? `${unit(pricing.rentalLeftoverDays, "day")} × ${formatPrice(dayRate)}` : "",
+        pricing.rentalLeftoverHours > 0 ? `${unit(pricing.rentalLeftoverHours, "hour")} × ${formatPrice(hourRate)}` : "",
+      ].filter(Boolean).join(" + ")
     : isDailyPricing
-      ? `${rentalDays} ${rentalDays === 1 ? "day" : "days"} × ${formatPrice(dayRate)} / day`
-      : `${rentalHours} ${rentalHours === 1 ? "hour" : "hours"} × ${formatPrice(hourRate)} / hour`;
+      ? `${unit(pricing.rentalDays, "day")} × ${formatPrice(dayRate)} / day`
+      : `${unit(pricing.rentalHours, "hour")} × ${formatPrice(hourRate)} / hour`;
 
-  // Mode-aware duration shown in the review header.
-  const durationText = isMonthlyPricing
-    ? [
-        rentalMonths > 0 ? `${rentalMonths} ${rentalMonths === 1 ? "month" : "months"}` : "",
-        monthlyLeftoverDays > 0 ? `${monthlyLeftoverDays} ${monthlyLeftoverDays === 1 ? "day" : "days"}` : "",
-      ].filter(Boolean).join(", ") || `${rentalDays} ${rentalDays === 1 ? "day" : "days"}`
-    : formatBookingDuration(new Date(bookingData.startDateTime), new Date(bookingData.endDateTime));
+  // One consistent duration everywhere: the real Oslo calendar span.
+  const durationText = formatAgreedDuration(start, end);
 
   const decorationReview = (
     [
@@ -159,8 +158,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
                 {bookingData.car.name}
               </h3>
               <p className="text-sm text-[#9eabb1]">
-                {format(new Date(bookingData.startDateTime), "PPP p", { locale: enUS })} –{" "}
-                {format(new Date(bookingData.endDateTime), "PPP p", { locale: enUS })}
+                {formatOslo(start, { dateStyle: "long", timeStyle: "short" })} –{" "}
+                {formatOslo(end, { dateStyle: "long", timeStyle: "short" })}
               </p>
               <p className="text-sm text-[#9eabb1]">
                 <strong>Duration:</strong>{" "}
@@ -236,11 +235,11 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ bookingData, customerD
                   {formatPrice(totalAmount)}
                 </span>
               </div>
-              {priceChanged && (
+              {/* {priceChanged && (
                 <p role="status" className="text-xs text-[#E3C08D]">
                   The price was updated to the car's current rates. This is the amount on your contract and at checkout.
                 </p>
-              )}
+              )} */}
             </div>
           </div>
 

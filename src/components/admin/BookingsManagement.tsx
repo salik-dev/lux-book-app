@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { formatOslo } from '@/lib/oslo-time';
 import { Search, Filter, Download, Eye, Edit, Gauge, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft, UserPlus, Building2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
@@ -322,9 +323,9 @@ export const BookingsManagement: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <div className="text-xs leading-3">
-                      <div style={{ color: 'blue' }}>{format(new Date(booking.start_datetime), 'MMM dd, yyyy, hh:mm a')}</div>
+                      <div style={{ color: 'blue' }}>{formatOslo(new Date(booking.start_datetime), { dateStyle: 'medium', timeStyle: 'short' })}</div>
                       <span className="mx-14">&#x2193;</span>
-                      <div style={{ color: 'red' }}>{format(new Date(booking.end_datetime), 'MMM dd, yyyy, hh:mm a')}</div>
+                      <div style={{ color: 'red' }}>{formatOslo(new Date(booking.end_datetime), { dateStyle: 'medium', timeStyle: 'short' })}</div>
                     </div>
                   </TableCell>
                   <TableCell>
