@@ -10,7 +10,7 @@ import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import logo from '../assets/logo.png';
 
-const OTP_LENGTH = 4;
+const OTP_LENGTH = 6;
 const OTP_TTL_SECONDS = 5 * 60;
 const RESEND_COOLDOWN_SECONDS = 30;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -24,7 +24,7 @@ function formatTime(totalSeconds: number): string {
 
 export function AuthDialog({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
-  const { requestLoginOtp, verifyLoginOtp } = useAuth();
+  const { requestAdminOtp, verifyAdminOtp } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
@@ -80,7 +80,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
     setSendingCode(true);
     setEmailError(null);
     try {
-      const result = await requestLoginOtp(targetEmail);
+      const result = await requestAdminOtp(targetEmail);
       if (result.error) {
         setEmailError(result.error);
         return false;
@@ -111,7 +111,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
     setStep('otp');
     toast({
       title: 'Code sent',
-      description: `We've sent a ${OTP_LENGTH}-digit code to ${trimmedEmail}.`,
+      description: `We've sent a ${OTP_LENGTH}-character code to ${trimmedEmail}.`,
     });
   };
 
@@ -133,7 +133,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
     setVerifying(true);
     setOtpError(null);
     try {
-      const result = await verifyLoginOtp(email, otp);
+      const result = await verifyAdminOtp(email, otp);
       if (result.error) {
         setOtpError(result.error);
         triggerShake();
@@ -263,7 +263,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                   Enter verification code
                 </DialogTitle>
                 <p className="mt-2 text-sm text-[#9eabb1]">
-                  We sent a {OTP_LENGTH}-digit code to <span className="text-[#d0d9dd]">{email}</span>
+                  We sent a {OTP_LENGTH}-character code to <span className="text-[#d0d9dd]">{email}</span>
                 </p>
               </div>
 
@@ -271,6 +271,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                 <OtpInput
                   key={otpResetKey}
                   length={OTP_LENGTH}
+                  alphanumeric
                   value={otp}
                   onChange={(v) => {
                     setOtp(v);
@@ -279,7 +280,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                   disabled={expired || verifying}
                   autoFocus
                   shake={shake}
-                  inputClassName="border-[#46555d] bg-[#1b2529] text-[#d0d9dd] focus-visible:ring-[#E3C08D]"
+                  inputClassName="h-14 w-11 border-[#46555d] bg-[#1b2529] text-[#d0d9dd] focus-visible:ring-[#E3C08D]"
                 />
 
                 {otpError && (

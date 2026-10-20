@@ -18,6 +18,18 @@ verify_jwt = false
 [functions.verify-login-otp]
 verify_jwt = false
 
+# Admin OTP sign-in — both are called before a session exists, so JWT must be off.
+[functions.request-admin-otp]
+verify_jwt = false
+
+[functions.admin-verify-otp]
+verify_jwt = false
+
+# Super-admin user management — requires a signed-in admin; the platform checks the
+# JWT and the function additionally enforces the super_admin role.
+[functions.admin-manage-users]
+verify_jwt = true
+
 [functions.upload-license]
 verify_jwt = false
 

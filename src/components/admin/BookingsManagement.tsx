@@ -13,6 +13,7 @@ import { formatOslo } from '@/lib/oslo-time';
 import { Search, Filter, Download, Eye, Edit, Gauge, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft, UserPlus, Building2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { AdminTableSkeleton } from './AdminTableSkeleton';
 import { BookingDetailsDialog } from './BookingDetailsDialog';
 import { AdminBookOnBehalfDialog } from './book-on-behalf/AdminBookOnBehalfDialog';
 import { AdminExtraKmChargeSheet } from './extra-km-charge/AdminExtraKmChargeSheet';
@@ -193,20 +194,7 @@ export const BookingsManagement: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <Card className="card-premium">
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-muted rounded w-1/4" />
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-12 bg-muted rounded" />
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <AdminTableSkeleton rows={8} columns={6} />;
   }
 
   const headerSlot = useAdminHeaderSlot();

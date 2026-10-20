@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Car,
   Users,
+  UserCog,
   Settings,
   DollarSign,
   CalendarDays,
@@ -26,28 +27,32 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const navGroups: NavGroup[] = [
-  {
-    label: 'Overview',
-    items: [{ id: 'overview', label: 'Dashboard', icon: LayoutDashboard }],
-  },
-  {
-    label: 'Manage',
-    items: [
-      { id: 'bookings', label: 'Bookings', icon: CalendarIcon },
-      { id: 'cars', label: 'Fleet', icon: Car },
-      { id: 'customers', label: 'Customers', icon: Users },
-      { id: 'calendar', label: 'Calendar', icon: CalendarDays, isAction: true },
-    ],
-  },
-  {
-    label: 'Configure',
-    items: [
-      { id: 'pricing', label: 'Pricing', icon: DollarSign },
-      { id: 'settings', label: 'Settings', icon: Settings },
-    ],
-  },
-];
+/** Builds the nav, adding super-admin-only entries when applicable. */
+function buildNavGroups(isSuperAdmin: boolean): NavGroup[] {
+  return [
+    {
+      label: 'Overview',
+      items: [{ id: 'overview', label: 'Dashboard', icon: LayoutDashboard }],
+    },
+    {
+      label: 'Manage',
+      items: [
+        { id: 'bookings', label: 'Bookings', icon: CalendarIcon },
+        { id: 'cars', label: 'Fleet', icon: Car },
+        { id: 'customers', label: 'Customers', icon: Users },
+        { id: 'calendar', label: 'Calendar', icon: CalendarDays, isAction: true },
+        ...(isSuperAdmin ? [{ id: 'users', label: 'Users', icon: UserCog }] : []),
+      ],
+    },
+    {
+      label: 'Configure',
+      items: [
+        { id: 'pricing', label: 'Pricing', icon: DollarSign },
+        { id: 'settings', label: 'Settings', icon: Settings },
+      ],
+    },
+  ];
+}
 
 interface AdminSidebarProps {
   activeTab: string;
@@ -68,8 +73,9 @@ export function AdminSidebar({
   isCollapsed,
   onToggleCollapse,
 }: AdminSidebarProps) {
-  const { user } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const initials = user?.email?.[0]?.toUpperCase() ?? 'U';
+  const navGroups = buildNavGroups(isSuperAdmin);
 
   const handleSelectTab = (id: string) => {
     onTabChange(id);

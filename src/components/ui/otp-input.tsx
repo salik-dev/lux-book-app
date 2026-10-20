@@ -8,6 +8,8 @@ interface OtpInputProps {
   disabled?: boolean;
   autoFocus?: boolean;
   shake?: boolean;
+  /** Accept lowercase letters + digits instead of digits only. */
+  alphanumeric?: boolean;
   className?: string;
   inputClassName?: string;
 }
@@ -19,9 +21,13 @@ export function OtpInput({
   disabled,
   autoFocus,
   shake,
+  alphanumeric = false,
   className,
   inputClassName,
 }: OtpInputProps) {
+  // Strip anything outside the allowed set; alphanumeric codes are normalised to lowercase.
+  const sanitize = (raw: string) =>
+    alphanumeric ? raw.toLowerCase().replace(/[^a-z0-9]/g, '') : raw.replace(/\D/g, '');
   const digits = Array.from({ length }, (_, i) => value[i] ?? '');
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
@@ -43,7 +49,7 @@ export function OtpInput({
   };
 
   const handleChange = (index: number, raw: string) => {
-    const digit = raw.replace(/\D/g, '').slice(-1);
+    const digit = sanitize(raw).slice(-1);
     setDigitAt(index, digit);
     if (digit && index < length - 1) {
       focusAt(index + 1);
@@ -57,7 +63,7 @@ export function OtpInput({
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, length);
+    const pasted = sanitize(e.clipboardData.getData('text')).slice(0, length);
     if (!pasted) return;
     e.preventDefault();
     onChange(pasted);
@@ -71,7 +77,10 @@ export function OtpInput({
           key={index}
           ref={(el) => { inputRefs.current[index] = el; }}
           type="text"
-          inputMode="numeric"
+          inputMode={alphanumeric ? 'text' : 'numeric'}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           maxLength={1}
           value={digit}
           disabled={disabled}

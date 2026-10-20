@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { Search, Download, ChevronsRight, ChevronRight, ChevronLeft, ChevronsLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { AdminTableSkeleton } from './AdminTableSkeleton';
 
 interface Customer {
   id: string;
@@ -78,20 +79,7 @@ export const CustomersManagement: React.FC = () => {
    };
 
   if (loading) {
-    return (
-      <Card className="card-premium">
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-muted rounded w-1/4" />
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-12 bg-muted rounded" />
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <AdminTableSkeleton rows={8} columns={5} />;
   }
 
   const headerSlot = useAdminHeaderSlot();

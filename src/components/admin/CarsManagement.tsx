@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Search, Edit, Eye, Trash2, Image, Loader2, ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { AdminTableSkeleton } from './AdminTableSkeleton';
 import { CarFormDialog } from './CarFormDialog';
 import { RegistrationPlate } from './RegistrationPlate';
 import { VehiclePreviewSheet } from './VehiclePreviewSheet';
@@ -135,20 +136,7 @@ export const CarsManagement: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <Card className="card-premium">
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-muted rounded w-1/4" />
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-muted rounded" />
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <AdminTableSkeleton rows={6} columns={5} />;
   }
 
   return (

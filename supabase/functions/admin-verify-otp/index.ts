@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 const MAX_ATTEMPTS = 5;
+const OTP_PATTERN = /^[a-z0-9]{6}$/;
 
 const logStep = (step: string, details?: unknown) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
@@ -36,6 +37,42 @@ function timingSafeEqual(a: string, b: string): boolean {
   return mismatch === 0;
 }
 
+/**
+ * Returns a magiclink token for `email`, provisioning the auth user if it does
+ * not exist yet (seeded super admin, or an admin that was just added and has
+ * never signed in). Returns the hashed token + the resolved auth user id.
+ */
+// deno-lint-ignore no-explicit-any
+async function ensureTokenForEmail(
+  supabaseAdmin: any,
+  email: string
+): Promise<{ tokenHash: string; userId: string | null }> {
+  const generate = () =>
+    supabaseAdmin.auth.admin.generateLink({ type: "magiclink", email });
+
+  let { data, error } = await generate();
+
+  if (error) {
+    // Most likely the auth user doesn't exist yet — create it (email pre-confirmed,
+    // passwordless) then retry generating the sign-in token.
+    const { error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
+    if (createError && !/already|exists|registered/i.test(createError.message)) {
+      throw createError;
+    }
+    ({ data, error } = await generate());
+    if (error) throw error;
+  }
+
+  const tokenHash = data?.properties?.hashed_token;
+  if (!tokenHash) {
+    throw new Error("Failed to generate a sign-in token.");
+  }
+  return { tokenHash, userId: data?.user?.id ?? null };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -44,10 +81,10 @@ serve(async (req) => {
   try {
     const { email, otp } = await req.json();
     const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
-    const normalizedOtp = typeof otp === "string" ? otp.trim() : "";
+    const normalizedOtp = typeof otp === "string" ? otp.trim().toLowerCase() : "";
 
-    if (!normalizedEmail || !/^\d{4}$/.test(normalizedOtp)) {
-      return json({ success: false, reason: "invalid_request", message: "Please enter the 4-digit code." }, 400);
+    if (!normalizedEmail || !OTP_PATTERN.test(normalizedOtp)) {
+      return json({ success: false, reason: "invalid_request", message: "Please enter the 6-character code." }, 400);
     }
 
     const supabaseAdmin = createClient(
@@ -58,7 +95,7 @@ serve(async (req) => {
 
     const { data: adminUser, error: lookupError } = await supabaseAdmin
       .from("admin_users")
-      .select("id, email, is_active, otp_code_hash, otp_expires_at, otp_attempts")
+      .select("id, email, user_id, is_active, otp_code_hash, otp_expires_at, otp_attempts")
       .ilike("email", normalizedEmail)
       .maybeSingle();
 
@@ -104,21 +141,20 @@ serve(async (req) => {
       });
     }
 
+    // Correct code — clear it immediately so it can't be replayed.
     await supabaseAdmin
       .from("admin_users")
       .update({ otp_code_hash: null, otp_expires_at: null, otp_attempts: 0 })
       .eq("id", adminUser.id);
 
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: "magiclink",
-      email: adminUser.email,
-    });
+    const { tokenHash, userId } = await ensureTokenForEmail(supabaseAdmin, adminUser.email);
 
-    if (linkError) throw linkError;
-
-    const tokenHash = linkData?.properties?.hashed_token;
-    if (!tokenHash) {
-      throw new Error("Failed to generate a sign-in token.");
+    // Link the auth user id on first sign-in so RLS (auth.uid()) resolves directly.
+    if (userId && adminUser.user_id !== userId) {
+      await supabaseAdmin
+        .from("admin_users")
+        .update({ user_id: userId })
+        .eq("id", adminUser.id);
     }
 
     logStep("OTP verified, session token issued", { email: adminUser.email });

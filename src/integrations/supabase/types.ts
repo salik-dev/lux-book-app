@@ -28,6 +28,7 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
           user_id: string | null
+          username: string | null
         }
         Insert: {
           created_at?: string
@@ -42,6 +43,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id?: string | null
+          username?: string | null
         }
         Update: {
           created_at?: string
@@ -56,6 +58,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id?: string | null
+          username?: string | null
         }
         Relationships: []
       }
@@ -523,7 +526,7 @@ export type Database = {
         | "cancelled"
       payment_method: "stripe" | "vipps"
       payment_status: "pending" | "paid" | "refunded" | "failed"
-      user_role: "admin" | "operations" | "accountant"
+      user_role: "admin" | "operations" | "accountant" | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -660,7 +663,7 @@ export const Constants = {
       ],
       payment_method: ["stripe", "vipps"],
       payment_status: ["pending", "paid", "refunded", "failed"],
-      user_role: ["admin", "operations", "accountant"],
+      user_role: ["admin", "operations", "accountant", "super_admin"],
     },
   },
 } as const

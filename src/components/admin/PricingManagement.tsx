@@ -147,15 +147,13 @@ export const PricingManagement: React.FC = () => {
     return (
       <div className="space-y-6">
         {[...Array(2)].map((_, i) => (
-          <Card key={i} className="card-premium">
-            <CardContent className="p-6">
-              <div className="animate-pulse space-y-4">
-                <div className="h-4 bg-muted rounded w-1/4" />
-                <div className="space-y-2">
-                  {[...Array(3)].map((_, j) => (
-                    <div key={j} className="h-12 bg-muted rounded" />
-                  ))}
-                </div>
+          <Card key={i} className="card-premium bg-white">
+            <CardContent className="space-y-4 p-6">
+              <div className="admin-shimmer h-5 w-40 rounded-md" />
+              <div className="space-y-3">
+                {[...Array(3)].map((_, j) => (
+                  <div key={j} className="admin-shimmer h-12 rounded-md" />
+                ))}
               </div>
             </CardContent>
           </Card>

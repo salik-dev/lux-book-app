@@ -5,6 +5,7 @@ import { AdminOverview } from '@/components/admin/AdminOverview';
 import { BookingsManagement } from '@/components/admin/BookingsManagement';
 import { CarsManagement } from '@/components/admin/CarsManagement';
 import { CustomersManagement } from '@/components/admin/CustomersManagement';
+import { UsersManagement } from '@/components/admin/UsersManagement';
 import { PricingManagement } from '@/components/admin/PricingManagement';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,15 +20,16 @@ const SECTION_LABELS: Record<string, string> = {
   bookings: 'Bookings',
   cars: 'Fleet',
   customers: 'Customers',
+  users: 'User Management',
   pricing: 'Pricing',
   settings: 'Settings',
 };
 
 /** Tabs whose management component portals a search bar + action button(s) into the header. */
-const DATA_TABLE_TABS = new Set(['bookings', 'cars', 'customers']);
+const DATA_TABLE_TABS = new Set(['bookings', 'cars', 'customers', 'users']);
 
 const Admin = () => {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isAdmin, isSuperAdmin, loading } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('bookings');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -56,6 +58,13 @@ const Admin = () => {
       navigate('/');
     }
   }, [user, isAdmin, loading, navigate]);
+
+  // Guard the super-admin-only User Management tab against direct/stale access.
+  useEffect(() => {
+    if (activeTab === 'users' && !isSuperAdmin) {
+      setActiveTab('bookings');
+    }
+  }, [activeTab, isSuperAdmin]);
 
   if (loading) {
     return (
@@ -127,6 +136,12 @@ const Admin = () => {
             <TabsContent value="customers" className="step-enter-forward flex min-h-0 flex-1 flex-col">
               <CustomersManagement />
             </TabsContent>
+
+            {isSuperAdmin && (
+              <TabsContent value="users" className="step-enter-forward flex min-h-0 flex-1 flex-col">
+                <UsersManagement />
+              </TabsContent>
+            )}
 
             <TabsContent value="pricing" className="step-enter-forward space-y-6">
               <PricingManagement />
